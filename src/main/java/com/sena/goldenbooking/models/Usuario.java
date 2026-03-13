@@ -16,11 +16,10 @@ import lombok.NoArgsConstructor;
 
 public class Usuario {
     @Id
-    private String id;
-    private String nom;
-    private String ape;
-    private Documento doc;
-    private Direccion dir;
-    private String email;
+    private String id; //Id unico user(model)
+    private String nom; //Nombre unico user(model)
+    private String ape; //Apellido unico user(model)
+    private Documento doc; //Documento unico user(model)
+    private String email; //Correo unico user (model)
 
 }

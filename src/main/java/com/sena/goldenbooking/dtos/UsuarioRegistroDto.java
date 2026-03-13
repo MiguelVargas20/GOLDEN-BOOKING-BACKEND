@@ -1,7 +1,10 @@
 package com.sena.goldenbooking.dtos;
 
-import com.sena.goldenbooking.models.Direccion;
+import java.util.List;
+
+import com.fasterxml.jackson.annotation.JsonProperty;
 import com.sena.goldenbooking.models.Documento;
+import com.sena.goldenbooking.models.Rol;
 
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -13,12 +16,16 @@ import lombok.NoArgsConstructor;
 @Data
 @Builder
 
-public class UsuarioDto {
-    private String id;
+public class UsuarioRegistroDto {
     private String nombre;
     private String apellido;
     private Documento documento;
-    private Direccion direccion;
     private String email;
+    private String usuario;
+
+    @JsonProperty(access = JsonProperty.Access.WRITE_ONLY)
+    private String password;
+
+    private List<Rol> roles;
 
 }
