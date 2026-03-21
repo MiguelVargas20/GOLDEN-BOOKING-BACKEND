@@ -14,4 +14,6 @@ public interface UsuarioMapper {
 
     void actualizarUsuario(UsuarioDto usuarioDto, Usuario usuario); // Metodo para actualizar un usuario existente con
                                                                     // datos de UsuarioDto
+
+    void updateUsuario(UsuarioDto usuarioDto, Usuario usuario);
 }

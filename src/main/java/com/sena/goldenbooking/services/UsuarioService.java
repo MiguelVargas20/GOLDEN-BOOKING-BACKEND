@@ -23,4 +23,8 @@ public interface UsuarioService {
     UsuarioDto UsuarioByDocum(String docnum);
 
     UsuarioRegistroDto registrarUsuario(UsuarioRegistroDto dto);
+
+    UsuarioDto create(UsuarioDto usuarioDto);
+
+    UsuarioDto update(String id, UsuarioDto usuarioDto);
 }
