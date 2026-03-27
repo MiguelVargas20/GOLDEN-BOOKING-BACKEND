@@ -18,17 +18,17 @@ public class Reserva {
     @Id
     private String id;
     
-    private String usuarioId; // Referencia al ID del cliente que reserva
-    private LocalDateTime fechaReserva; // Cuándo se hizo la reserva
-    private EstadoReserva estado;
-    private TipoReserva tipo; // HOTELERA o DEPORRIVA
+    private String userId; // Referencia al ID del cliente que reserva
+    private LocalDateTime fechaR; // Cuándo se hizo la reserva
+    private EstadoReserva est;
+    private TipoReserva tip; // HOTELERA o DEPORRIVA
     
     // Estos campos son específicos pero conviven en el mismo documento NoSQL
-    private ReservaHotel detalleHotel;
-    private ReservaDeporte detalleDeporte;
+    private ReservaHotel detalleH;
+    private ReservaDeporte detalleD;
 
     // Campos comunes de auditoría
-    private LocalDateTime fechaInicio;
-    private LocalDateTime fechaFin;
-    private Double precioTotal;
+    private LocalDateTime fechaI;
+    private LocalDateTime fechaF;
+    private Double precioT;
 }

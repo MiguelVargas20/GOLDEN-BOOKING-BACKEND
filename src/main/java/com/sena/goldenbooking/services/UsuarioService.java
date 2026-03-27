@@ -13,7 +13,7 @@ public interface UsuarioService {
     List<UsuarioDto> ListUsuarios();
 
     //Actualizar usuario
-    UsuarioDto actualizarUsuario(String id, UsuarioDto usuarioDto);
+    UsuarioDto actualizarUsuarios(String id, UsuarioDto usuarioDto);
 
     //Eliminar usuario
     void delete(String docnum);
@@ -24,7 +24,6 @@ public interface UsuarioService {
 
     UsuarioRegistroDto registrarUsuario(UsuarioRegistroDto dto);
 
-    UsuarioDto create(UsuarioDto usuarioDto);
 
-    UsuarioDto update(String id, UsuarioDto usuarioDto);
+
 }

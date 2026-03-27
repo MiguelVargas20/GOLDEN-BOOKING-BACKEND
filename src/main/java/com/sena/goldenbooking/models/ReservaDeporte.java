@@ -5,7 +5,8 @@ import lombok.Data;
 @Data
 
 public class ReservaDeporte {
-    private String tipoHabitacion; // Suite, Doble, Simple
-    private Integer numeroPersonas;
-    private boolean incluyeDesayuno;
+    private String tipoCancha; // Tenis, Futbol, Squash
+    private String implementosAlquilados; // raquetas, balones
+    private boolean requiereEntrenador;
+
 }
