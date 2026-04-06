@@ -1,62 +1,68 @@
 package com.sena.goldenbooking.controllers;
 
-import com.sena.goldenbooking.dtos.UsuarioDto;
-import com.sena.goldenbooking.dtos.UsuarioRegistroDto;
-import com.sena.goldenbooking.services.UsuarioService;
+import java.util.List;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
-import java.util.List;
+import com.sena.goldenbooking.dtos.UsuarioDto;
+import com.sena.goldenbooking.dtos.UsuarioRegistroDto;
+import com.sena.goldenbooking.dtos.LoginDto;
+import com.sena.goldenbooking.dtos.LoginResponsiveDto;
+import com.sena.goldenbooking.services.UsuarioService;
+import com.sena.goldenbooking.services.AuthService;
 
+
+/* Controlador REST para gestionar usuarios (registro, login, listado) */
 @RestController
+
+// Base URL para todas las operaciones relacionadas con usuarios
 @RequestMapping("/api/usuarios")
-@CrossOrigin(origins = "*") // Ajusta según tus necesidades de CORS
+
+// Permitir peticiones desde cualquier origen para pruebas
+@CrossOrigin(origins = "*") // Permitir peticiones desde cualquier origen para pruebas
 public class UsuarioController {
 
+    // Inyectamos el servicio de usuario y el servicio de autenticación a través del constructor
     private final UsuarioService usuarioService;
+    private final AuthService authService;
 
-    public UsuarioController(UsuarioService usuarioService) {
+    
+    // Constructor para inyección de dependencias
+    public UsuarioController(UsuarioService usuarioService, AuthService authService) {
         this.usuarioService = usuarioService;
+        this.authService = authService;
     }
 
-    // --- ENDPOINTS DE CREACIÓN ---
-
-    @PostMapping
-    public ResponseEntity<UsuarioDto> crear(@RequestBody UsuarioDto usuarioDto) {
-        return new ResponseEntity<>(usuarioService.crearUsuario(usuarioDto), HttpStatus.CREATED);
-    }
-
+    // 1. REGISTRO (Crea Perfil + Auth)
     @PostMapping("/registro")
     public ResponseEntity<UsuarioRegistroDto> registrar(@RequestBody UsuarioRegistroDto registroDto) {
         return new ResponseEntity<>(usuarioService.registrarUsuario(registroDto), HttpStatus.CREATED);
     }
 
-    // --- ENDPOINTS DE LECTURA ---
+    
+    // 2. LOGIN
+    @PostMapping("/login")
+    public ResponseEntity<LoginResponsiveDto> login(@RequestBody LoginDto loginDto) {
+        return ResponseEntity.ok(authService.login(loginDto));
+    }
 
+    // 3. LISTAR TODOS
     @GetMapping
-    public ResponseEntity<List<UsuarioDto>> listarTodos() {
-        return ResponseEntity.ok(usuarioService.ListUsuarios());
+    public ResponseEntity<List<UsuarioDto>> listar() {
+        return ResponseEntity.ok(usuarioService.listarUsuarios());
     }
 
-    @GetMapping("/documento/{docnum}")
-    public ResponseEntity<UsuarioDto> buscarPorDocumento(@PathVariable String docnum) {
-        return ResponseEntity.ok(usuarioService.UsuarioByDocNum(docnum));
+    // 4. BUSCAR POR DOCUMENTO
+    @GetMapping("/documento/{doc}")
+    public ResponseEntity<UsuarioDto> obtenerPorDocumento(@PathVariable String doc) {
+        return ResponseEntity.ok(usuarioService.obtenerPorDocNum(doc));
     }
 
-    // --- ENDPOINTS DE ACTUALIZACIÓN ---
-
-@PutMapping("/documento/{docnum}")
-public ResponseEntity<UsuarioDto> actualizarPorDocumento(
-        @PathVariable String docnum, 
-        @RequestBody UsuarioDto usuarioDto) {
-    return ResponseEntity.ok(usuarioService.actualizarUsuarios(docnum, usuarioDto));
-}
-    // --- ENDPOINTS DE ELIMINACIÓN ---
-
+    // 5. ELIMINAR
     @DeleteMapping("/{id}")
     public ResponseEntity<Void> eliminar(@PathVariable String id) {
-        usuarioService.delete(id);
+        usuarioService.eliminarUsuario(id);
         return ResponseEntity.noContent().build();
     }
 }

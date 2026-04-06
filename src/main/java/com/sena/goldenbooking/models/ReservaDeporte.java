@@ -1,12 +1,17 @@
-package com.sena.goldenbooking.models;
+    package com.sena.goldenbooking.models;
+    
+    import lombok.Data;
 
-import lombok.Data;
+    @Data
 
-@Data
+    public class ReservaDeporte {
+        
+        private String id;
 
-public class ReservaDeporte {
-    private String tipoCancha; // Tenis, Futbol, Squash
-    private String implementosAlquilados; // raquetas, balones
-    private boolean requiereEntrenador;
+        private String tCancha; // Tenis, Futbol, Squash
 
-}
+        private String impleAlqul; // raquetas, balones
+
+        private boolean rquireEntrenador;
+
+    }

@@ -11,17 +11,20 @@ import java.time.LocalDateTime;
 @NoArgsConstructor
 @AllArgsConstructor
 
-@Document(collection = "reservas")
+@Document(collection = "reserva")
 
 
 public class Reserva {
     @Id
     private String id;
     
-    private String userId; // Referencia al ID del cliente que reserva
+    private String docUsuario; // Referencia al ID del cliente que reserva
+
     private LocalDateTime fechaR; // Cuándo se hizo la reserva
-    private EstadoReserva est;
-    private TipoReserva tip; // HOTELERA o DEPORRIVA
+
+    private EstadoReserva estR;
+
+    private TipoReserva tipR; // HOTELERA o DEPORRIVA
     
     // Estos campos son específicos pero conviven en el mismo documento NoSQL
     private ReservaHotel detalleH;
@@ -31,4 +34,5 @@ public class Reserva {
     private LocalDateTime fechaI;
     private LocalDateTime fechaF;
     private Double precioT;
+    
 }
