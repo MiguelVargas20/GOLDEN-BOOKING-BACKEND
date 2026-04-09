@@ -66,11 +66,9 @@ public class ReservaServiceImpl implements ReservaService {
     /* Método para filtrar reservas por estado (PENDIENTE, CONFIRMADA, CANCELADA) */
     @Override
     public List<ReservaDto> listarPorEstado(EstadoReserva estado) {
-
-        // Convertimos el Enum a String para el repositorio si es necesario
-        return reservaMapper.toDtoList(reservaRepo.findByEstadoRes(estado.name()));
+        // Ahora pasamos el Enum directamente
+        return reservaMapper.toDtoList(reservaRepo.findByEstadoRes(estado));
     }
-
     /* Método para obtener detalle de una reserva por su ID único */
     @Override
     public ReservaDto obtenerPorId(String id) {

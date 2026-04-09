@@ -1,6 +1,5 @@
 package com.sena.goldenbooking.dtos;
 
-import java.time.LocalDate;
 
 import lombok.AllArgsConstructor;
 import lombok.Builder;
