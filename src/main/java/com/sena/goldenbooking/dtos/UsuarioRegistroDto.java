@@ -24,7 +24,7 @@ public class UsuarioRegistroDto {
     private String apellido;
     private Documento documento; // Asegúrate que incluya tipo y numero
     private String telefono;
-    private String email; 
+    private String email;
     private Direccion direccion;
     private LocalDate fechaNacimiento;
     private EstadoUsuario estado; // "activo" por defecto

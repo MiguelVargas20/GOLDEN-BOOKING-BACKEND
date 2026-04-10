@@ -13,9 +13,7 @@ import java.util.stream.Collectors;
 @Component
 public class ReservaMapperImpl implements ReservaMapper {
 
-    /**
-     * Convierte de DTO a Modelo (Entidad para MongoDB)
-     */
+    @Override
     public Reserva toReserva(ReservaDto dto) {
         if (dto == null) return null;
 
@@ -29,32 +27,25 @@ public class ReservaMapperImpl implements ReservaMapper {
         reserva.setFechaF(dto.getFechaFin());
         reserva.setPrecioT(dto.getPrecioTotal());
 
-        // Lógica para objetos embebidos basada en el Tipo de Reserva
-        if (dto.getTipo() != null) {
-            if (dto.getTipo() == TipoReserva.HOTEL && dto.getDetalleHotel() != null) {
-                ReservaHotel hotel = new ReservaHotel();
-                hotel.setId(dto.getDetalleHotel().getId());
-                hotel.setDatosH(dto.getDetalleHotel().getDatosH());
-                reserva.setDetalleH(hotel);
-                reserva.setDetalleD(null); // Aseguramos que el otro detalle sea nulo
-            } 
-            else if (dto.getTipo() == TipoReserva.DEPORTE && dto.getDetalleDeporte() != null) {
-                ReservaDeporte deporte = new ReservaDeporte();
-                deporte.setId(dto.getDetalleDeporte().getId());
-                deporte.setTCancha(dto.getDetalleDeporte().getTCancha());
-                deporte.setImpleAlqul(dto.getDetalleDeporte().getImpleAlqul());
-                deporte.setRquireEntrenador(dto.getDetalleDeporte().isRquireEntrenador());
-                reserva.setDetalleD(deporte);
-                reserva.setDetalleH(null); // Aseguramos que el otro detalle sea nulo
-            }
+        if (dto.getTipo() == TipoReserva.HOTEL && dto.getDetalleHotel() != null) {
+            ReservaHotel hotel = new ReservaHotel();
+            hotel.setDatosH(dto.getDetalleHotel().getDatosH());
+            reserva.setDetalleH(hotel);
+            reserva.setDetalleD(null);
+
+        } else if (dto.getTipo() == TipoReserva.DEPORTE && dto.getDetalleDeporte() != null) {
+            ReservaDeporte deporte = new ReservaDeporte();
+            deporte.setTCancha(dto.getDetalleDeporte().getTCancha());
+            deporte.setImpleAlqul(dto.getDetalleDeporte().getImpleAlqul());
+            deporte.setRquireEntrenador(dto.getDetalleDeporte().isRquireEntrenador());
+            reserva.setDetalleD(deporte);
+            reserva.setDetalleH(null);
         }
 
         return reserva;
     }
 
-    /**
-     * Convierte de Modelo a DTO (Respuesta para el cliente)
-     */
+    @Override
     public ReservaDto toDto(Reserva reserva) {
         if (reserva == null) return null;
 
@@ -67,14 +58,13 @@ public class ReservaMapperImpl implements ReservaMapper {
         dto.setFechaInicio(reserva.getFechaI());
         dto.setFechaFin(reserva.getFechaF());
         dto.setPrecioTotal(reserva.getPrecioT());
-
-        // Mapeamos los detalles embebidos al DTO
         dto.setDetalleHotel(reserva.getDetalleH());
         dto.setDetalleDeporte(reserva.getDetalleD());
 
         return dto;
     }
 
+    @Override
     public List<ReservaDto> toDtoList(List<Reserva> reservas) {
         if (reservas == null) return null;
         return reservas.stream()
@@ -82,24 +72,20 @@ public class ReservaMapperImpl implements ReservaMapper {
                 .collect(Collectors.toList());
     }
 
-    /**
-     * Actualiza una reserva existente (Útil para PUT)
-     */
+    @Override
     public void actualizarReserva(ReservaDto dto, Reserva reserva) {
         if (dto == null || reserva == null) return;
 
-        // Actualizamos datos comunes
         reserva.setEstR(dto.getEstado());
         reserva.setFechaI(dto.getFechaInicio());
         reserva.setFechaF(dto.getFechaFin());
         reserva.setPrecioT(dto.getPrecioTotal());
 
-        // Actualización selectiva de los detalles anidados
         if (reserva.getTipR() == TipoReserva.HOTEL && dto.getDetalleHotel() != null) {
             if (reserva.getDetalleH() == null) reserva.setDetalleH(new ReservaHotel());
             reserva.getDetalleH().setDatosH(dto.getDetalleHotel().getDatosH());
-        } 
-        else if (reserva.getTipR() == TipoReserva.DEPORTE && dto.getDetalleDeporte() != null) {
+
+        } else if (reserva.getTipR() == TipoReserva.DEPORTE && dto.getDetalleDeporte() != null) {
             if (reserva.getDetalleD() == null) reserva.setDetalleD(new ReservaDeporte());
             reserva.getDetalleD().setTCancha(dto.getDetalleDeporte().getTCancha());
             reserva.getDetalleD().setImpleAlqul(dto.getDetalleDeporte().getImpleAlqul());

@@ -25,24 +25,18 @@ public class UsuarioServiceImpl implements UsuarioService {
     private final UsuarioMapper userMapper;
     private final PasswordEncoder passwordEncoder;
 
-    public UsuarioServiceImpl(UsuarioRepository userRepo, 
-                              UsuarioAuthRepository authRepo, 
-                              UsuarioMapper userMapper, 
-                              PasswordEncoder passwordEncoder) {
+    public UsuarioServiceImpl(UsuarioRepository userRepo,UsuarioAuthRepository authRepo,UsuarioMapper userMapper,PasswordEncoder passwordEncoder) {
         this.userRepo = userRepo;
         this.authRepo = authRepo;
         this.userMapper = userMapper;
         this.passwordEncoder = passwordEncoder;
     }
 
-    /**
-     * REGISTRO MAESTRO: Crea Perfil y Auth sincronizados por ID.
-     */
     @Override
-    @Transactional // Recomendado para asegurar que se creen ambos o ninguno
+    @Transactional
     public UsuarioRegistroDto registrarUsuario(UsuarioRegistroDto dto) {
-        
-        // 1. Validaciones previas
+
+        // Validaciones previas
         if (userRepo.existsByDocNum(dto.getDocumento().getNumeroD())) {
             throw new RuntimeException("El documento ya está registrado.");
         }
@@ -50,7 +44,7 @@ public class UsuarioServiceImpl implements UsuarioService {
             throw new RuntimeException("El nombre de usuario ya está en uso.");
         }
 
-        // 2. Crear y guardar el Perfil (Colección: Usuario)
+        // 1. Guardar perfil en colección UsuarioPerfil
         Usuario perfil = Usuario.builder()
                 .nomUsr(dto.getNombre())
                 .apellUsr(dto.getApellido())
@@ -60,25 +54,27 @@ public class UsuarioServiceImpl implements UsuarioService {
                 .dir(dto.getDireccion())
                 .fNac(dto.getFechaNacimiento())
                 .estado(dto.getEstado())
-                .fReg(LocalDateTime.now()) // Fecha automática de registro
+                .fReg(LocalDateTime.now())
                 .build();
 
-        // Al guardar, MongoDB genera el ID
         Usuario perfilGuardado = userRepo.save(perfil);
 
-        // 3. Crear y guardar las Credenciales (Colección: UsuarioAuth)
+        // 2. Guardar credenciales en colección UsuarioAuth con el mismo ID
         UsuarioAuth auth = new UsuarioAuth();
-        auth.setId(perfilGuardado.getId()); // ¡CLAVE!: Sincronización de IDs
+        auth.setId(perfilGuardado.getId());
         auth.setUser(dto.getUsername());
-        auth.setPwd(passwordEncoder.encode(dto.getPassword())); // Encriptación BCrypt
-        auth.setRls(List.of(Rol.ROL_CLIENTE)); // Rol por defecto
+        auth.setPwd(passwordEncoder.encode(dto.getPassword()));
+        // Si el DTO trae roles los usamos, si no, asignamos ROL_CLIENTE por defecto
+        auth.setRls(
+            (dto.getRoles() != null && !dto.getRoles().isEmpty())
+                ? dto.getRoles()
+                : List.of(Rol.ROL_CLIENTE)
+        );
 
         authRepo.save(auth);
 
         return dto;
     }
-
-    // --- MÉTODOS DE LECTURA ---
 
     @Override
     public List<UsuarioDto> listarUsuarios() {
@@ -106,14 +102,11 @@ public class UsuarioServiceImpl implements UsuarioService {
         return userRepo.existsByDocNum(docnum);
     }
 
-    // --- ACTUALIZACIÓN Y ELIMINACIÓN ---
-
     @Override
     public UsuarioDto actualizarUsuario(String id, UsuarioDto usuarioDto) {
         Usuario usuarioExistente = userRepo.findById(id)
                 .orElseThrow(() -> new RuntimeException("No existe usuario con ID: " + id));
 
-        // Actualizamos campos de perfil usando el mapper que ya creamos
         userMapper.actualizarUsuario(usuarioDto, usuarioExistente);
 
         return userMapper.toDto(userRepo.save(usuarioExistente));
@@ -125,8 +118,6 @@ public class UsuarioServiceImpl implements UsuarioService {
         if (!userRepo.existsById(id)) {
             throw new RuntimeException("ID no encontrado para eliminar.");
         }
-        
-        // Eliminamos de ambas colecciones para mantener la integridad
         userRepo.deleteById(id);
         if (authRepo.existsById(id)) {
             authRepo.deleteById(id);

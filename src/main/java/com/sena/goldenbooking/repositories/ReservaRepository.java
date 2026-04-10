@@ -1,17 +1,29 @@
 package com.sena.goldenbooking.repositories;
 
-import java.util.List;
-import org.springframework.data.mongodb.repository.MongoRepository;
-
-import com.sena.goldenbooking.models.EstadoReserva;
 import com.sena.goldenbooking.models.Reserva;
+import com.sena.goldenbooking.models.TipoReserva;
+import com.sena.goldenbooking.models.EstadoReserva;
+import org.springframework.data.mongodb.repository.MongoRepository;
+import org.springframework.data.mongodb.repository.Query;
+
+import java.util.List;
 
 public interface ReservaRepository extends MongoRepository<Reserva, String> {
 
-    /** Lista reservas de un cliente específico */
+    // Todas las reservas de un usuario por su documento
     List<Reserva> findByDocUsuario(String docUsuario);
 
-    /** Lista reservas por estado */
+    // Filtrar por tipo: HOTELERA o DEPORTIVA
+    List<Reserva> findByTipR(TipoReserva tipo);
 
-    List<Reserva> findByEstadoRes(EstadoReserva estR); // Cambiado String por el Enum
+    // Filtrar por estado: PENDIENTE, CONFIRMADA, CANCELADA
+    List<Reserva> findByEstR(EstadoReserva estado);
+
+    // Reservas deportivas de un usuario específico
+    @Query("{ 'docUsuario': ?0, 'tipR': 'DEPORTIVA' }")
+    List<Reserva> findReservasDeportivasByUsuario(String docUsuario);
+
+    // Reservas hoteleras de un usuario específico
+    @Query("{ 'docUsuario': ?0, 'tipR': 'HOTELERA' }")
+    List<Reserva> findReservasHotelarasByUsuario(String docUsuario);
 }

@@ -1,65 +1,57 @@
 package com.sena.goldenbooking.controllers;
 
 import java.util.List;
+
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import com.sena.goldenbooking.dtos.UsuarioDto;
 import com.sena.goldenbooking.dtos.UsuarioRegistroDto;
-import com.sena.goldenbooking.dtos.LoginDto;
-import com.sena.goldenbooking.dtos.LoginResponsiveDto;
 import com.sena.goldenbooking.services.UsuarioService;
-import com.sena.goldenbooking.services.AuthService;
 
-
-/* Controlador REST para gestionar usuarios (registro, login, listado) */
 @RestController
-
-// Base URL para todas las operaciones relacionadas con usuarios
 @RequestMapping("/api/usuarios")
-
-// Permitir peticiones desde cualquier origen para pruebas
-@CrossOrigin(origins = "*") // Permitir peticiones desde cualquier origen para pruebas
 public class UsuarioController {
 
-    // Inyectamos el servicio de usuario y el servicio de autenticación a través del constructor
     private final UsuarioService usuarioService;
-    private final AuthService authService;
 
-    
-    // Constructor para inyección de dependencias
-    public UsuarioController(UsuarioService usuarioService, AuthService authService) {
+    public UsuarioController(UsuarioService usuarioService) {
         this.usuarioService = usuarioService;
-        this.authService = authService;
     }
 
-    // 1. REGISTRO (Crea Perfil + Auth)
+    // POST /api/usuarios/registro
     @PostMapping("/registro")
-    public ResponseEntity<UsuarioRegistroDto> registrar(@RequestBody UsuarioRegistroDto registroDto) {
-        return new ResponseEntity<>(usuarioService.registrarUsuario(registroDto), HttpStatus.CREATED);
+    public ResponseEntity<UsuarioRegistroDto> registrar(@RequestBody UsuarioRegistroDto dto) {
+        UsuarioRegistroDto resultado = usuarioService.registrarUsuario(dto);
+        return ResponseEntity.status(HttpStatus.CREATED).body(resultado);
     }
 
-    
-    // 2. LOGIN
-    @PostMapping("/login")
-    public ResponseEntity<LoginResponsiveDto> login(@RequestBody LoginDto loginDto) {
-        return ResponseEntity.ok(authService.login(loginDto));
-    }
-
-    // 3. LISTAR TODOS
+    // GET /api/usuarios
     @GetMapping
     public ResponseEntity<List<UsuarioDto>> listar() {
         return ResponseEntity.ok(usuarioService.listarUsuarios());
     }
 
-    // 4. BUSCAR POR DOCUMENTO
-    @GetMapping("/documento/{doc}")
-    public ResponseEntity<UsuarioDto> obtenerPorDocumento(@PathVariable String doc) {
-        return ResponseEntity.ok(usuarioService.obtenerPorDocNum(doc));
+    // GET /api/usuarios/{id}
+    @GetMapping("/{id}")
+    public ResponseEntity<UsuarioDto> obtenerPorId(@PathVariable String id) {
+        return ResponseEntity.ok(usuarioService.obtenerPorId(id));
     }
 
-    // 5. ELIMINAR
+    // GET /api/usuarios/doc/{docNum}
+    @GetMapping("/doc/{docNum}")
+    public ResponseEntity<UsuarioDto> obtenerPorDoc(@PathVariable String docNum) {
+        return ResponseEntity.ok(usuarioService.obtenerPorDocNum(docNum));
+    }
+
+    // PUT /api/usuarios/{id}
+    @PutMapping("/{id}")
+    public ResponseEntity<UsuarioDto> actualizar(@PathVariable String id,@RequestBody UsuarioDto dto) {
+        return ResponseEntity.ok(usuarioService.actualizarUsuario(id, dto));
+    }
+
+    // DELETE /api/usuarios/{id}
     @DeleteMapping("/{id}")
     public ResponseEntity<Void> eliminar(@PathVariable String id) {
         usuarioService.eliminarUsuario(id);
