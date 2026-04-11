@@ -6,13 +6,11 @@ import com.sena.goldenbooking.dtos.UsuarioDto;
 import com.sena.goldenbooking.models.Usuario;
 
 public interface UsuarioMapper {
-    Usuario toUsuario(UsuarioDto usuarioDto); // Metodo para convertir de Dto a Usuario(modelo)
+    Usuario toUsuario(UsuarioDto usuarioDto); 
 
-    UsuarioDto toDto(Usuario usuario); // Metodo para convertir Usuario(modelo) a Dto
+    UsuarioDto toDto(Usuario usuario); 
 
-    List<UsuarioDto> toDtoList(List<Usuario> usuarios); // Metodo para converitr Lista de Dtos a Lista de Usuari(Modelo)
+    List<UsuarioDto> toDtoList(List<Usuario> usuarios); 
 
-    void actualizarUsuario(UsuarioDto usuarioDto, Usuario usuario); // Metodo para actualizar un usuario existente con
-                                                                    // datos de UsuarioDto
-
+    void actualizarUsuario(UsuarioDto usuarioDto, Usuario usuario);
 }

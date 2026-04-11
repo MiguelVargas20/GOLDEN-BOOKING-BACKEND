@@ -1,10 +1,8 @@
 package com.sena.goldenbooking.mapper;
 
 import java.util.List;
-import java.util.stream.Collectors;
 
 import org.springframework.stereotype.Component;
-
 import com.sena.goldenbooking.dtos.UsuarioDto;
 import com.sena.goldenbooking.models.Usuario;
 
@@ -19,11 +17,16 @@ public class UsuarioMapperImpl implements UsuarioMapper {
 
         return Usuario.builder()
                 .id(usuarioDto.getId())
-                .nom(usuarioDto.getNombre())
-                .ape(usuarioDto.getApellido())
-                .doc(usuarioDto.getDocumento())
-                .email(usuarioDto.getEmail())
-                // Agrega aquí otros campos como password, telefono, etc.
+                .nomUsr(usuarioDto.getNombre())
+                .apellUsr(usuarioDto.getApellido())
+                // Asumiendo que el DTO trae los objetos Documento y Direccion
+                .docId(usuarioDto.getDocumento()) 
+                .correo(usuarioDto.getEmail())
+                .tel(usuarioDto.getTelefono())
+                .fNac(usuarioDto.getFechaNacimiento())
+                .dir(usuarioDto.getDireccion())
+                .estado(usuarioDto.getEstado())
+                .fReg(usuarioDto.getFechaRegistro())
                 .build();
     }
 
@@ -35,10 +38,15 @@ public class UsuarioMapperImpl implements UsuarioMapper {
 
         return UsuarioDto.builder()
                 .id(usuario.getId())
-                .nombre(usuario.getNom())
-                .apellido(usuario.getApe())
-                .documento(usuario.getDoc())
-                .email(usuario.getEmail())
+                .nombre(usuario.getNomUsr())
+                .apellido(usuario.getApellUsr())
+                .documento(usuario.getDocId())
+                .email(usuario.getCorreo())
+                .telefono(usuario.getTel())
+                .direccion(usuario.getDir())
+                .fechaNacimiento(usuario.getFNac())
+                .estado(usuario.getEstado())
+                .fechaRegistro(usuario.getFReg())
                 .build();
     }
 
@@ -49,7 +57,7 @@ public class UsuarioMapperImpl implements UsuarioMapper {
         }
         return usuarios.stream()
                 .map(this::toDto)
-                .collect(Collectors.toList());
+                .toList(); // En Java 16+ es más limpio que collect(Collectors.toList())
     }
 
     @Override
@@ -58,11 +66,16 @@ public class UsuarioMapperImpl implements UsuarioMapper {
             throw new IllegalArgumentException("El usuario o el DTO no pueden ser nulos");
         }
 
-        // Actualización de campos manual
-        usuario.setNom(usuarioDto.getNombre());
-        usuario.setApe(usuarioDto.getApellido());
-        usuario.setDoc(usuarioDto.getDocumento());
-        usuario.setEmail(usuarioDto.getEmail());
-        // No solemos actualizar el ID ni la contraseña aquí por seguridad
+        // Actualización de campos siguiendo los nombres del modelo Usuario
+        usuario.setNomUsr(usuarioDto.getNombre());
+        usuario.setApellUsr(usuarioDto.getApellido());
+        usuario.setCorreo(usuarioDto.getEmail());
+        usuario.setTel(usuarioDto.getTelefono());
+        usuario.setDir(usuarioDto.getDireccion());
+        usuario.setDocId(usuarioDto.getDocumento());
+        usuario.setFNac(usuarioDto.getFechaNacimiento());
+        usuario.setEstado(usuarioDto.getEstado());
+        
+        // El ID y la fecha de registro (fReg) normalmente no se actualizan
     }
 }

@@ -15,6 +15,7 @@ import lombok.NoArgsConstructor;
 
 public class UsuarioAuthDto {
     private String id;
+    
     private String usuario;
 
     //La contraseña solo se escribe, no se lee en respuesta JSON

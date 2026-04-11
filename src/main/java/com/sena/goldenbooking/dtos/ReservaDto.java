@@ -18,7 +18,7 @@ import java.time.LocalDateTime;
 public class ReservaDto {
     
     private String id;
-    private String usuarioId;
+    private String documentoUsuario; // Referencia al documento del usuario que hizo la reserva
     private LocalDateTime fechaReserva;
     private EstadoReserva estado;
     private TipoReserva tipo;

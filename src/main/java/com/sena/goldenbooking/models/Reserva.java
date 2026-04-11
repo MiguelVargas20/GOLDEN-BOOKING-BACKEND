@@ -1,34 +1,36 @@
 package com.sena.goldenbooking.models;
 
 import lombok.AllArgsConstructor;
+import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 import org.springframework.data.annotation.Id;
 import org.springframework.data.mongodb.core.mapping.Document;
 import java.time.LocalDateTime;
 
+@Document(collection = "Reserva")
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
-
-@Document(collection = "reservas")
-
-
+@Builder
 public class Reserva {
+
     @Id
     private String id;
-    
-    private String userId; // Referencia al ID del cliente que reserva
-    private LocalDateTime fechaR; // Cuándo se hizo la reserva
-    private EstadoReserva est;
-    private TipoReserva tip; // HOTELERA o DEPORRIVA
-    
-    // Estos campos son específicos pero conviven en el mismo documento NoSQL
+
+    private String docUsuario;      // Documento del cliente que reserva
+
+    private LocalDateTime fechaR;   // Cuándo se hizo la reserva
+
+    private EstadoReserva estR;     // PENDIENTE, CONFIRMADA, CANCELADA
+
+    private TipoReserva tipR;       // HOTELERA, DEPORTIVA
+
+    // Solo uno de estos dos tendrá valor según tipR
     private ReservaHotel detalleH;
     private ReservaDeporte detalleD;
 
-    // Campos comunes de auditoría
-    private LocalDateTime fechaI;
-    private LocalDateTime fechaF;
-    private Double precioT;
+    private LocalDateTime fechaI;   // Fecha inicio
+    private LocalDateTime fechaF;   // Fecha fin
+    private Double precioT;         // Precio total
 }

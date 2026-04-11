@@ -1,17 +1,17 @@
 package com.sena.goldenbooking.controllers;
 
-import com.sena.goldenbooking.dtos.UsuarioDto;
-import com.sena.goldenbooking.dtos.UsuarioRegistroDto;
-import com.sena.goldenbooking.services.UsuarioService;
+import java.util.List;
+
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
-import java.util.List;
+import com.sena.goldenbooking.dtos.UsuarioDto;
+import com.sena.goldenbooking.dtos.UsuarioRegistroDto;
+import com.sena.goldenbooking.services.UsuarioService;
 
 @RestController
 @RequestMapping("/api/usuarios")
-@CrossOrigin(origins = "*") // Ajusta según tus necesidades de CORS
 public class UsuarioController {
 
     private final UsuarioService usuarioService;
@@ -20,43 +20,41 @@ public class UsuarioController {
         this.usuarioService = usuarioService;
     }
 
-    // --- ENDPOINTS DE CREACIÓN ---
-
-    @PostMapping
-    public ResponseEntity<UsuarioDto> crear(@RequestBody UsuarioDto usuarioDto) {
-        return new ResponseEntity<>(usuarioService.crearUsuario(usuarioDto), HttpStatus.CREATED);
-    }
-
+    // POST /api/usuarios/registro
     @PostMapping("/registro")
-    public ResponseEntity<UsuarioRegistroDto> registrar(@RequestBody UsuarioRegistroDto registroDto) {
-        return new ResponseEntity<>(usuarioService.registrarUsuario(registroDto), HttpStatus.CREATED);
+    public ResponseEntity<UsuarioRegistroDto> registrar(@RequestBody UsuarioRegistroDto dto) {
+        UsuarioRegistroDto resultado = usuarioService.registrarUsuario(dto);
+        return ResponseEntity.status(HttpStatus.CREATED).body(resultado);
     }
 
-    // --- ENDPOINTS DE LECTURA ---
-
+    // GET /api/usuarios
     @GetMapping
-    public ResponseEntity<List<UsuarioDto>> listarTodos() {
-        return ResponseEntity.ok(usuarioService.ListUsuarios());
+    public ResponseEntity<List<UsuarioDto>> listar() {
+        return ResponseEntity.ok(usuarioService.listarUsuarios());
     }
 
-    @GetMapping("/documento/{docnum}")
-    public ResponseEntity<UsuarioDto> buscarPorDocumento(@PathVariable String docnum) {
-        return ResponseEntity.ok(usuarioService.UsuarioByDocNum(docnum));
+    // GET /api/usuarios/{id}
+    @GetMapping("/{id}")
+    public ResponseEntity<UsuarioDto> obtenerPorId(@PathVariable String id) {
+        return ResponseEntity.ok(usuarioService.obtenerPorId(id));
     }
 
-    // --- ENDPOINTS DE ACTUALIZACIÓN ---
+    // GET /api/usuarios/doc/{docNum}
+    @GetMapping("/doc/{docNum}")
+    public ResponseEntity<UsuarioDto> obtenerPorDoc(@PathVariable String docNum) {
+        return ResponseEntity.ok(usuarioService.obtenerPorDocNum(docNum));
+    }
 
-@PutMapping("/documento/{docnum}")
-public ResponseEntity<UsuarioDto> actualizarPorDocumento(
-        @PathVariable String docnum, 
-        @RequestBody UsuarioDto usuarioDto) {
-    return ResponseEntity.ok(usuarioService.actualizarUsuarios(docnum, usuarioDto));
-}
-    // --- ENDPOINTS DE ELIMINACIÓN ---
+    // PUT /api/usuarios/{id}
+    @PutMapping("/{id}")
+    public ResponseEntity<UsuarioDto> actualizar(@PathVariable String id,@RequestBody UsuarioDto dto) {
+        return ResponseEntity.ok(usuarioService.actualizarUsuario(id, dto));
+    }
 
+    // DELETE /api/usuarios/{id}
     @DeleteMapping("/{id}")
     public ResponseEntity<Void> eliminar(@PathVariable String id) {
-        usuarioService.delete(id);
+        usuarioService.eliminarUsuario(id);
         return ResponseEntity.noContent().build();
     }
 }

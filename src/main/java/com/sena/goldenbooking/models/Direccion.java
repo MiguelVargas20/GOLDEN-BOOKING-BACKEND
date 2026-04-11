@@ -6,10 +6,14 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 
 @Data
-@AllArgsConstructor
 @NoArgsConstructor
+@AllArgsConstructor
 @Builder
-public class ReservaHotel {
 
-    private Habitacion datosH; // Suite, Doble, Simple
+public class Direccion {
+    private String cll;
+    private String crr;
+    private String cd;
+    private String ps;
+
 }
