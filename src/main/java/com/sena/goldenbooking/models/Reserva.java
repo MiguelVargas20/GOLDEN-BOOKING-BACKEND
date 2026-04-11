@@ -17,20 +17,18 @@ public class Reserva {
 
     @Id
     private String id;
+        
+    private String docUsuario;
 
-    private String docUsuario;      // Documento del cliente que reserva
+    private TipoReserva tipo;           // HOTEL o DEPORTE
 
-    private LocalDateTime fechaR;   // Cuándo se hizo la reserva
+    private EstadoReserva estado;       // PENDIENTE, CONFIRMADA, CANCELADA
 
-    private EstadoReserva estR;     // PENDIENTE, CONFIRMADA, CANCELADA
+    private LocalDateTime fechaReserva; // cuándo se creó
 
-    private TipoReserva tipR;       // HOTELERA, DEPORTIVA
+    private LocalDateTime fechaInicio;
 
-    // Solo uno de estos dos tendrá valor según tipR
-    private ReservaHotel detalleH;
-    private ReservaDeporte detalleD;
-
-    private LocalDateTime fechaI;   // Fecha inicio
-    private LocalDateTime fechaF;   // Fecha fin
-    private Double precioT;         // Precio total
+    private LocalDateTime fechaFin;
+    
+    private Double precioTotal;       // Precio total
 }
