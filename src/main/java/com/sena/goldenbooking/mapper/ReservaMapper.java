@@ -1,22 +1,20 @@
 package com.sena.goldenbooking.mapper;
 
 import java.util.List;
-
 import com.sena.goldenbooking.dtos.ReservaDto;
 import com.sena.goldenbooking.models.Reserva;
 
 public interface ReservaMapper {
 
-    /* Convertir DTO a modelo */
+    // Mapeo entre Reserva y ReservaDto
     Reserva toReserva(ReservaDto dto);
 
-    /* Convertir modelo a DTO */
+    // Mapeo de Reserva a ReservaDto
     ReservaDto toDto(Reserva reserva);
 
-    /* Convertir una lista de modelos a una lista de DTOs */
+    // Mapeo de lista de Reservas a lista de ReservaDtos
     List<ReservaDto> toDtoList(List<Reserva> reservas);
 
-    /* Actualizar una reserva con los datos del DTO */
+    // Actualizar una Reserva existente con datos de un ReservaDto
     void actualizarReserva(ReservaDto dto, Reserva reserva);
 }
-

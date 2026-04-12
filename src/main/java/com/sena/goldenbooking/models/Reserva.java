@@ -18,7 +18,7 @@ public class Reserva {
     @Id
     private String id;
         
-    private String docUsuario;
+    private String documentoUsuario;
 
     private TipoReserva tipo;           // HOTEL o DEPORTE
 
@@ -30,5 +30,5 @@ public class Reserva {
 
     private LocalDateTime fechaFin;
     
-    private Double precioTotal;       // Precio total
+    private Double precioTotal;       // Precio total   
 }

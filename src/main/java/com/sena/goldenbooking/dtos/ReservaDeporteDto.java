@@ -1,23 +1,37 @@
 package com.sena.goldenbooking.dtos;
 
+import java.time.LocalDateTime;
+
+import com.sena.goldenbooking.models.EstadoReserva;
+
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
-@Data
-@NoArgsConstructor
-@AllArgsConstructor
-@Builder
+// ReservaDeporteDto.java
+@Data @NoArgsConstructor @AllArgsConstructor @Builder
+
 
 public class ReservaDeporteDto {
+
+    private String idD;
+
+    private String docUsuario;         // ← agregado
+
+    private String tCancha;
+
+    private String implAlquilados;
+
+    private boolean rqrEntrenador;
+
+    private LocalDateTime fInicioReserva;
     
-    private String id;
+    private LocalDateTime fFinReserva;
+    
+    private Double pr;
 
-    private String tipoCancha; // Tenis, Futbol, Squash
+    private EstadoReserva estado;      // ← agregado
 
-    private String implementosAlquilados; // raquetas, balones
-
-    private boolean requiereEntrenador;
-
+    private LocalDateTime fReserva;    // ← agregado
 }

@@ -15,32 +15,54 @@ import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 @Configuration
 public class SecurityConfig {
 
-    // Exponer AuthenticationManager para que pueda ser inyectado en AuthService
+    // Configura el AuthenticationManager para manejar la autenticación
     @Bean
     public AuthenticationManager authenticationManager(AuthenticationConfiguration config) throws Exception {
         return config.getAuthenticationManager();
     }
 
-    // Configuración de seguridad HTTP
+    // Configura la cadena de filtros de seguridad, definiendo las reglas de acceso a las rutas
     @Bean
-    public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
 
-        // Configuración CORS y CSRF
+    // Configura la seguridad HTTP, incluyendo CORS, CSRF y las reglas de autorización
+    public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
         http
-            .cors(cors -> {}) // usa el bean corsConfigurationSource automáticamente
+            .cors(cors -> {})
             .csrf(csrf -> csrf.disable())
             .authorizeHttpRequests(auth -> auth
-                // Preflight del navegador — siempre debe pasar libre
+
+                // Preflight siempre libre
                 .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
 
                 // ── Rutas públicas ──────────────────────────────────────
                 .requestMatchers(
-                    "/auth/**",                      // login / registro de tokens
-                    "/api/usuarios/registrar",       // registro nuevo usuario
-                    "/api/usuarios",                 // listar (si quieres que sea público)
-                    "/api/usuarios/**",              // detalle usuario
-                    "/api/servicios/crear",          // crear servicio (ajusta si debe ser privado)
-                    "/api/servicios/categorias"      // catálogo público
+                    // Auth
+                    "/auth/**",
+
+                    // Usuarios
+                    "/api/usuarios/registrar",
+                    "/api/usuarios",
+                    "/api/usuarios/**",
+
+                    // Habitaciones — público para testear
+                    "/api/habitaciones/**",
+
+                    // Reservas general — público para testear
+                    "/api/reservas",
+                    "/api/reservas/**",
+
+                    // Reservas hotel — público para testear
+                    "/api/reservas/hotel",
+                    "/api/reservas/hotel/",
+                    "/api/reservas/hotel/**",
+
+                    // Reservas deporte — público para testear
+                    "/api/reservas/deporte",
+                    "/api/reservas/deporte/",
+                    "/api/reservas/deporte/**",
+
+                    // Test JWT
+                    "/test/**"
                 ).permitAll()
 
                 // ── Todo lo demás requiere JWT ──────────────────────────
@@ -50,12 +72,12 @@ public class SecurityConfig {
         return http.build();
     }
 
-    // Configuración CORS para permitir solicitudes desde el frontend React
+
+    // Configura CORS para permitir solicitudes desde el frontend (ej. localhost:5173)
     @Bean
+    
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration config = new CorsConfiguration();
-
-        // Cambia el puerto si tu React corre en otro
         config.setAllowedOrigins(List.of("http://localhost:5173"));
         config.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE", "OPTIONS"));
         config.setAllowedHeaders(List.of("*"));

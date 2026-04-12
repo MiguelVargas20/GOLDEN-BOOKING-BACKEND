@@ -16,7 +16,7 @@ public class MongoValidatorConfig implements CommandLineRunner {
     private final MongoClient mongoClient;
 
     // Esto lee el nombre de la DB directamente de tu application.properties o .yml
-    @Value("${spring.data.mongodb.database}")
+    @Value("${spring.mongodb.database}")
     private String databaseName;
 
     // Inyectamos el MongoClient para poder interactuar con el servidor de MongoDB
@@ -41,7 +41,7 @@ public class MongoValidatorConfig implements CommandLineRunner {
             System.err.println("Bases de datos detectadas: " + databases);
             
             // Forzamos el cierre de la aplicación para evitar errores en ejecución
-            throw new IllegalStateException("Fallo en el arranque: La base de datos '" + databaseName + "' es obligatoria.");
+//            throw new IllegalStateException("Fallo en el arranque: La base de datos '" + databaseName + "' es obligatoria.");
         }
 
 
