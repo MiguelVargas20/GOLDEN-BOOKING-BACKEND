@@ -43,6 +43,7 @@ public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
             // ── Públicas ────────────────────────────────────────────
             .requestMatchers(
                 "/auth/**",
+                "/auth/recuperar-password",
                 "/api/usuarios/registro",
                 "/test/**"
             ).permitAll()

@@ -33,9 +33,9 @@ public class ReservaDeporteMapperImpl implements ReservaDeporteMapper {
     public ReservaDeporteDto toDto(ReservaDeporte rd) {
         if (rd == null) return null;
 
-        // Usamos el patrón builder para crear una instancia de ReservaDeporteDto a partir de ReservaDeporte
         return ReservaDeporteDto.builder()
                 .idD(rd.getIdReservaDeporte())
+                .docUsuario(rd.getDocUsuario())      // ← esta línea faltaba
                 .tCancha(rd.getTipoCancha())
                 .implAlquilados(rd.getImplementosAlquilados())
                 .rqrEntrenador(rd.isRequiereEntrenador())
@@ -44,8 +44,6 @@ public class ReservaDeporteMapperImpl implements ReservaDeporteMapper {
                 .pr(rd.getPrecio())
                 .build();
     }
-
-
     // Mapeo de lista de ReservaDeporte a lista de ReservaDeporteDto
     @Override
     public List<ReservaDeporteDto> toDtoList(List<ReservaDeporte> lista) {

@@ -72,6 +72,7 @@ public class ReservaDeporteServiceImpl implements ReservaDeporteService {
         // Crear ReservaDeporte
         ReservaDeporte reservaDeporte = ReservaDeporte.builder()
                 .idReserva(reservaGuardada.getId())
+                .docUsuario(dto.getDocUsuario())      // ← agregar
                 .tipoCancha(dto.getTCancha())
                 .implementosAlquilados(dto.getImplAlquilados())
                 .requiereEntrenador(dto.isRqrEntrenador())

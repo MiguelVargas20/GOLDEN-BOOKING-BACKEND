@@ -24,6 +24,8 @@ public class ReservaDeporte {
 
     private String idReserva;        // referencia a Reserva padre
 
+    private String docUsuario;  // ← agregar
+
     private String tipoCancha;
 
     private String implementosAlquilados;

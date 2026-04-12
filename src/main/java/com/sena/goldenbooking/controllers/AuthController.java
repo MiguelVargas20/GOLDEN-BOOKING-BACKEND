@@ -7,6 +7,7 @@ import java.util.Map;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.web.bind.annotation.*;
 
 import com.sena.goldenbooking.dtos.LoginDto;
@@ -27,21 +28,23 @@ public class AuthController {
     private final AuthenticationManager authManager;
     private final UsuarioAuthRepository authRepo;
     private final UsuarioRepository usuarioRepo;
+    private final PasswordEncoder passwordEncoder; // ← agregado
 
     public AuthController(
             JwtService jwtService,
             AuthenticationManager authManager,
             UsuarioAuthRepository authRepo,
-            UsuarioRepository usuarioRepo) {
+            UsuarioRepository usuarioRepo,
+            PasswordEncoder passwordEncoder) { // ← agregado
         this.jwtService = jwtService;
         this.authManager = authManager;
         this.authRepo = authRepo;
         this.usuarioRepo = usuarioRepo;
+        this.passwordEncoder = passwordEncoder; // ← agregado
     }
 
-    // POST /auth/login
     @PostMapping("/login")
-        public ResponseEntity<Map<String, Object>> login(@Valid @RequestBody LoginDto dto) {
+    public ResponseEntity<Map<String, Object>> login(@Valid @RequestBody LoginDto dto) {
 
         authManager.authenticate(
                 new UsernamePasswordAuthenticationToken(dto.getUsername(), dto.getPassword()));
@@ -76,5 +79,41 @@ public class AuthController {
         );
 
         return ResponseEntity.ok(respuesta);
-     }
+    }
+
+    @PostMapping("/recuperar-password")
+        public ResponseEntity<Map<String, Object>> recuperarPassword(@RequestBody Map<String, String> body) {
+        String username = body.get("username");
+        String passwordAntigua = body.get("passwordAntigua");
+        String nuevaPassword = body.get("nuevaPassword");
+
+        if (username == null || passwordAntigua == null || nuevaPassword == null || nuevaPassword.isBlank()) {
+                return ResponseEntity.badRequest().body(Map.of(
+                "error", "Todos los campos son obligatorios"
+                ));
+        }
+
+        UsuarioAuth auth = authRepo.findByUser(username)
+                .orElseThrow(() -> new RuntimeException("Usuario no encontrado"));
+
+        // ← Verificar contraseña antigua
+        if (!passwordEncoder.matches(passwordAntigua, auth.getPwd())) {
+                return ResponseEntity.badRequest().body(Map.of(
+                "error", "La contraseña actual es incorrecta"
+                ));
+        }
+
+        if (nuevaPassword.length() < 6) {
+                return ResponseEntity.badRequest().body(Map.of(
+                "error", "La nueva contraseña debe tener mínimo 6 caracteres"
+                ));
+        }
+
+        auth.setPwd(passwordEncoder.encode(nuevaPassword));
+        authRepo.save(auth);
+
+        return ResponseEntity.ok(Map.of(
+                "mensaje", "Contraseña actualizada correctamente"
+        ));
+        };
 }
