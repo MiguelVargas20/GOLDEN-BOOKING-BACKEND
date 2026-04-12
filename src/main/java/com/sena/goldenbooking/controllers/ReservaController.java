@@ -7,6 +7,8 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import com.sena.goldenbooking.dtos.ReservaDto;
+import com.sena.goldenbooking.models.EstadoReserva;
+import com.sena.goldenbooking.models.TipoReserva;
 import com.sena.goldenbooking.services.ReservaService;
 
 @RestController
@@ -48,6 +50,20 @@ public class ReservaController {
     public ResponseEntity<ReservaDto> actualizar(@PathVariable String id,@RequestBody ReservaDto dto) {
         return ResponseEntity.ok(reservaService.actualizarReserva(id, dto));
     }
+    
+    // GET /api/reservas/estado/{estado}
+    @GetMapping("/estado/{estado}")
+    public ResponseEntity<List<ReservaDto>> obtenerPorEstado(@PathVariable EstadoReserva estado) {
+        return ResponseEntity.ok(reservaService.obtenerPorEstado(estado));
+    }
+
+    // GET /api/reservas/usuario/{docUsuario}/tipo/{tipo}
+    @GetMapping("/usuario/{docUsuario}/tipo/{tipo}")
+    public ResponseEntity<List<ReservaDto>> obtenerPorUsuarioYTipo(
+            @PathVariable String docUsuario,
+            @PathVariable TipoReserva tipo) {
+        return ResponseEntity.ok(reservaService.obtenerPorUsuarioYTipo(docUsuario, tipo));
+}
 
     // PATCH /api/reservas/{id}/cancelar
     @PatchMapping("/{id}/cancelar")

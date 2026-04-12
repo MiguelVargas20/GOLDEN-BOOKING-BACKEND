@@ -20,6 +20,7 @@ public class ReservaDto {
     
     private String idR;
 
+    
     private String docUsuario; // Referencia al documento del usuario que hizo la reserva
 
     private LocalDateTime fReserva;

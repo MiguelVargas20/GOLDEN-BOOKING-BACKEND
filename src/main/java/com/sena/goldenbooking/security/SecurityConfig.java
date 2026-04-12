@@ -8,12 +8,20 @@ import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.config.annotation.authentication.configuration.AuthenticationConfiguration;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.web.SecurityFilterChain;
+import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 
 @Configuration
 public class SecurityConfig {
+
+    // Inyectamos el filtro de JWT para que se pueda usar en la configuración de seguridad
+    private final JwtFilter jwtFilter;
+
+    public SecurityConfig(JwtFilter jwtFilter) {
+        this.jwtFilter = jwtFilter;
+    }
 
     // Configura el AuthenticationManager para manejar la autenticación
     @Bean
@@ -22,57 +30,57 @@ public class SecurityConfig {
     }
 
     // Configura la cadena de filtros de seguridad, definiendo las reglas de acceso a las rutas
+
     @Bean
+    
+public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
+    http
+        .cors(cors -> {})
+        .csrf(csrf -> csrf.disable())
+        .authorizeHttpRequests(auth -> auth
+            .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
 
-    // Configura la seguridad HTTP, incluyendo CORS, CSRF y las reglas de autorización
-    public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
-        http
-            .cors(cors -> {})
-            .csrf(csrf -> csrf.disable())
-            .authorizeHttpRequests(auth -> auth
+            // ── Públicas ────────────────────────────────────────────
+            .requestMatchers(
+                "/auth/**",
+                "/api/usuarios/registro",
+                "/test/**"
+            ).permitAll()
 
-                // Preflight siempre libre
-                .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
+            // ── Solo ADMIN ──────────────────────────────────────────
+            // Gestión de habitaciones y tipos
+            .requestMatchers(HttpMethod.POST,   "/api/habitaciones/**").hasAuthority("ROL_ADMIN")
+            .requestMatchers(HttpMethod.PUT,    "/api/habitaciones/**").hasAuthority("ROL_ADMIN")
+            .requestMatchers(HttpMethod.DELETE, "/api/habitaciones/**").hasAuthority("ROL_ADMIN")
+            .requestMatchers(HttpMethod.POST,   "/api/tipohabitaciones/**").hasAuthority("ROL_ADMIN")
+            .requestMatchers(HttpMethod.PUT,    "/api/tipohabitaciones/**").hasAuthority("ROL_ADMIN")
+            .requestMatchers(HttpMethod.DELETE, "/api/tipohabitaciones/**").hasAuthority("ROL_ADMIN")
 
-                // ── Rutas públicas ──────────────────────────────────────
-                .requestMatchers(
-                    // Auth
-                    "/auth/**",
+            // Gestión de usuarios (ADMIN ve y edita todo)
+            .requestMatchers(HttpMethod.GET,    "/api/usuarios/**").hasAuthority("ROL_ADMIN")
+            .requestMatchers(HttpMethod.PUT,    "/api/usuarios/**").hasAuthority("ROL_ADMIN")
+            .requestMatchers(HttpMethod.DELETE, "/api/usuarios/**").hasAuthority("ROL_ADMIN")
 
-                    // Usuarios
-                    "/api/usuarios/registrar",
-                    "/api/usuarios",
-                    "/api/usuarios/**",
+            // Cancelar y eliminar reservas (solo ADMIN)
+            .requestMatchers(HttpMethod.DELETE, "/api/reservas/**").hasAuthority("ROL_ADMIN")
 
-                    // Habitaciones — público para testear
-                    "/api/habitaciones/**",
+            // ── ADMIN o CLIENTE autenticado ─────────────────────────
+            // Ver habitaciones disponibles
+            .requestMatchers(HttpMethod.GET, "/api/habitaciones/**").hasAnyAuthority("ROL_ADMIN", "ROL_CLIENTE")
+            .requestMatchers(HttpMethod.GET, "/api/tipohabitaciones/**").hasAnyAuthority("ROL_ADMIN", "ROL_CLIENTE")
 
-                    // Reservas general — público para testear
-                    "/api/reservas",
-                    "/api/reservas/**",
+            // Reservas — cualquier usuario logueado puede crear y ver las suyas
+            .requestMatchers("/api/reservas/**").hasAnyAuthority("ROL_ADMIN", "ROL_CLIENTE")
+            .requestMatchers("/api/reservas/hotel/**").hasAnyAuthority("ROL_ADMIN", "ROL_CLIENTE")
+            .requestMatchers("/api/reservas/deporte/**").hasAnyAuthority("ROL_ADMIN", "ROL_CLIENTE")
 
-                    // Reservas hotel — público para testear
-                    "/api/reservas/hotel",
-                    "/api/reservas/hotel/",
-                    "/api/reservas/hotel/**",
+            // ── Todo lo demás requiere JWT ──────────────────────────
+            .anyRequest().authenticated()
+        )
+        .addFilterBefore(jwtFilter, UsernamePasswordAuthenticationFilter.class);
 
-                    // Reservas deporte — público para testear
-                    "/api/reservas/deporte",
-                    "/api/reservas/deporte/",
-                    "/api/reservas/deporte/**",
-
-                    // Test JWT
-                    "/test/**"
-                ).permitAll()
-
-                // ── Todo lo demás requiere JWT ──────────────────────────
-                .anyRequest().authenticated()
-            );
-
-        return http.build();
-    }
-
-
+    return http.build();
+}
     // Configura CORS para permitir solicitudes desde el frontend (ej. localhost:5173)
     @Bean
     

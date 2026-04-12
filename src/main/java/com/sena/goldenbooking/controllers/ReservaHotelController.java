@@ -7,6 +7,8 @@ import org.springframework.web.bind.annotation.*;
 import com.sena.goldenbooking.dtos.ReservaHotelDto;
 import com.sena.goldenbooking.services.ReservaHotelService;
 
+import jakarta.validation.Valid;
+
 // Controlador REST para gestionar las reservas de hotel
 @RestController
 
@@ -27,8 +29,9 @@ public class ReservaHotelController {
     }
 
     // POST /api/reservas/hotel
+    // ReservaHotelController
     @PostMapping
-    public ResponseEntity<ReservaHotelDto> crear(@RequestBody ReservaHotelDto dto) {
+    public ResponseEntity<ReservaHotelDto> crear(@Valid @RequestBody ReservaHotelDto dto) {
         return ResponseEntity.status(HttpStatus.CREATED).body(service.crear(dto));
     }
 

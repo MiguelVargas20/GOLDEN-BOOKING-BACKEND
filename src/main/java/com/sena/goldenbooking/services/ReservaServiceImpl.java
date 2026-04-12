@@ -7,6 +7,7 @@ import com.sena.goldenbooking.dtos.ReservaDto;
 import com.sena.goldenbooking.mapper.ReservaMapper;
 import com.sena.goldenbooking.models.EstadoReserva;
 import com.sena.goldenbooking.models.Reserva;
+import com.sena.goldenbooking.models.TipoReserva;
 import com.sena.goldenbooking.repositories.ReservaRepository;
 
 // Implementación de la interfaz ReservaService que maneja la lógica de negocio relacionada con las reservas
@@ -46,6 +47,18 @@ public class ReservaServiceImpl implements ReservaService {
         return reservaMapper.toDto(reservaRepo.save(reserva));
     }
 
+    // Método para obtener una lista de reservas filtradas por estado, devolviendo una lista de DTOs correspondientes a las reservas encontradas
+    @Override
+    public List<ReservaDto> obtenerPorEstado(EstadoReserva estado) {
+        return reservaMapper.toDtoList(reservaRepo.findByEstado(estado));
+    }
+
+    // Método para obtener una lista de reservas filtradas por usuario y tipo, devolviendo una lista de DTOs correspondientes a las reservas encontradas
+    @Override
+    public List<ReservaDto> obtenerPorUsuarioYTipo(String documentoUsuario, TipoReserva tipo) {
+        return reservaMapper.toDtoList(
+            reservaRepo.findByDocumentoUsuarioAndTipo(documentoUsuario, tipo));
+    }
 
     // Método para listar todas las reservas, convirtiendo las entidades a DTOs antes de devolver la lista
     @Override

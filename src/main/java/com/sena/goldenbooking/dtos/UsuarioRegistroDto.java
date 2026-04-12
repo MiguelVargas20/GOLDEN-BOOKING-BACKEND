@@ -8,10 +8,13 @@ import com.sena.goldenbooking.models.Documento;
 import com.sena.goldenbooking.models.EstadoUsuario;
 import com.sena.goldenbooking.models.Rol;
 
+
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+
+import jakarta.validation.constraints.*;
 
 @AllArgsConstructor
 @NoArgsConstructor
@@ -20,10 +23,16 @@ import lombok.NoArgsConstructor;
 public class UsuarioRegistroDto {
 
     // DATOS PARA PERFIL (Colección Usuario)
+    @NotBlank(message = "El nombre es obligatorio.")
     private String nombre;
+
+    @NotBlank(message = "El apellido es obligatorio.")
     private String apellido;
+    @NotNull(message = "El documento es obligatorio.")
     private Documento documento; // Asegúrate que incluya tipo y numero
     private String telefono;
+
+    @NotBlank(message = "El email es obligatorio.")
     private String email;
     private Direccion direccion;
     private LocalDate fechaNacimiento;
@@ -34,6 +43,7 @@ public class UsuarioRegistroDto {
     // O lo dejamos si quieres que el usuario elija un apodo (ej: "juanito123")
     private String username; 
 
+    @NotBlank(message = "La contraseña es obligatoria.")
     @JsonProperty(access = JsonProperty.Access.WRITE_ONLY)
     private String password;
 

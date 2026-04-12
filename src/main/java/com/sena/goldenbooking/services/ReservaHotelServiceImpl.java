@@ -18,16 +18,13 @@ import com.sena.goldenbooking.repositories.ReservaRepository;
 @Service
 public class ReservaHotelServiceImpl implements ReservaHotelService {
 
-    // Repositorios para acceder a los datos de reservas de hotel, reservas generales y habitaciones, y mapper para convertir entre entidades y DTOs
+    // Repositorios y mapper necesarios para la lógica de negocio
     private final ReservaHotelRepository reservaHotelRepo;
     private final ReservaRepository reservaRepo;
-
-    // Repositorio para acceder a los datos de habitaciones, necesario para validar la existencia de la habitación y calcular el precio total de la reserva
     private final HabitacionRepository habitacionRepo;
     private final ReservaHotelMapper mapper;
 
-    
-    // Constructor que inyecta las dependencias necesarias para el servicio de reservas de hotel
+    // Inyección de dependencias a través del constructor
     public ReservaHotelServiceImpl(
             ReservaHotelRepository reservaHotelRepo,
             ReservaRepository reservaRepo,
@@ -39,27 +36,25 @@ public class ReservaHotelServiceImpl implements ReservaHotelService {
         this.mapper = mapper;
     }
 
-    // Método para crear una nueva reserva de hotel a partir de un DTO, validando los datos, calculando el precio total y estableciendo la fecha y estado inicial
+    // Implementación de métodos del servicio
     @Override
-
-    // Método para crear una nueva reserva de hotel a partir de un DTO, validando los datos, calculando el precio total y estableciendo la fecha y estado inicial
     public ReservaHotelDto crear(ReservaHotelDto dto) {
 
         // Validaciones básicas
         if (dto.getDocUsuario() == null || dto.getDocUsuario().isBlank())
             throw new RuntimeException("El documento del usuario es obligatorio.");
-
-        // Validación adicional para el tipo de reserva
         if (dto.getIdHabitacion() == null || dto.getIdHabitacion().isBlank())
             throw new RuntimeException("El ID de la habitación es obligatorio.");
-
-        // Validación de fechas
         if (dto.getFCheckIn() == null || dto.getFCheckOut() == null)
             throw new RuntimeException("Las fechas de check-in y check-out son obligatorias.");
 
         // Buscar habitación
         Habitacion habitacion = habitacionRepo.findById(dto.getIdHabitacion())
                 .orElseThrow(() -> new RuntimeException("Habitación no encontrada: " + dto.getIdHabitacion()));
+
+        // ← VALIDAR DISPONIBILIDAD
+        if (!"disponible".equalsIgnoreCase(habitacion.getEstado()))
+            throw new RuntimeException("La habitación no está disponible para reservar.");
 
         // Calcular noches y precio total
         long noches = ChronoUnit.DAYS.between(
@@ -86,25 +81,32 @@ public class ReservaHotelServiceImpl implements ReservaHotelService {
         ReservaHotel reservaHotel = ReservaHotel.builder()
                 .idReserva(reservaGuardada.getId())
                 .idHabitacion(habitacion.getId())
-                .docUsuario(dto.getDocUsuario())      // ← esta línea faltaba
+                .docUsuario(dto.getDocUsuario())
                 .datosH(habitacion)
                 .fechaCheckIn(dto.getFCheckIn())
                 .fechaCheckOut(dto.getFCheckOut())
                 .noches((int) noches)
                 .precioTotal(precioTotal)
                 .build();
-                
-        return mapper.toDto(reservaHotelRepo.save(reservaHotel));
+
+        ReservaHotel guardada = reservaHotelRepo.save(reservaHotel);
+
+        // ← CAMBIAR ESTADO HABITACIÓN A OCUPADA
+        habitacion.setEstado("ocupada");
+        habitacionRepo.save(habitacion);
+
+        return mapper.toDto(guardada);
     }
+    
 
-
-    // Método para listar todas las reservas de hotel, convirtiendo las entidades a DTOs antes de devolver la lista
+    // Implementación de métodos para listar, obtener por ID, actualizar y cancelar reservas hotel
     @Override
     public List<ReservaHotelDto> listarTodas() {
         return mapper.toDtoList(reservaHotelRepo.findAll());
     }
 
-    // Método para obtener una reserva de hotel por su ID, lanzando una excepción si no se encuentra la reserva
+
+    // Obtener reserva hotel por ID, lanzando excepción si no se encuentra
     @Override
     public ReservaHotelDto obtenerPorId(String id) {
         ReservaHotel rh = reservaHotelRepo.findById(id)
@@ -112,14 +114,13 @@ public class ReservaHotelServiceImpl implements ReservaHotelService {
         return mapper.toDto(rh);
     }
 
-
-    // Método para obtener reservas de hotel por el ID de reserva padre, devolviendo una lista de DTOs correspondientes a las reservas encontradas
+    // Obtener todas las reservas hotel asociadas a una reserva padre específica
     @Override
     public List<ReservaHotelDto> obtenerPorReserva(String idReserva) {
         return mapper.toDtoList(reservaHotelRepo.findByIdReserva(idReserva));
     }
 
-    // Método para actualizar una reserva de hotel existente, buscando la reserva por ID, actualizando sus campos con los datos del DTO y guardando los cambios
+    // Actualizar reserva hotel por ID, lanzando excepción si no se encuentra
     @Override
     public ReservaHotelDto actualizar(String id, ReservaHotelDto dto) {
         ReservaHotel rh = reservaHotelRepo.findById(id)
@@ -128,14 +129,13 @@ public class ReservaHotelServiceImpl implements ReservaHotelService {
         return mapper.toDto(reservaHotelRepo.save(rh));
     }
 
-
-    // Método para cancelar una reserva de hotel, buscando la reserva por ID, verificando su estado actual y actualizando el estado a CANCELADA si no está ya cancelada, además de cancelar la reserva padre
+    // Cancelar reserva hotel por ID, lanzando excepción si no se encuentra
     @Override
     public void cancelar(String id) {
         ReservaHotel rh = reservaHotelRepo.findById(id)
                 .orElseThrow(() -> new RuntimeException("Reserva hotel no encontrada: " + id));
 
-        // Cancelar también la Reserva padre
+        // Cancelar Reserva padre
         Reserva reserva = reservaRepo.findById(rh.getIdReserva())
                 .orElseThrow(() -> new RuntimeException("Reserva padre no encontrada."));
         if (reserva.getEstado() == EstadoReserva.CANCELADA)
@@ -143,5 +143,11 @@ public class ReservaHotelServiceImpl implements ReservaHotelService {
 
         reserva.setEstado(EstadoReserva.CANCELADA);
         reservaRepo.save(reserva);
+
+        // ← LIBERAR HABITACIÓN al cancelar
+        Habitacion habitacion = habitacionRepo.findById(rh.getIdHabitacion())
+                .orElseThrow(() -> new RuntimeException("Habitación no encontrada al cancelar."));
+        habitacion.setEstado("disponible");
+        habitacionRepo.save(habitacion);
     }
 }

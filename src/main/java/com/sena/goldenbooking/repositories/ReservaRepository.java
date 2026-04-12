@@ -25,4 +25,7 @@ public interface ReservaRepository extends MongoRepository<Reserva, String> {
     // Reservas deportivas de un usuario específico
     @Query("{ 'documentoUsuario': ?0, 'tipo': 'DEPORTE' }")
     List<Reserva> findReservasDeporteByUsuario(String documentoUsuario);
+
+    // Filtrar por usuario y tipo
+    List<Reserva> findByDocumentoUsuarioAndTipo(String documentoUsuario, TipoReserva tipo);
 }

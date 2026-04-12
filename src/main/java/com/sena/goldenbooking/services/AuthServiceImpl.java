@@ -29,7 +29,7 @@ public class AuthServiceImpl implements AuthService {
     @Override
     public LoginResponsiveDto login(LoginDto dto) {
         // En tu LoginDto el campo es 'email', pero el usuario puede meter su doc o su username
-        String identificador = dto.getEmail(); 
+        String identificador = dto.getUsername(); 
         UsuarioAuth auth;
 
         // 1. Intentar buscar por Username (Colección UsuarioAuth)

@@ -7,6 +7,8 @@ import org.springframework.web.bind.annotation.*;
 import com.sena.goldenbooking.dtos.ReservaDeporteDto;
 import com.sena.goldenbooking.services.ReservaDeporteService;
 
+import jakarta.validation.Valid;
+
 // Controlador REST para gestionar las reservas de deporte
 @RestController
 
@@ -25,10 +27,10 @@ public class ReservaDeporteController {
 
     // POST /api/reservas/deporte
     @PostMapping
-    public ResponseEntity<ReservaDeporteDto> crear(@RequestBody ReservaDeporteDto dto) {
+    public ResponseEntity<ReservaDeporteDto> crear(@Valid @RequestBody ReservaDeporteDto dto) {
         return ResponseEntity.status(HttpStatus.CREATED).body(service.crear(dto));
     }
-
+    
     // GET /api/reservas/deporte
     @GetMapping
     public ResponseEntity<List<ReservaDeporteDto>> listarTodas() {

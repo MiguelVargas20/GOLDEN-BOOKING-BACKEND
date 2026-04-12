@@ -10,6 +10,8 @@ import com.sena.goldenbooking.dtos.UsuarioDto;
 import com.sena.goldenbooking.dtos.UsuarioRegistroDto;
 import com.sena.goldenbooking.services.UsuarioService;
 
+import jakarta.validation.Valid;
+
 @RestController
 @RequestMapping("/api/usuarios")
 public class UsuarioController {
@@ -22,9 +24,8 @@ public class UsuarioController {
 
     // POST /api/usuarios/registro
     @PostMapping("/registro")
-    public ResponseEntity<UsuarioRegistroDto> registrar(@RequestBody UsuarioRegistroDto dto) {
-        UsuarioRegistroDto resultado = usuarioService.registrarUsuario(dto);
-        return ResponseEntity.status(HttpStatus.CREATED).body(resultado);
+    public ResponseEntity<UsuarioRegistroDto> registrar(@Valid @RequestBody UsuarioRegistroDto dto) {
+        return ResponseEntity.status(HttpStatus.CREATED).body(usuarioService.registrarUsuario(dto));
     }
 
     // GET /api/usuarios
