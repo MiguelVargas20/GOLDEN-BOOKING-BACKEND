@@ -86,7 +86,7 @@
 	</dependency>
 
 	<dependency>
-		<groupId>io.jsonwebtoken</groupId>
+		<groupId>io.jsonwebtoken</groupId>VITE_API_URL=http://localhost:8080
 		<artifactId>jjwt-jackson</artifactId>
 		<version>0.11.5</version>
 		<scope>runtime</scope>
