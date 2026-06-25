@@ -42,10 +42,12 @@ public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
 
             // ── Públicas ────────────────────────────────────────────
             .requestMatchers(
-                "/auth/**",
-                "/auth/recuperar-password",
+                "/auth/login",
+                "/api/auth/*",
+                "/api/auth/recuperar-password",
                 "/api/usuarios/registro",
-                "/test/**"
+                "/test/**",
+                "/ws/**"          // ← NUEVO: permite la conexión WebSocket
             ).permitAll()
 
             // ── Solo ADMIN ──────────────────────────────────────────

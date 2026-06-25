@@ -16,6 +16,7 @@ import com.sena.goldenbooking.models.UsuarioAuth;
 import com.sena.goldenbooking.repositories.UsuarioAuthRepository;
 import com.sena.goldenbooking.repositories.UsuarioRepository;
 import com.sena.goldenbooking.security.JwtService;
+import com.sena.goldenbooking.services.AuthService;  // ← NUEVO import
 
 import jakarta.validation.Valid;
 
@@ -28,19 +29,22 @@ public class AuthController {
     private final AuthenticationManager authManager;
     private final UsuarioAuthRepository authRepo;
     private final UsuarioRepository usuarioRepo;
-    private final PasswordEncoder passwordEncoder; // ← agregado
+    private final PasswordEncoder passwordEncoder;
+    private final AuthService authService;             // ← NUEVO campo
 
     public AuthController(
             JwtService jwtService,
             AuthenticationManager authManager,
             UsuarioAuthRepository authRepo,
             UsuarioRepository usuarioRepo,
-            PasswordEncoder passwordEncoder) { // ← agregado
+            PasswordEncoder passwordEncoder,
+            AuthService authService) {                 // ← NUEVO parámetro
         this.jwtService = jwtService;
         this.authManager = authManager;
         this.authRepo = authRepo;
         this.usuarioRepo = usuarioRepo;
-        this.passwordEncoder = passwordEncoder; // ← agregado
+        this.passwordEncoder = passwordEncoder;
+        this.authService = authService;                // ← NUEVO
     }
 
     @PostMapping("/login")
@@ -82,38 +86,45 @@ public class AuthController {
     }
 
     @PostMapping("/recuperar-password")
-        public ResponseEntity<Map<String, Object>> recuperarPassword(@RequestBody Map<String, String> body) {
+    public ResponseEntity<Map<String, Object>> recuperarPassword(@RequestBody Map<String, String> body) {
         String username = body.get("username");
         String passwordAntigua = body.get("passwordAntigua");
         String nuevaPassword = body.get("nuevaPassword");
 
         if (username == null || passwordAntigua == null || nuevaPassword == null || nuevaPassword.isBlank()) {
-                return ResponseEntity.badRequest().body(Map.of(
+            return ResponseEntity.badRequest().body(Map.of(
                 "error", "Todos los campos son obligatorios"
-                ));
+            ));
         }
 
         UsuarioAuth auth = authRepo.findByUser(username)
                 .orElseThrow(() -> new RuntimeException("Usuario no encontrado"));
 
-        // ← Verificar contraseña antigua
         if (!passwordEncoder.matches(passwordAntigua, auth.getPwd())) {
-                return ResponseEntity.badRequest().body(Map.of(
+            return ResponseEntity.badRequest().body(Map.of(
                 "error", "La contraseña actual es incorrecta"
-                ));
+            ));
         }
 
         if (nuevaPassword.length() < 6) {
-                return ResponseEntity.badRequest().body(Map.of(
+            return ResponseEntity.badRequest().body(Map.of(
                 "error", "La nueva contraseña debe tener mínimo 6 caracteres"
-                ));
+            ));
         }
 
         auth.setPwd(passwordEncoder.encode(nuevaPassword));
         authRepo.save(auth);
 
         return ResponseEntity.ok(Map.of(
-                "mensaje", "Contraseña actualizada correctamente"
+            "mensaje", "Contraseña actualizada correctamente"
         ));
-        };
+    }
+
+    // ── LOGOUT ───────────────────────────────────────────────────
+    @PostMapping("/logout")
+    public ResponseEntity<Void> logout(@RequestHeader("Authorization") String authHeader) {
+        String token = authHeader.substring(7); // quita el "Bearer "
+        authService.logout(token);
+        return ResponseEntity.noContent().build(); // 204
+    }
 }

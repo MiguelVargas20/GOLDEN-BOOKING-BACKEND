@@ -23,6 +23,7 @@ public class JwtService {
         return Keys.hmacShaKeyFor(CLAVE.getBytes());
     }
 
+
     /**
      * Genera el token JWT con los datos del usuario.
      * Los roles vienen del modelo (no del DTO) porque el DTO no los expone.
@@ -77,5 +78,9 @@ public class JwtService {
         } catch (Exception e) {
             return false; // token malformado o expirado
         }
+    }
+    // Extrae la fecha de expiración del token
+    public Date extraerExpiracion(String token) {
+        return obtenerClaims(token).getExpiration();
     }
 }
