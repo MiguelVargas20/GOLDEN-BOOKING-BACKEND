@@ -124,6 +124,7 @@ public class AuthController {
     @PostMapping("/logout")
     public ResponseEntity<Void> logout(@RequestHeader("Authorization") String authHeader) {
         String token = authHeader.substring(7); // quita el "Bearer "
+        System.out.println(token);
         authService.logout(token);
         return ResponseEntity.noContent().build(); // 204
     }
