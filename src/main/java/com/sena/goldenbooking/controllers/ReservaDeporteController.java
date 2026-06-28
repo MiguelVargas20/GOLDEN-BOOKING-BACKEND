@@ -14,7 +14,7 @@ import jakarta.validation.Valid;
 
 // Base URL para todas las operaciones relacionadas con reservas de deporte
 @RequestMapping("/api/reservas/deporte")
-@CrossOrigin(origins = "*")
+
 public class ReservaDeporteController {
 
     // Inyección de la capa de servicio para manejar la lógica de negocio

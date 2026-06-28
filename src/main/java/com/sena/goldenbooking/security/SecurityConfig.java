@@ -66,6 +66,8 @@ public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
 
             // Cancelar y eliminar reservas (solo ADMIN)
             .requestMatchers(HttpMethod.DELETE, "/api/reservas/**").hasAuthority("ROL_ADMIN")
+            // GET, POST, PATCH — ADMIN o CLIENTE
+            .requestMatchers("/api/reservas/**").hasAnyAuthority("ROL_ADMIN", "ROL_CLIENTE")
 
             // ── ADMIN o CLIENTE autenticado ─────────────────────────
             // Ver habitaciones disponibles
@@ -90,7 +92,7 @@ public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration config = new CorsConfiguration();
         config.setAllowedOrigins(List.of("http://localhost:5173", "http://localhost:56083"));
-        config.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE", "OPTIONS"));
+        config.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"));
         config.setAllowedHeaders(List.of("*"));
         config.setAllowCredentials(true);
 

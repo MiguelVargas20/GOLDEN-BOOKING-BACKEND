@@ -50,6 +50,19 @@ public class ReservaDeporteServiceImpl implements ReservaDeporteService {
         if (horas <= 0)
             throw new RuntimeException("La fecha de fin debe ser posterior al inicio.");
 
+        // ── NUEVO: validación atómica de disponibilidad ──────────
+        List<ReservaDeporte> solapadas = reservaDeporteRepo.findSolapadas(
+                dto.getTCancha(),
+                dto.getFInicioReserva(),
+                dto.getFFinReserva()
+        );
+        if (!solapadas.isEmpty()) {
+            throw new RuntimeException(
+                "La cancha " + dto.getTCancha() +
+                " ya está reservada en ese horario."
+            );
+        }
+
         double tarifaHora = 50000.0;
         double precioTotal = horas * tarifaHora;
 
