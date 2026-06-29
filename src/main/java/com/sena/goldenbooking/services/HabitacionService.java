@@ -3,6 +3,9 @@ package com.sena.goldenbooking.services;
 import java.util.List;
 import com.sena.goldenbooking.dtos.HabitacionDto;
 
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+
 public interface HabitacionService {
     
     /* Método para crear una nueva habitación a partir de un DTO */
@@ -28,4 +31,6 @@ public interface HabitacionService {
     
     /* Método para eliminar una habitación por su ID */
     void eliminar(String id);
+
+    Page<HabitacionDto> listarTodasPaginadas(Pageable pageable);
 }

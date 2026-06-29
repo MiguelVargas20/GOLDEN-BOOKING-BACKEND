@@ -7,6 +7,10 @@ import org.springframework.web.bind.annotation.*;
 import com.sena.goldenbooking.dtos.ReservaDeporteDto;
 import com.sena.goldenbooking.services.ReservaDeporteService;
 
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import java.util.Map;
+
 import jakarta.validation.Valid;
 
 // Controlador REST para gestionar las reservas de deporte
@@ -32,9 +36,21 @@ public class ReservaDeporteController {
     }
     
     // GET /api/reservas/deporte
+    // Endpoint para listar todas las reservas de deporte con paginación
     @GetMapping
-    public ResponseEntity<List<ReservaDeporteDto>> listarTodas() {
-        return ResponseEntity.ok(service.listarTodas());
+    public ResponseEntity<Map<String, Object>> listarTodas(
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "10") int size) {
+
+        Pageable pageable = PageRequest.of(page, size);
+        var pagina = service.listarTodasPaginadas(pageable);
+
+        return ResponseEntity.ok(Map.of(
+            "contenido",      pagina.getContent(),
+            "paginaActual",   pagina.getNumber(),
+            "totalPaginas",   pagina.getTotalPages(),
+            "totalElementos", pagina.getTotalElements()
+        ));
     }
 
     // GET /api/reservas/deporte/{id}

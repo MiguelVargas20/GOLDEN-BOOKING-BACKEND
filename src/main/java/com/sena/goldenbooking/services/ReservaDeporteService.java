@@ -3,6 +3,9 @@ package com.sena.goldenbooking.services;
 import java.util.List;
 import com.sena.goldenbooking.dtos.ReservaDeporteDto;
 
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+
 public interface ReservaDeporteService {
 
     // Crea una nueva reserva de deporte a partir de un DTO y devuelve el DTO resultante
@@ -22,4 +25,7 @@ public interface ReservaDeporteService {
 
     // Elimina una reserva de deporte existente con el ID proporcionado
     void cancelar(String id);
+
+    // Devuelve una página de DTOs de reserva de deporte según los parámetros de paginación proporcionados
+    Page<ReservaDeporteDto> listarTodasPaginadas(Pageable pageable);
 }

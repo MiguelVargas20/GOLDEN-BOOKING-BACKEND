@@ -1,0 +1,178 @@
+2026-06-29 00:23:27 INFO  o.s.w.s.c.WebSocketMessageBrokerStats [MessageBroker-1] WebSocketSession[0 current WS(0)-HttpStream(0)-HttpPoll(0), 0 total, 0 closed abnormally (0 connect failure, 0 send limit, 0 transport error)], stompSubProtocol[processed CONNECT(0)-CONNECTED(0)-DISCONNECT(0)], stompBrokerRelay[null], inboundChannel[pool size = 0, active threads = 0, queued tasks = 0, completed tasks = 0], outboundChannel[pool size = 0, active threads = 0, queued tasks = 0, completed tasks = 0], sockJsScheduler[pool size = 4, active threads = 1, queued tasks = 0, completed tasks = 3]
+2026-06-29 00:27:25 INFO  c.s.g.services.UsuarioServiceImpl [http-nio-8080-exec-6] Usuario encontrado con ID: 6a3d890191160b49f97bd67d
+2026-06-29 00:27:29 INFO  c.s.g.services.UsuarioServiceImpl [http-nio-8080-exec-9] Listado paginado de usuarios. Página: 0, Tamaño: 10
+2026-06-29 00:27:29 INFO  c.s.g.services.UsuarioServiceImpl [http-nio-8080-exec-10] Listado paginado de usuarios. Página: 0, Tamaño: 10
+2026-06-29 00:27:31 INFO  c.s.g.services.UsuarioServiceImpl [http-nio-8080-exec-2] Listado paginado de usuarios. Página: 1, Tamaño: 10
+2026-06-29 00:27:38 INFO  c.s.g.services.UsuarioServiceImpl [http-nio-8080-exec-4] Listado paginado de usuarios. Página: 0, Tamaño: 10
+2026-06-29 00:53:27 INFO  o.s.w.s.c.WebSocketMessageBrokerStats [MessageBroker-1] WebSocketSession[0 current WS(0)-HttpStream(0)-HttpPoll(0), 0 total, 0 closed abnormally (0 connect failure, 0 send limit, 0 transport error)], stompSubProtocol[processed CONNECT(0)-CONNECTED(0)-DISCONNECT(0)], stompBrokerRelay[null], inboundChannel[pool size = 0, active threads = 0, queued tasks = 0, completed tasks = 0], outboundChannel[pool size = 0, active threads = 0, queued tasks = 0, completed tasks = 0], sockJsScheduler[pool size = 4, active threads = 1, queued tasks = 0, completed tasks = 4]
+2026-06-29 01:07:06 INFO  c.s.g.services.HabitacionServiceImpl [http-nio-8080-exec-9] Listado paginado de habitaciones. Página: 0
+2026-06-29 01:07:06 INFO  c.s.g.services.HabitacionServiceImpl [http-nio-8080-exec-10] Listado paginado de habitaciones. Página: 0
+2026-06-29 01:07:34 INFO  c.s.g.services.UsuarioServiceImpl [http-nio-8080-exec-4] Usuario encontrado con ID: 6a3d890191160b49f97bd67d
+2026-06-29 01:08:18 INFO  c.s.g.services.HabitacionServiceImpl [http-nio-8080-exec-7] Listado paginado de habitaciones. Página: 0
+2026-06-29 01:08:18 INFO  c.s.g.services.HabitacionServiceImpl [http-nio-8080-exec-9] Listado paginado de habitaciones. Página: 0
+2026-06-29 01:09:21 INFO  c.s.g.services.HabitacionServiceImpl [http-nio-8080-exec-4] Listado paginado de habitaciones. Página: 0
+2026-06-29 01:09:21 INFO  c.s.g.services.HabitacionServiceImpl [http-nio-8080-exec-5] Listado paginado de habitaciones. Página: 0
+2026-06-29 01:10:16 INFO  c.s.g.services.HabitacionServiceImpl [http-nio-8080-exec-7] Listado paginado de habitaciones. Página: 0
+2026-06-29 01:10:16 INFO  c.s.g.services.HabitacionServiceImpl [http-nio-8080-exec-9] Listado paginado de habitaciones. Página: 0
+2026-06-29 01:10:32 INFO  c.s.g.services.HabitacionServiceImpl [http-nio-8080-exec-2] Listado paginado de habitaciones. Página: 0
+2026-06-29 01:10:32 INFO  c.s.g.services.HabitacionServiceImpl [http-nio-8080-exec-3] Listado paginado de habitaciones. Página: 0
+2026-06-29 01:16:29 INFO  c.s.g.services.UsuarioServiceImpl [http-nio-8080-exec-9] Usuario encontrado con ID: 6a3d890191160b49f97bd67d
+2026-06-29 01:16:33 INFO  c.s.g.s.ReservaDeporteServiceImpl [http-nio-8080-exec-2] Listado paginado de reservas deportivas. Página: 0
+2026-06-29 01:16:33 INFO  c.s.g.s.ReservaDeporteServiceImpl [http-nio-8080-exec-3] Listado paginado de reservas deportivas. Página: 0
+2026-06-29 01:16:35 INFO  c.s.g.s.ReservaDeporteServiceImpl [http-nio-8080-exec-4] Listado paginado de reservas deportivas. Página: 1
+2026-06-29 01:16:39 INFO  c.s.g.s.ReservaDeporteServiceImpl [http-nio-8080-exec-7] Listado paginado de reservas deportivas. Página: 0
+2026-06-29 01:16:39 INFO  c.s.g.s.ReservaDeporteServiceImpl [http-nio-8080-exec-9] Listado paginado de reservas deportivas. Página: 0
+2026-06-29 01:16:53 INFO  c.s.g.services.UsuarioServiceImpl [http-nio-8080-exec-2] Listado paginado de usuarios. Página: 0, Tamaño: 10
+2026-06-29 01:16:53 INFO  c.s.g.services.UsuarioServiceImpl [http-nio-8080-exec-3] Listado paginado de usuarios. Página: 0, Tamaño: 10
+2026-06-29 01:16:55 INFO  c.s.g.services.UsuarioServiceImpl [http-nio-8080-exec-4] Listado paginado de usuarios. Página: 1, Tamaño: 10
+2026-06-29 01:16:59 INFO  c.s.g.services.HabitacionServiceImpl [http-nio-8080-exec-7] Listado paginado de habitaciones. Página: 0
+2026-06-29 01:16:59 INFO  c.s.g.services.HabitacionServiceImpl [http-nio-8080-exec-9] Listado paginado de habitaciones. Página: 0
+2026-06-29 01:17:41 INFO  c.s.g.services.UsuarioServiceImpl [http-nio-8080-exec-3] Usuario encontrado con ID: 6a3d890191160b49f97bd67d
+2026-06-29 01:21:28 INFO  c.s.g.services.HabitacionServiceImpl [http-nio-8080-exec-7] Listado paginado de habitaciones. Página: 0
+2026-06-29 01:21:28 INFO  c.s.g.services.HabitacionServiceImpl [http-nio-8080-exec-9] Listado paginado de habitaciones. Página: 0
+2026-06-29 01:23:27 INFO  o.s.w.s.c.WebSocketMessageBrokerStats [MessageBroker-1] WebSocketSession[0 current WS(0)-HttpStream(0)-HttpPoll(0), 0 total, 0 closed abnormally (0 connect failure, 0 send limit, 0 transport error)], stompSubProtocol[processed CONNECT(0)-CONNECTED(0)-DISCONNECT(0)], stompBrokerRelay[null], inboundChannel[pool size = 0, active threads = 0, queued tasks = 0, completed tasks = 0], outboundChannel[pool size = 0, active threads = 0, queued tasks = 0, completed tasks = 0], sockJsScheduler[pool size = 4, active threads = 1, queued tasks = 0, completed tasks = 5]
+2026-06-29 01:25:04 INFO  c.s.g.services.HabitacionServiceImpl [http-nio-8080-exec-3] Listado paginado de habitaciones. Página: 0
+2026-06-29 01:25:04 INFO  c.s.g.services.HabitacionServiceImpl [http-nio-8080-exec-5] Listado paginado de habitaciones. Página: 0
+2026-06-29 01:25:19 INFO  c.s.g.services.HabitacionServiceImpl [http-nio-8080-exec-8] Listado paginado de habitaciones. Página: 0
+2026-06-29 01:25:19 INFO  c.s.g.services.HabitacionServiceImpl [http-nio-8080-exec-7] Listado paginado de habitaciones. Página: 0
+2026-06-29 01:25:56 INFO  c.s.g.GoldenbookingApplication [restartedMain] Starting GoldenbookingApplication using Java 25.0.2 with PID 13472 (C:\Users\USUARIO\GOLDEN-BOOKING-BACKEND\target\classes started by USUARIO in C:\Users\USUARIO\GOLDEN-BOOKING-BACKEND)
+2026-06-29 01:25:56 INFO  c.s.g.GoldenbookingApplication [restartedMain] No active profile set, falling back to 1 default profile: "default"
+2026-06-29 01:25:56 INFO  o.s.b.d.e.DevToolsPropertyDefaultsPostProcessor [restartedMain] Devtools property defaults active! Set 'spring.devtools.add-properties' to 'false' to disable
+2026-06-29 01:25:57 INFO  o.s.b.d.e.DevToolsPropertyDefaultsPostProcessor [restartedMain] For additional web related logging consider setting the 'logging.level.web' property to 'DEBUG'
+2026-06-29 01:25:58 INFO  o.h.validator.internal.util.Version [background-preinit] HV000001: Hibernate Validator 9.0.1.Final
+2026-06-29 01:26:05 INFO  o.s.d.r.c.RepositoryConfigurationDelegate [restartedMain] Bootstrapping Spring Data MongoDB repositories in DEFAULT mode.
+2026-06-29 01:26:06 INFO  o.s.d.r.c.RepositoryConfigurationDelegate [restartedMain] Finished Spring Data repository scanning in 298 ms. Found 9 MongoDB repository interfaces.
+2026-06-29 01:26:09 INFO  o.s.boot.tomcat.TomcatWebServer [restartedMain] Tomcat initialized with port 8080 (http)
+2026-06-29 01:26:09 INFO  o.a.coyote.http11.Http11NioProtocol [restartedMain] Initializing ProtocolHandler ["http-nio-8080"]
+2026-06-29 01:26:09 INFO  o.a.catalina.core.StandardService [restartedMain] Starting service [Tomcat]
+2026-06-29 01:26:09 INFO  o.a.catalina.core.StandardEngine [restartedMain] Starting Servlet engine: [Apache Tomcat/11.0.18]
+2026-06-29 01:26:09 INFO  o.s.b.w.c.s.WebApplicationContextInitializer [restartedMain] Root WebApplicationContext: initialization completed in 12132 ms
+2026-06-29 01:26:10 INFO  org.mongodb.driver.client [restartedMain] MongoClient with metadata {"driver": {"name": "mongo-java-driver|spring-boot|sync", "version": "5.6.3"}, "os": {"type": "Windows", "name": "Windows 10", "architecture": "amd64", "version": "10.0"}, "platform": "Java/Eclipse Adoptium/25.0.2+10-LTS"} created with settings MongoClientSettings{readPreference=primary, writeConcern=WriteConcern{w=null, wTimeout=null ms, journal=null}, retryWrites=true, retryReads=true, readConcern=ReadConcern{level=null}, credential=null, transportSettings=null, commandListeners=[io.micrometer.core.instrument.binder.mongodb.MongoMetricsCommandListener@2627fe45], codecRegistry=ProvidersCodecRegistry{codecProviders=[ValueCodecProvider{}, BsonValueCodecProvider{}, DBRefCodecProvider{}, DBObjectCodecProvider{}, DocumentCodecProvider{}, CollectionCodecProvider{}, IterableCodecProvider{}, MapCodecProvider{}, GeoJsonCodecProvider{}, GridFSFileCodecProvider{}, Jsr310CodecProvider{}, JsonObjectCodecProvider{}, BsonCodecProvider{}, com.mongodb.client.model.mql.ExpressionCodecProvider@5fd13062, com.mongodb.Jep395RecordCodecProvider@246be2db, com.mongodb.KotlinCodecProvider@39c0581c, EnumCodecProvider{}]}, loggerSettings=LoggerSettings{maxDocumentLength=1000}, clusterSettings={hosts=[localhost:27017], srvServiceName=mongodb, mode=SINGLE, requiredClusterType=UNKNOWN, requiredReplicaSetName='null', serverSelector='null', clusterListeners='[]', serverSelectionTimeout='30000 ms', localThreshold='15 ms'}, socketSettings=SocketSettings{connectTimeoutMS=10000, readTimeoutMS=0, receiveBufferSize=0, proxySettings=ProxySettings{host=null, port=null, username=null, password=null}}, heartbeatSocketSettings=SocketSettings{connectTimeoutMS=10000, readTimeoutMS=10000, receiveBufferSize=0, proxySettings=ProxySettings{host=null, port=null, username=null, password=null}}, connectionPoolSettings=ConnectionPoolSettings{maxSize=100, minSize=0, maxWaitTimeMS=120000, maxConnectionLifeTimeMS=0, maxConnectionIdleTimeMS=0, maintenanceInitialDelayMS=0, maintenanceFrequencyMS=60000, connectionPoolListeners=[io.micrometer.core.instrument.binder.mongodb.MongoMetricsConnectionPoolListener@208c5cb7], maxConnecting=2}, serverSettings=ServerSettings{heartbeatFrequencyMS=10000, minHeartbeatFrequencyMS=500, serverMonitoringMode=AUTO, serverListeners='[]', serverMonitorListeners='[]'}, sslSettings=SslSettings{enabled=false, invalidHostNameAllowed=false, context=null}, applicationName='null', compressorList=[], uuidRepresentation=UNSPECIFIED, serverApi=null, autoEncryptionSettings=null, dnsClient=null, inetAddressResolver=null, contextProvider=null, timeoutMS=null}
+2026-06-29 01:26:10 INFO  org.mongodb.driver.cluster [cluster-ClusterId{value='6a42100202af2df437f1dce3', description='null'}-localhost:27017] Monitor thread successfully connected to server with description ServerDescription{address=localhost:27017, type=STANDALONE, cryptd=false, state=CONNECTED, ok=true, minWireVersion=0, maxWireVersion=27, maxDocumentSize=16777216, logicalSessionTimeoutMinutes=30, roundTripTimeNanos=104033500, minRoundTripTimeNanos=0}
+2026-06-29 01:26:13 INFO  o.s.s.c.a.a.c.InitializeUserDetailsBeanManagerConfigurer$InitializeUserDetailsManagerConfigurer [restartedMain] Global AuthenticationManager configured with UserDetailsService bean with name detallesUsuarioService
+2026-06-29 01:26:21 INFO  o.s.b.a.e.web.EndpointLinksResolver [restartedMain] Exposing 1 endpoint beneath base path '/actuator'
+2026-06-29 01:26:21 INFO  o.s.m.s.b.SimpleBrokerMessageHandler [restartedMain] Starting...
+2026-06-29 01:26:21 INFO  o.s.m.s.b.SimpleBrokerMessageHandler [restartedMain] BrokerAvailabilityEvent[available=true, SimpleBrokerMessageHandler [org.springframework.messaging.simp.broker.DefaultSubscriptionRegistry@7ea2bca2]]
+2026-06-29 01:26:22 INFO  o.s.m.s.b.SimpleBrokerMessageHandler [restartedMain] Started.
+2026-06-29 01:26:22 INFO  o.a.coyote.http11.Http11NioProtocol [restartedMain] Starting ProtocolHandler ["http-nio-8080"]
+2026-06-29 01:26:22 INFO  o.s.boot.tomcat.TomcatWebServer [restartedMain] Tomcat started on port 8080 (http) with context path '/'
+2026-06-29 01:26:22 INFO  c.s.g.GoldenbookingApplication [restartedMain] Started GoldenbookingApplication in 30.726 seconds (process running for 34.293)
+2026-06-29 01:26:24 INFO  o.a.c.c.C.[Tomcat].[localhost].[/] [RMI TCP Connection(3)-127.0.0.1] Initializing Spring DispatcherServlet 'dispatcherServlet'
+2026-06-29 01:26:24 INFO  o.s.web.servlet.DispatcherServlet [RMI TCP Connection(3)-127.0.0.1] Initializing Servlet 'dispatcherServlet'
+2026-06-29 01:26:24 INFO  o.s.web.servlet.DispatcherServlet [RMI TCP Connection(3)-127.0.0.1] Completed initialization in 3 ms
+2026-06-29 01:26:30 INFO  c.s.g.services.HabitacionServiceImpl [http-nio-8080-exec-3] Listado paginado de habitaciones. Página: 0
+2026-06-29 01:26:31 INFO  c.s.g.services.HabitacionServiceImpl [http-nio-8080-exec-4] Listado paginado de habitaciones. Página: 0
+2026-06-29 01:27:14 INFO  c.s.g.services.HabitacionServiceImpl [http-nio-8080-exec-7] Listado paginado de habitaciones. Página: 0
+2026-06-29 01:27:14 INFO  c.s.g.services.HabitacionServiceImpl [http-nio-8080-exec-8] Listado paginado de habitaciones. Página: 0
+2026-06-29 01:27:21 INFO  o.s.w.s.c.WebSocketMessageBrokerStats [MessageBroker-1] WebSocketSession[0 current WS(0)-HttpStream(0)-HttpPoll(0), 0 total, 0 closed abnormally (0 connect failure, 0 send limit, 0 transport error)], stompSubProtocol[processed CONNECT(0)-CONNECTED(0)-DISCONNECT(0)], stompBrokerRelay[null], inboundChannel[pool size = 0, active threads = 0, queued tasks = 0, completed tasks = 0], outboundChannel[pool size = 0, active threads = 0, queued tasks = 0, completed tasks = 0], sockJsScheduler[pool size = 1, active threads = 1, queued tasks = 0, completed tasks = 0]
+2026-06-29 01:27:27 INFO  c.s.g.services.UsuarioServiceImpl [http-nio-8080-exec-1] Usuario encontrado con ID: 6a3d890191160b49f97bd67d
+2026-06-29 01:27:30 INFO  c.s.g.services.HabitacionServiceImpl [http-nio-8080-exec-5] Listado paginado de habitaciones. Página: 0
+2026-06-29 01:27:30 INFO  c.s.g.services.HabitacionServiceImpl [http-nio-8080-exec-6] Listado paginado de habitaciones. Página: 0
+2026-06-29 01:28:12 INFO  c.s.g.services.HabitacionServiceImpl [http-nio-8080-exec-8] Listado paginado de habitaciones. Página: 0
+2026-06-29 01:28:12 INFO  c.s.g.services.HabitacionServiceImpl [http-nio-8080-exec-9] Listado paginado de habitaciones. Página: 0
+2026-06-29 01:28:56 INFO  c.s.g.services.HabitacionServiceImpl [http-nio-8080-exec-2] Listado paginado de habitaciones. Página: 0
+2026-06-29 01:28:57 INFO  c.s.g.services.HabitacionServiceImpl [http-nio-8080-exec-1] Listado paginado de habitaciones. Página: 0
+2026-06-29 01:29:35 INFO  c.s.g.services.HabitacionServiceImpl [http-nio-8080-exec-6] Listado paginado de habitaciones. Página: 0
+2026-06-29 01:29:36 INFO  c.s.g.services.HabitacionServiceImpl [http-nio-8080-exec-7] Listado paginado de habitaciones. Página: 0
+2026-06-29 01:29:44 INFO  c.s.g.services.HabitacionServiceImpl [http-nio-8080-exec-10] Listado paginado de habitaciones. Página: 0
+2026-06-29 01:29:44 INFO  c.s.g.services.HabitacionServiceImpl [http-nio-8080-exec-2] Listado paginado de habitaciones. Página: 0
+2026-06-29 01:29:54 INFO  c.s.g.services.HabitacionServiceImpl [http-nio-8080-exec-4] Listado paginado de habitaciones. Página: 0
+2026-06-29 01:29:54 INFO  c.s.g.services.HabitacionServiceImpl [http-nio-8080-exec-5] Listado paginado de habitaciones. Página: 0
+2026-06-29 01:30:28 INFO  c.s.g.services.HabitacionServiceImpl [http-nio-8080-exec-8] Listado paginado de habitaciones. Página: 0
+2026-06-29 01:30:29 INFO  c.s.g.services.HabitacionServiceImpl [http-nio-8080-exec-9] Listado paginado de habitaciones. Página: 0
+2026-06-29 01:32:14 INFO  c.s.g.services.HabitacionServiceImpl [http-nio-8080-exec-3] Listado paginado de habitaciones. Página: 0
+2026-06-29 01:32:14 INFO  c.s.g.services.HabitacionServiceImpl [http-nio-8080-exec-4] Listado paginado de habitaciones. Página: 0
+2026-06-29 01:33:04 INFO  c.s.g.services.HabitacionServiceImpl [http-nio-8080-exec-6] Listado paginado de habitaciones. Página: 0
+2026-06-29 01:33:04 INFO  c.s.g.services.HabitacionServiceImpl [http-nio-8080-exec-7] Listado paginado de habitaciones. Página: 0
+2026-06-29 01:37:24 INFO  c.s.g.services.UsuarioServiceImpl [http-nio-8080-exec-1] Usuario encontrado con ID: 6a3d890191160b49f97bd67d
+2026-06-29 01:37:28 INFO  c.s.g.services.HabitacionServiceImpl [http-nio-8080-exec-5] Listado paginado de habitaciones. Página: 0
+2026-06-29 01:37:28 INFO  c.s.g.services.HabitacionServiceImpl [http-nio-8080-exec-6] Listado paginado de habitaciones. Página: 0
+2026-06-29 01:48:41 INFO  c.s.g.GoldenbookingApplication [restartedMain] Starting GoldenbookingApplication using Java 25.0.2 with PID 16748 (C:\Users\USUARIO\GOLDEN-BOOKING-BACKEND\target\classes started by USUARIO in C:\Users\USUARIO\GOLDEN-BOOKING-BACKEND)
+2026-06-29 01:48:41 INFO  c.s.g.GoldenbookingApplication [restartedMain] No active profile set, falling back to 1 default profile: "default"
+2026-06-29 01:48:42 INFO  o.s.b.d.e.DevToolsPropertyDefaultsPostProcessor [restartedMain] Devtools property defaults active! Set 'spring.devtools.add-properties' to 'false' to disable
+2026-06-29 01:48:42 INFO  o.s.b.d.e.DevToolsPropertyDefaultsPostProcessor [restartedMain] For additional web related logging consider setting the 'logging.level.web' property to 'DEBUG'
+2026-06-29 01:48:42 INFO  o.h.validator.internal.util.Version [background-preinit] HV000001: Hibernate Validator 9.0.1.Final
+2026-06-29 01:48:45 INFO  o.s.d.r.c.RepositoryConfigurationDelegate [restartedMain] Bootstrapping Spring Data MongoDB repositories in DEFAULT mode.
+2026-06-29 01:48:45 INFO  o.s.d.r.c.RepositoryConfigurationDelegate [restartedMain] Finished Spring Data repository scanning in 241 ms. Found 9 MongoDB repository interfaces.
+2026-06-29 01:48:47 INFO  o.s.boot.tomcat.TomcatWebServer [restartedMain] Tomcat initialized with port 8080 (http)
+2026-06-29 01:48:47 INFO  o.a.coyote.http11.Http11NioProtocol [restartedMain] Initializing ProtocolHandler ["http-nio-8080"]
+2026-06-29 01:48:47 INFO  o.a.catalina.core.StandardService [restartedMain] Starting service [Tomcat]
+2026-06-29 01:48:47 INFO  o.a.catalina.core.StandardEngine [restartedMain] Starting Servlet engine: [Apache Tomcat/11.0.18]
+2026-06-29 01:48:47 INFO  o.s.b.w.c.s.WebApplicationContextInitializer [restartedMain] Root WebApplicationContext: initialization completed in 5350 ms
+2026-06-29 01:48:48 INFO  org.mongodb.driver.client [restartedMain] MongoClient with metadata {"driver": {"name": "mongo-java-driver|spring-boot|sync", "version": "5.6.3"}, "os": {"type": "Windows", "name": "Windows 10", "architecture": "amd64", "version": "10.0"}, "platform": "Java/Eclipse Adoptium/25.0.2+10-LTS"} created with settings MongoClientSettings{readPreference=primary, writeConcern=WriteConcern{w=null, wTimeout=null ms, journal=null}, retryWrites=true, retryReads=true, readConcern=ReadConcern{level=null}, credential=null, transportSettings=null, commandListeners=[io.micrometer.core.instrument.binder.mongodb.MongoMetricsCommandListener@637df1c1], codecRegistry=ProvidersCodecRegistry{codecProviders=[ValueCodecProvider{}, BsonValueCodecProvider{}, DBRefCodecProvider{}, DBObjectCodecProvider{}, DocumentCodecProvider{}, CollectionCodecProvider{}, IterableCodecProvider{}, MapCodecProvider{}, GeoJsonCodecProvider{}, GridFSFileCodecProvider{}, Jsr310CodecProvider{}, JsonObjectCodecProvider{}, BsonCodecProvider{}, com.mongodb.client.model.mql.ExpressionCodecProvider@1e88dd38, com.mongodb.Jep395RecordCodecProvider@13ed5c44, com.mongodb.KotlinCodecProvider@254c3bc, EnumCodecProvider{}]}, loggerSettings=LoggerSettings{maxDocumentLength=1000}, clusterSettings={hosts=[localhost:27017], srvServiceName=mongodb, mode=SINGLE, requiredClusterType=UNKNOWN, requiredReplicaSetName='null', serverSelector='null', clusterListeners='[]', serverSelectionTimeout='30000 ms', localThreshold='15 ms'}, socketSettings=SocketSettings{connectTimeoutMS=10000, readTimeoutMS=0, receiveBufferSize=0, proxySettings=ProxySettings{host=null, port=null, username=null, password=null}}, heartbeatSocketSettings=SocketSettings{connectTimeoutMS=10000, readTimeoutMS=10000, receiveBufferSize=0, proxySettings=ProxySettings{host=null, port=null, username=null, password=null}}, connectionPoolSettings=ConnectionPoolSettings{maxSize=100, minSize=0, maxWaitTimeMS=120000, maxConnectionLifeTimeMS=0, maxConnectionIdleTimeMS=0, maintenanceInitialDelayMS=0, maintenanceFrequencyMS=60000, connectionPoolListeners=[io.micrometer.core.instrument.binder.mongodb.MongoMetricsConnectionPoolListener@e2bd9ce], maxConnecting=2}, serverSettings=ServerSettings{heartbeatFrequencyMS=10000, minHeartbeatFrequencyMS=500, serverMonitoringMode=AUTO, serverListeners='[]', serverMonitorListeners='[]'}, sslSettings=SslSettings{enabled=false, invalidHostNameAllowed=false, context=null}, applicationName='null', compressorList=[], uuidRepresentation=UNSPECIFIED, serverApi=null, autoEncryptionSettings=null, dnsClient=null, inetAddressResolver=null, contextProvider=null, timeoutMS=null}
+2026-06-29 01:48:48 INFO  org.mongodb.driver.cluster [cluster-ClusterId{value='6a421550d67a2ec6d1f9b8b4', description='null'}-localhost:27017] Monitor thread successfully connected to server with description ServerDescription{address=localhost:27017, type=STANDALONE, cryptd=false, state=CONNECTED, ok=true, minWireVersion=0, maxWireVersion=27, maxDocumentSize=16777216, logicalSessionTimeoutMinutes=30, roundTripTimeNanos=87362300, minRoundTripTimeNanos=0}
+2026-06-29 01:48:49 INFO  o.s.s.c.a.a.c.InitializeUserDetailsBeanManagerConfigurer$InitializeUserDetailsManagerConfigurer [restartedMain] Global AuthenticationManager configured with UserDetailsService bean with name detallesUsuarioService
+2026-06-29 01:48:53 INFO  o.s.b.a.e.web.EndpointLinksResolver [restartedMain] Exposing 1 endpoint beneath base path '/actuator'
+2026-06-29 01:48:53 INFO  o.s.m.s.b.SimpleBrokerMessageHandler [restartedMain] Starting...
+2026-06-29 01:48:53 INFO  o.s.m.s.b.SimpleBrokerMessageHandler [restartedMain] BrokerAvailabilityEvent[available=true, SimpleBrokerMessageHandler [org.springframework.messaging.simp.broker.DefaultSubscriptionRegistry@3cb69c8d]]
+2026-06-29 01:48:53 INFO  o.s.m.s.b.SimpleBrokerMessageHandler [restartedMain] Started.
+2026-06-29 01:48:53 INFO  o.a.coyote.http11.Http11NioProtocol [restartedMain] Starting ProtocolHandler ["http-nio-8080"]
+2026-06-29 01:48:53 INFO  o.s.boot.tomcat.TomcatWebServer [restartedMain] Tomcat started on port 8080 (http) with context path '/'
+2026-06-29 01:48:53 INFO  c.s.g.GoldenbookingApplication [restartedMain] Started GoldenbookingApplication in 13.205 seconds (process running for 15.386)
+2026-06-29 01:48:54 INFO  o.a.c.c.C.[Tomcat].[localhost].[/] [RMI TCP Connection(2)-127.0.0.1] Initializing Spring DispatcherServlet 'dispatcherServlet'
+2026-06-29 01:48:54 INFO  o.s.web.servlet.DispatcherServlet [RMI TCP Connection(2)-127.0.0.1] Initializing Servlet 'dispatcherServlet'
+2026-06-29 01:48:54 INFO  o.s.web.servlet.DispatcherServlet [RMI TCP Connection(2)-127.0.0.1] Completed initialization in 4 ms
+2026-06-29 01:49:12 INFO  c.s.g.services.UsuarioServiceImpl [http-nio-8080-exec-4] Usuario encontrado con ID: 6a3d890191160b49f97bd67d
+2026-06-29 01:49:17 INFO  c.s.g.services.HabitacionServiceImpl [http-nio-8080-exec-7] Listado paginado de habitaciones. Página: 0
+2026-06-29 01:49:17 INFO  c.s.g.services.HabitacionServiceImpl [http-nio-8080-exec-8] Listado paginado de habitaciones. Página: 0
+2026-06-29 01:49:19 INFO  c.s.g.services.HabitacionServiceImpl [http-nio-8080-exec-9] Listado paginado de habitaciones. Página: 0
+2026-06-29 01:49:19 INFO  c.s.g.services.HabitacionServiceImpl [http-nio-8080-exec-3] Listado paginado de habitaciones. Página: 0
+2026-06-29 01:49:20 INFO  c.s.g.services.HabitacionServiceImpl [http-nio-8080-exec-5] Listado paginado de habitaciones. Página: 0
+2026-06-29 01:49:21 INFO  c.s.g.services.HabitacionServiceImpl [http-nio-8080-exec-6] Listado paginado de habitaciones. Página: 0
+2026-06-29 01:49:23 INFO  c.s.g.services.HabitacionServiceImpl [http-nio-8080-exec-9] Listado paginado de habitaciones. Página: 0
+2026-06-29 01:49:23 INFO  c.s.g.services.HabitacionServiceImpl [http-nio-8080-exec-2] Listado paginado de habitaciones. Página: 0
+2026-06-29 01:49:26 INFO  c.s.g.services.HabitacionServiceImpl [http-nio-8080-exec-3] Listado paginado de habitaciones. Página: 0
+2026-06-29 01:49:27 INFO  c.s.g.services.HabitacionServiceImpl [http-nio-8080-exec-4] Listado paginado de habitaciones. Página: 0
+2026-06-29 01:49:53 INFO  o.s.w.s.c.WebSocketMessageBrokerStats [MessageBroker-1] WebSocketSession[0 current WS(0)-HttpStream(0)-HttpPoll(0), 0 total, 0 closed abnormally (0 connect failure, 0 send limit, 0 transport error)], stompSubProtocol[processed CONNECT(0)-CONNECTED(0)-DISCONNECT(0)], stompBrokerRelay[null], inboundChannel[pool size = 0, active threads = 0, queued tasks = 0, completed tasks = 0], outboundChannel[pool size = 0, active threads = 0, queued tasks = 0, completed tasks = 0], sockJsScheduler[pool size = 1, active threads = 1, queued tasks = 0, completed tasks = 0]
+2026-06-29 02:04:29 INFO  c.s.g.services.AuthServiceImpl [http-nio-8080-exec-10] Logout exitoso: Token invalidado correctamente hasta su expiración
+2026-06-29 02:11:59 INFO  c.s.g.services.UsuarioServiceImpl [http-nio-8080-exec-4] Usuario encontrado con ID: 6a3d890191160b49f97bd67d
+2026-06-29 02:12:10 INFO  c.s.g.services.HabitacionServiceImpl [http-nio-8080-exec-7] Listado paginado de habitaciones. Página: 0
+2026-06-29 02:12:10 INFO  c.s.g.services.HabitacionServiceImpl [http-nio-8080-exec-8] Listado paginado de habitaciones. Página: 0
+2026-06-29 02:12:15 INFO  c.s.g.services.UsuarioServiceImpl [http-nio-8080-exec-5] Listado paginado de usuarios. Página: 0, Tamaño: 10
+2026-06-29 02:12:15 INFO  c.s.g.services.UsuarioServiceImpl [http-nio-8080-exec-6] Listado paginado de usuarios. Página: 0, Tamaño: 10
+2026-06-29 02:14:26 INFO  c.s.g.s.ReservaDeporteServiceImpl [http-nio-8080-exec-9] Listado paginado de reservas deportivas. Página: 0
+2026-06-29 02:14:26 INFO  c.s.g.s.ReservaDeporteServiceImpl [http-nio-8080-exec-2] Listado paginado de reservas deportivas. Página: 0
+2026-06-29 02:14:27 INFO  c.s.g.s.ReservaDeporteServiceImpl [http-nio-8080-exec-5] Listado paginado de reservas deportivas. Página: 0
+2026-06-29 02:14:27 INFO  c.s.g.s.ReservaDeporteServiceImpl [http-nio-8080-exec-6] Listado paginado de reservas deportivas. Página: 0
+2026-06-29 02:14:29 INFO  c.s.g.s.ReservaDeporteServiceImpl [http-nio-8080-exec-7] Listado paginado de reservas deportivas. Página: 0
+2026-06-29 02:14:29 INFO  c.s.g.s.ReservaDeporteServiceImpl [http-nio-8080-exec-8] Listado paginado de reservas deportivas. Página: 0
+2026-06-29 02:14:33 INFO  c.s.g.services.HabitacionServiceImpl [http-nio-8080-exec-9] Listado paginado de habitaciones. Página: 0
+2026-06-29 02:14:33 INFO  c.s.g.services.HabitacionServiceImpl [http-nio-8080-exec-2] Listado paginado de habitaciones. Página: 0
+2026-06-29 02:14:34 INFO  c.s.g.services.HabitacionServiceImpl [http-nio-8080-exec-5] Listado paginado de habitaciones. Página: 0
+2026-06-29 02:14:35 INFO  c.s.g.services.HabitacionServiceImpl [http-nio-8080-exec-8] Listado paginado de habitaciones. Página: 0
+2026-06-29 02:14:36 INFO  c.s.g.services.HabitacionServiceImpl [http-nio-8080-exec-10] Listado paginado de habitaciones. Página: 0
+2026-06-29 02:14:36 INFO  c.s.g.services.HabitacionServiceImpl [http-nio-8080-exec-1] Listado paginado de habitaciones. Página: 0
+2026-06-29 02:14:37 INFO  c.s.g.services.HabitacionServiceImpl [http-nio-8080-exec-3] Listado paginado de habitaciones. Página: 0
+2026-06-29 02:14:37 INFO  c.s.g.services.HabitacionServiceImpl [http-nio-8080-exec-4] Listado paginado de habitaciones. Página: 0
+2026-06-29 02:16:52 INFO  c.s.g.services.UsuarioServiceImpl [http-nio-8080-exec-10] Listado paginado de usuarios. Página: 0, Tamaño: 10
+2026-06-29 02:16:52 INFO  c.s.g.services.UsuarioServiceImpl [http-nio-8080-exec-1] Listado paginado de usuarios. Página: 0, Tamaño: 10
+2026-06-29 02:16:54 INFO  c.s.g.services.UsuarioServiceImpl [http-nio-8080-exec-2] Listado paginado de usuarios. Página: 1, Tamaño: 10
+2026-06-29 02:16:59 INFO  c.s.g.services.UsuarioServiceImpl [http-nio-8080-exec-4] Listado paginado de usuarios. Página: 0, Tamaño: 10
+2026-06-29 02:17:02 INFO  c.s.g.s.ReservaDeporteServiceImpl [http-nio-8080-exec-10] Listado paginado de reservas deportivas. Página: 0
+2026-06-29 02:17:19 INFO  c.s.g.s.ReservaDeporteServiceImpl [http-nio-8080-exec-9] Iniciando creación de reserva deportiva. Usuario: 12345678901, Cancha: Natación
+2026-06-29 02:17:19 INFO  c.s.g.s.ReservaDeporteServiceImpl [http-nio-8080-exec-9] Reserva deportiva creada y notificada con éxito. ID: 6a421bffd67a2ec6d1f9b8b6, Usuario: 12345678901
+2026-06-29 02:17:30 INFO  c.s.g.s.ReservaDeporteServiceImpl [http-nio-8080-exec-5] Listado paginado de reservas deportivas. Página: 0
+2026-06-29 02:17:30 INFO  c.s.g.s.ReservaDeporteServiceImpl [http-nio-8080-exec-6] Listado paginado de reservas deportivas. Página: 0
+2026-06-29 02:18:32 INFO  c.s.g.services.UsuarioServiceImpl [http-nio-8080-exec-2] Listado paginado de usuarios. Página: 0, Tamaño: 10
+2026-06-29 02:18:32 INFO  c.s.g.services.UsuarioServiceImpl [http-nio-8080-exec-3] Listado paginado de usuarios. Página: 0, Tamaño: 10
+2026-06-29 02:18:46 INFO  c.s.g.services.UsuarioServiceImpl [http-nio-8080-exec-6] Listado paginado de usuarios. Página: 0, Tamaño: 10
+2026-06-29 02:18:46 INFO  c.s.g.services.UsuarioServiceImpl [http-nio-8080-exec-7] Listado paginado de usuarios. Página: 0, Tamaño: 10
+2026-06-29 02:19:14 INFO  c.s.g.services.AuthServiceImpl [http-nio-8080-exec-10] Logout exitoso: Token invalidado correctamente hasta su expiración
+2026-06-29 02:19:16 INFO  c.s.g.services.UsuarioServiceImpl [http-nio-8080-exec-3] Usuario encontrado con ID: 6a3d890191160b49f97bd67d
+2026-06-29 02:19:29 INFO  c.s.g.services.AuthServiceImpl [http-nio-8080-exec-5] Logout exitoso: Token invalidado correctamente hasta su expiración
+2026-06-29 02:19:30 INFO  c.s.g.services.UsuarioServiceImpl [http-nio-8080-exec-10] Usuario encontrado con ID: 6a3d890191160b49f97bd67d
+2026-06-29 02:20:17 INFO  c.s.g.GoldenbookingApplication [restartedMain] Starting GoldenbookingApplication using Java 25.0.2 with PID 15848 (C:\Users\USUARIO\GOLDEN-BOOKING-BACKEND\target\classes started by USUARIO in C:\Users\USUARIO\GOLDEN-BOOKING-BACKEND)
+2026-06-29 02:20:17 INFO  c.s.g.GoldenbookingApplication [restartedMain] No active profile set, falling back to 1 default profile: "default"
+2026-06-29 02:20:17 INFO  o.s.b.d.e.DevToolsPropertyDefaultsPostProcessor [restartedMain] Devtools property defaults active! Set 'spring.devtools.add-properties' to 'false' to disable
+2026-06-29 02:20:17 INFO  o.s.b.d.e.DevToolsPropertyDefaultsPostProcessor [restartedMain] For additional web related logging consider setting the 'logging.level.web' property to 'DEBUG'
+2026-06-29 02:20:18 INFO  o.h.validator.internal.util.Version [background-preinit] HV000001: Hibernate Validator 9.0.1.Final
+2026-06-29 02:20:25 INFO  o.s.d.r.c.RepositoryConfigurationDelegate [restartedMain] Bootstrapping Spring Data MongoDB repositories in DEFAULT mode.
+2026-06-29 02:20:25 INFO  o.s.d.r.c.RepositoryConfigurationDelegate [restartedMain] Finished Spring Data repository scanning in 479 ms. Found 9 MongoDB repository interfaces.
+2026-06-29 02:20:31 INFO  o.s.boot.tomcat.TomcatWebServer [restartedMain] Tomcat initialized with port 8080 (http)
+2026-06-29 02:20:31 INFO  o.a.coyote.http11.Http11NioProtocol [restartedMain] Initializing ProtocolHandler ["http-nio-8080"]
+2026-06-29 02:20:31 INFO  o.a.catalina.core.StandardService [restartedMain] Starting service [Tomcat]
+2026-06-29 02:20:31 INFO  o.a.catalina.core.StandardEngine [restartedMain] Starting Servlet engine: [Apache Tomcat/11.0.18]
+2026-06-29 02:20:32 INFO  o.s.b.w.c.s.WebApplicationContextInitializer [restartedMain] Root WebApplicationContext: initialization completed in 14178 ms
+2026-06-29 02:20:35 INFO  org.mongodb.driver.client [restartedMain] MongoClient with metadata {"driver": {"name": "mongo-java-driver|spring-boot|sync", "version": "5.6.3"}, "os": {"type": "Windows", "name": "Windows 10", "architecture": "amd64", "version": "10.0"}, "platform": "Java/Eclipse Adoptium/25.0.2+10-LTS"} created with settings MongoClientSettings{readPreference=primary, writeConcern=WriteConcern{w=null, wTimeout=null ms, journal=null}, retryWrites=true, retryReads=true, readConcern=ReadConcern{level=null}, credential=null, transportSettings=null, commandListeners=[io.micrometer.core.instrument.binder.mongodb.MongoMetricsCommandListener@4ce05629], codecRegistry=ProvidersCodecRegistry{codecProviders=[ValueCodecProvider{}, BsonValueCodecProvider{}, DBRefCodecProvider{}, DBObjectCodecProvider{}, DocumentCodecProvider{}, CollectionCodecProvider{}, IterableCodecProvider{}, MapCodecProvider{}, GeoJsonCodecProvider{}, GridFSFileCodecProvider{}, Jsr310CodecProvider{}, JsonObjectCodecProvider{}, BsonCodecProvider{}, com.mongodb.client.model.mql.ExpressionCodecProvider@4cba526a, com.mongodb.Jep395RecordCodecProvider@19fd9c98, com.mongodb.KotlinCodecProvider@48ed0fca, EnumCodecProvider{}]}, loggerSettings=LoggerSettings{maxDocumentLength=1000}, clusterSettings={hosts=[localhost:27017], srvServiceName=mongodb, mode=SINGLE, requiredClusterType=UNKNOWN, requiredReplicaSetName='null', serverSelector='null', clusterListeners='[]', serverSelectionTimeout='30000 ms', localThreshold='15 ms'}, socketSettings=SocketSettings{connectTimeoutMS=10000, readTimeoutMS=0, receiveBufferSize=0, proxySettings=ProxySettings{host=null, port=null, username=null, password=null}}, heartbeatSocketSettings=SocketSettings{connectTimeoutMS=10000, readTimeoutMS=10000, receiveBufferSize=0, proxySettings=ProxySettings{host=null, port=null, username=null, password=null}}, connectionPoolSettings=ConnectionPoolSettings{maxSize=100, minSize=0, maxWaitTimeMS=120000, maxConnectionLifeTimeMS=0, maxConnectionIdleTimeMS=0, maintenanceInitialDelayMS=0, maintenanceFrequencyMS=60000, connectionPoolListeners=[io.micrometer.core.instrument.binder.mongodb.MongoMetricsConnectionPoolListener@6f259e0], maxConnecting=2}, serverSettings=ServerSettings{heartbeatFrequencyMS=10000, minHeartbeatFrequencyMS=500, serverMonitoringMode=AUTO, serverListeners='[]', serverMonitorListeners='[]'}, sslSettings=SslSettings{enabled=false, invalidHostNameAllowed=false, context=null}, applicationName='null', compressorList=[], uuidRepresentation=UNSPECIFIED, serverApi=null, autoEncryptionSettings=null, dnsClient=null, inetAddressResolver=null, contextProvider=null, timeoutMS=null}
+2026-06-29 02:20:37 INFO  org.mongodb.driver.cluster [cluster-ClusterId{value='6a421cc2d8c3af8ae34f03ec', description='null'}-localhost:27017] Monitor thread successfully connected to server with description ServerDescription{address=localhost:27017, type=STANDALONE, cryptd=false, state=CONNECTED, ok=true, minWireVersion=0, maxWireVersion=27, maxDocumentSize=16777216, logicalSessionTimeoutMinutes=30, roundTripTimeNanos=2144443200, minRoundTripTimeNanos=0}
+2026-06-29 02:20:43 INFO  o.s.s.c.a.a.c.InitializeUserDetailsBeanManagerConfigurer$InitializeUserDetailsManagerConfigurer [restartedMain] Global AuthenticationManager configured with UserDetailsService bean with name detallesUsuarioService

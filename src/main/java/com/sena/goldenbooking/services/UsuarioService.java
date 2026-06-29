@@ -4,6 +4,9 @@ import java.util.List;
 import com.sena.goldenbooking.dtos.UsuarioDto;
 import com.sena.goldenbooking.dtos.UsuarioRegistroDto;
 
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+
 public interface UsuarioService {
 
     /** * Operación Maestra: Registra en UsuarioPerfil y UsuarioAuth con el mismo ID.
@@ -35,4 +38,7 @@ public interface UsuarioService {
      * Valida si existe un usuario por su documento antes de crear otro.
      */
     boolean existePorDocumento(String docnum);
+
+    // Paginación
+    Page<UsuarioDto> listarUsuariosPaginados(Pageable pageable);
 }

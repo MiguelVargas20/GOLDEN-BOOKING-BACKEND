@@ -1,15 +1,20 @@
 package com.sena.goldenbooking.controllers;
 
 import java.util.List;
+import java.util.Map;
+
+import org.springframework.data.domain.PageRequest;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import com.sena.goldenbooking.dtos.HabitacionDto;
 import com.sena.goldenbooking.services.HabitacionService;
 
+import org.springframework.data.domain.Pageable;
+
 @RestController
 @RequestMapping("/api/habitaciones")
-@CrossOrigin(origins = "*")
+
 public class HabitacionController {
 
     private final HabitacionService service;
@@ -25,9 +30,21 @@ public class HabitacionController {
     }
 
     // GET /api/habitaciones
+    // Listar todas las habitaciones con paginación
     @GetMapping
-    public ResponseEntity<List<HabitacionDto>> listarTodas() {
-        return ResponseEntity.ok(service.listarTodas());
+    public ResponseEntity<Map<String, Object>> listarTodas(
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "10") int size) {
+
+        Pageable pageable = PageRequest.of(page, size);
+        var pagina = service.listarTodasPaginadas(pageable);
+
+        return ResponseEntity.ok(Map.of(
+            "contenido",      pagina.getContent(),
+            "paginaActual",   pagina.getNumber(),
+            "totalPaginas",   pagina.getTotalPages(),
+            "totalElementos", pagina.getTotalElements()
+        ));
     }
 
     // GET /api/habitaciones/disponibles

@@ -16,7 +16,12 @@ import com.sena.goldenbooking.models.UsuarioAuth;
 import com.sena.goldenbooking.models.Rol;
 import com.sena.goldenbooking.repositories.UsuarioAuthRepository;
 import com.sena.goldenbooking.repositories.UsuarioRepository;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 
+import lombok.extern.slf4j.Slf4j;
+
+@Slf4j
 @Service
 public class UsuarioServiceImpl implements UsuarioService {
 
@@ -25,7 +30,7 @@ public class UsuarioServiceImpl implements UsuarioService {
     private final UsuarioMapper userMapper;
     private final PasswordEncoder passwordEncoder;
 
-    public UsuarioServiceImpl(UsuarioRepository userRepo,UsuarioAuthRepository authRepo,UsuarioMapper userMapper,PasswordEncoder passwordEncoder) {
+    public UsuarioServiceImpl(UsuarioRepository userRepo, UsuarioAuthRepository authRepo, UsuarioMapper userMapper, PasswordEncoder passwordEncoder) {
         this.userRepo = userRepo;
         this.authRepo = authRepo;
         this.userMapper = userMapper;
@@ -35,12 +40,15 @@ public class UsuarioServiceImpl implements UsuarioService {
     @Override
     @Transactional
     public UsuarioRegistroDto registrarUsuario(UsuarioRegistroDto dto) {
+        log.info("Iniciando registro de usuario: {}", dto.getUsername());
 
         // Validaciones previas
         if (userRepo.existsByDocNum(dto.getDocumento().getNumeroD())) {
+            log.warn("Registro rechazado: documento {} ya registrado.", dto.getDocumento().getNumeroD());
             throw new RuntimeException("El documento ya está registrado.");
         }
         if (authRepo.existsByUser(dto.getUsername())) {
+            log.warn("Registro rechazado: username '{}' ya en uso.", dto.getUsername());
             throw new RuntimeException("El nombre de usuario ya está en uso.");
         }
 
@@ -73,28 +81,40 @@ public class UsuarioServiceImpl implements UsuarioService {
 
         authRepo.save(auth);
 
+        log.info("Usuario '{}' registrado correctamente con ID: {}", dto.getUsername(), perfilGuardado.getId());
         return dto;
     }
 
     @Override
     public List<UsuarioDto> listarUsuarios() {
-        return userRepo.findAll().stream()
+        List<UsuarioDto> usuarios = userRepo.findAll().stream()
                 .map(userMapper::toDto)
                 .collect(Collectors.toList());
+        log.info("Listado de usuarios solicitado. Total: {}", usuarios.size());
+        return usuarios;
     }
 
     @Override
     public UsuarioDto obtenerPorId(String id) {
-        Usuario usuario = userRepo.findById(id)
-                .orElseThrow(() -> new RuntimeException("Usuario no encontrado con ID: " + id));
-        return userMapper.toDto(usuario);
+        return userRepo.findById(id)
+                .map(u -> {
+                    log.info("Usuario encontrado con ID: {}", id);
+                    return userMapper.toDto(u);
+                })
+                .orElseThrow(() -> {
+                    log.warn("Usuario no encontrado con ID: {}", id);
+                    return new RuntimeException("Usuario no encontrado con ID: " + id);
+                });
     }
 
     @Override
     public UsuarioDto obtenerPorDocNum(String docnum) {
-        Usuario usuario = userRepo.findByDocNum(docnum)
-                .orElseThrow(() -> new RuntimeException("Usuario no encontrado con documento: " + docnum));
-        return userMapper.toDto(usuario);
+        return userRepo.findByDocNum(docnum)
+                .map(userMapper::toDto)
+                .orElseThrow(() -> {
+                    log.warn("Usuario no encontrado con documento: {}", docnum);
+                    return new RuntimeException("Usuario no encontrado con documento: " + docnum);
+                });
     }
 
     @Override
@@ -104,23 +124,39 @@ public class UsuarioServiceImpl implements UsuarioService {
 
     @Override
     public UsuarioDto actualizarUsuario(String id, UsuarioDto usuarioDto) {
+        log.info("Actualizando usuario con ID: {}", id);
         Usuario usuarioExistente = userRepo.findById(id)
-                .orElseThrow(() -> new RuntimeException("No existe usuario con ID: " + id));
+                .orElseThrow(() -> {
+                    log.warn("Actualización fallida: usuario con ID {} no encontrado.", id);
+                    return new RuntimeException("No existe usuario con ID: " + id);
+                });
 
         userMapper.actualizarUsuario(usuarioDto, usuarioExistente);
-
-        return userMapper.toDto(userRepo.save(usuarioExistente));
+        UsuarioDto resultado = userMapper.toDto(userRepo.save(usuarioExistente));
+        log.info("Usuario con ID: {} actualizado correctamente.", id);
+        return resultado;
     }
 
     @Override
     @Transactional
     public void eliminarUsuario(String id) {
+        log.info("Iniciando eliminación de usuario con ID: {}", id);
         if (!userRepo.existsById(id)) {
+            log.warn("Eliminación fallida: usuario con ID {} no encontrado.", id);
             throw new RuntimeException("ID no encontrado para eliminar.");
         }
         userRepo.deleteById(id);
         if (authRepo.existsById(id)) {
             authRepo.deleteById(id);
         }
+        log.info("Usuario con ID: {} eliminado correctamente de perfil y credenciales.", id);
+    }
+
+    // Paginación
+    @Override
+    public Page<UsuarioDto> listarUsuariosPaginados(Pageable pageable) {
+        log.info("Listado paginado de usuarios. Página: {}, Tamaño: {}", 
+                pageable.getPageNumber(), pageable.getPageSize());
+        return userRepo.findAll(pageable).map(userMapper::toDto);
     }
 }
