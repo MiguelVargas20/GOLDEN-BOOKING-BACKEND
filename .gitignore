@@ -36,3 +36,6 @@ build/
 .env
 *.jar
 application-local.properties
+
+### Logs ###
+logs/

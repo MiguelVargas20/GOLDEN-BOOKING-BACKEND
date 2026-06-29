@@ -1,6 +1,7 @@
 package com.sena.goldenbooking.services;
 
 import java.util.List;
+import java.util.Map;
 import com.sena.goldenbooking.dtos.UsuarioDto;
 import com.sena.goldenbooking.dtos.UsuarioRegistroDto;
 
@@ -41,4 +42,7 @@ public interface UsuarioService {
 
     // Paginación
     Page<UsuarioDto> listarUsuariosPaginados(Pageable pageable);
+
+    // Actualiza el perfil del usuario con los campos proporcionados en el mapa.
+    UsuarioDto actualizarPerfil(String id, Map<String, String> campos);
 }

@@ -22,4 +22,7 @@ public interface ReservaHotelService {
 
     // Elimina una reserva de hotel existente con el ID proporcionado
     void cancelar(String id);
+
+    // Devuelve una lista de DTOs de reserva de hotel correspondientes al documento de usuario proporcionado
+    List<ReservaHotelDto> obtenerPorUsuario(String docUsuario);
 }

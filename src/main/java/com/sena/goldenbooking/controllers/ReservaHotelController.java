@@ -14,7 +14,6 @@ import jakarta.validation.Valid;
 
 // Base URL para todas las operaciones relacionadas con reservas de hotel
 @RequestMapping("/api/reservas/hotel")
-@CrossOrigin(origins = "*")
 
 // Controlador para manejar las operaciones CRUD y de cancelación de reservas de hotel
 public class ReservaHotelController {
@@ -66,5 +65,12 @@ public class ReservaHotelController {
     public ResponseEntity<Void> cancelar(@PathVariable String id) {
         service.cancelar(id);
         return ResponseEntity.noContent().build();
+    }
+
+    // GET /api/reservas/hotel/usuario/{docUsuario}
+    @GetMapping("/usuario/{docUsuario}")
+    public ResponseEntity<List<ReservaHotelDto>> obtenerPorUsuario(
+            @PathVariable String docUsuario) {
+        return ResponseEntity.ok(service.obtenerPorUsuario(docUsuario));
     }
 }

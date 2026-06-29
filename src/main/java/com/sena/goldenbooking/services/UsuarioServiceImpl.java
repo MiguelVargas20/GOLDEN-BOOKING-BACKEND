@@ -2,6 +2,7 @@ package com.sena.goldenbooking.services;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Map;
 import java.util.stream.Collectors;
 
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -158,5 +159,26 @@ public class UsuarioServiceImpl implements UsuarioService {
         log.info("Listado paginado de usuarios. Página: {}, Tamaño: {}", 
                 pageable.getPageNumber(), pageable.getPageSize());
         return userRepo.findAll(pageable).map(userMapper::toDto);
+    }
+
+    // Actualiza el perfil del usuario con los campos proporcionados en el mapa.
+    @Override
+    public UsuarioDto actualizarPerfil(String id, Map<String, String> campos) {
+        log.info("Usuario actualizando su propio perfil. ID: {}", id);
+        Usuario usuario = userRepo.findById(id)
+                .orElseThrow(() -> {
+                    log.warn("Perfil no encontrado con ID: {}", id);
+                    return new RuntimeException("Usuario no encontrado con ID: " + id);
+                });
+
+        // Solo permite cambiar nombre, apellido, teléfono y correo
+        if (campos.containsKey("nombre"))   usuario.setNomUsr(campos.get("nombre"));
+        if (campos.containsKey("apellido")) usuario.setApellUsr(campos.get("apellido"));
+        if (campos.containsKey("telefono")) usuario.setTel(campos.get("telefono"));
+        if (campos.containsKey("correo"))   usuario.setCorreo(campos.get("correo"));
+
+        UsuarioDto resultado = userMapper.toDto(userRepo.save(usuario));
+        log.info("Perfil del usuario ID: {} actualizado correctamente.", id);
+        return resultado;
     }
 }

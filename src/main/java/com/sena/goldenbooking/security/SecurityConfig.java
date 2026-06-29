@@ -32,60 +32,60 @@ public class SecurityConfig {
     // Configura la cadena de filtros de seguridad, definiendo las reglas de acceso a las rutas
 
     @Bean
-    
-public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
-    http
-        .cors(cors -> {})
-        .csrf(csrf -> csrf.disable())
-        .authorizeHttpRequests(auth -> auth
-            .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
+    public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
+        http
+            .cors(cors -> {})
+            .csrf(csrf -> csrf.disable())
+            .authorizeHttpRequests(auth -> auth
+                .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
 
-            // ── Públicas ────────────────────────────────────────────
-            .requestMatchers(
-                "/auth/login",
-                "/api/auth/*",
-                "/api/auth/recuperar-password",
-                "/api/usuarios/registro",
-                "/test/**",
-                "/ws/**"          // ← NUEVO: permite la conexión WebSocket
-            ).permitAll()
+                        // ── Públicas ─────────────────────────────────────────
+                    .requestMatchers(
+                        "/auth/login",
+                        "/auth/recuperar-password",
+                        "/api/usuarios/registro",
+                        "/ws/**"
+                    ).permitAll()
 
-            // ── Solo ADMIN ──────────────────────────────────────────
-            // Gestión de habitaciones y tipos
-            .requestMatchers(HttpMethod.POST,   "/api/habitaciones/**").hasAuthority("ROL_ADMIN")
-            .requestMatchers(HttpMethod.PUT,    "/api/habitaciones/**").hasAuthority("ROL_ADMIN")
-            .requestMatchers(HttpMethod.DELETE, "/api/habitaciones/**").hasAuthority("ROL_ADMIN")
-            .requestMatchers(HttpMethod.POST,   "/api/tipohabitaciones/**").hasAuthority("ROL_ADMIN")
-            .requestMatchers(HttpMethod.PUT,    "/api/tipohabitaciones/**").hasAuthority("ROL_ADMIN")
-            .requestMatchers(HttpMethod.DELETE, "/api/tipohabitaciones/**").hasAuthority("ROL_ADMIN")
+                    // ── Perfil propio — VA PRIMERO antes que restricciones de ADMIN ──
+                    .requestMatchers(HttpMethod.GET,   "/api/usuarios/perfil/**").hasAnyAuthority("ROL_ADMIN", "ROL_CLIENTE")
+                    .requestMatchers(HttpMethod.PATCH, "/api/usuarios/perfil/**").hasAnyAuthority("ROL_ADMIN", "ROL_CLIENTE")
 
-            // Gestión de usuarios (ADMIN ve y edita todo)
-            .requestMatchers(HttpMethod.GET,    "/api/usuarios/**").hasAuthority("ROL_ADMIN")
-            .requestMatchers(HttpMethod.PUT,    "/api/usuarios/**").hasAuthority("ROL_ADMIN")
-            .requestMatchers(HttpMethod.DELETE, "/api/usuarios/**").hasAuthority("ROL_ADMIN")
+                    // ── Solo ADMIN — Usuarios ─────────────────────────────
+                    .requestMatchers(HttpMethod.GET,    "/api/usuarios/**").hasAuthority("ROL_ADMIN")
+                    .requestMatchers(HttpMethod.PUT,    "/api/usuarios/**").hasAuthority("ROL_ADMIN")
+                    .requestMatchers(HttpMethod.PATCH,  "/api/usuarios/**").hasAuthority("ROL_ADMIN")
+                    .requestMatchers(HttpMethod.DELETE, "/api/usuarios/**").hasAuthority("ROL_ADMIN")
 
-            // Cancelar y eliminar reservas (solo ADMIN)
-            .requestMatchers(HttpMethod.DELETE, "/api/reservas/**").hasAuthority("ROL_ADMIN")
-            // GET, POST, PATCH — ADMIN o CLIENTE
-            .requestMatchers("/api/reservas/**").hasAnyAuthority("ROL_ADMIN", "ROL_CLIENTE")
+                    // ── Solo ADMIN — Habitaciones ─────────────────────────
+                    .requestMatchers(HttpMethod.POST,   "/api/habitaciones/**").hasAuthority("ROL_ADMIN")
+                    .requestMatchers(HttpMethod.PUT,    "/api/habitaciones/**").hasAuthority("ROL_ADMIN")
+                    .requestMatchers(HttpMethod.DELETE, "/api/habitaciones/**").hasAuthority("ROL_ADMIN")
 
-            // ── ADMIN o CLIENTE autenticado ─────────────────────────
-            // Ver habitaciones disponibles
-            .requestMatchers(HttpMethod.GET, "/api/habitaciones/**").hasAnyAuthority("ROL_ADMIN", "ROL_CLIENTE")
-            .requestMatchers(HttpMethod.GET, "/api/tipohabitaciones/**").hasAnyAuthority("ROL_ADMIN", "ROL_CLIENTE")
+                    // ── Solo ADMIN — Tipos de Habitación ─────────────────
+                    .requestMatchers(HttpMethod.POST,   "/api/tipohabitaciones/**").hasAuthority("ROL_ADMIN")
+                    .requestMatchers(HttpMethod.PUT,    "/api/tipohabitaciones/**").hasAuthority("ROL_ADMIN")
+                    .requestMatchers(HttpMethod.DELETE, "/api/tipohabitaciones/**").hasAuthority("ROL_ADMIN")
 
-            // Reservas — cualquier usuario logueado puede crear y ver las suyas
-            .requestMatchers("/api/reservas/**").hasAnyAuthority("ROL_ADMIN", "ROL_CLIENTE")
-            .requestMatchers("/api/reservas/hotel/**").hasAnyAuthority("ROL_ADMIN", "ROL_CLIENTE")
-            .requestMatchers("/api/reservas/deporte/**").hasAnyAuthority("ROL_ADMIN", "ROL_CLIENTE")
+                    // ── Solo ADMIN — Eliminar reservas ────────────────────
+                    .requestMatchers(HttpMethod.DELETE, "/api/reservas/**").hasAuthority("ROL_ADMIN")
 
-            // ── Todo lo demás requiere JWT ──────────────────────────
-            .anyRequest().authenticated()
-        )
-        .addFilterBefore(jwtFilter, UsernamePasswordAuthenticationFilter.class);
+                    // ── ADMIN o CLIENTE — Reservas ────────────────────────
+                    .requestMatchers(HttpMethod.GET,   "/api/reservas/**").hasAnyAuthority("ROL_ADMIN", "ROL_CLIENTE")
+                    .requestMatchers(HttpMethod.POST,  "/api/reservas/**").hasAnyAuthority("ROL_ADMIN", "ROL_CLIENTE")
+                    .requestMatchers(HttpMethod.PATCH, "/api/reservas/**").hasAnyAuthority("ROL_ADMIN", "ROL_CLIENTE")
 
-    return http.build();
-}
+                    // ── ADMIN o CLIENTE — Habitaciones lectura ────────────
+                    .requestMatchers(HttpMethod.GET, "/api/habitaciones/**").hasAnyAuthority("ROL_ADMIN", "ROL_CLIENTE")
+                    .requestMatchers(HttpMethod.GET, "/api/tipohabitaciones/**").hasAnyAuthority("ROL_ADMIN", "ROL_CLIENTE")
+
+                    // ── Todo lo demás requiere JWT ────────────────────────
+                    .anyRequest().authenticated()
+                )
+                .addFilterBefore(jwtFilter, UsernamePasswordAuthenticationFilter.class);
+
+            return http.build();
+        }
     // Configura CORS para permitir solicitudes desde el frontend (ej. localhost:5173)
     @Bean
     

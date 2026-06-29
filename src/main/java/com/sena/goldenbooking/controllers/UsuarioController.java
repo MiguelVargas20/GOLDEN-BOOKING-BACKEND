@@ -74,4 +74,17 @@ public class UsuarioController {
         usuarioService.eliminarUsuario(id);
         return ResponseEntity.noContent().build();
     }
+
+    // GET /api/usuarios/perfil/{id} — el usuario obtiene su propio perfil
+    @GetMapping("/perfil/{id}")
+    public ResponseEntity<UsuarioDto> obtenerPerfil(@PathVariable String id) {
+        return ResponseEntity.ok(usuarioService.obtenerPorId(id));
+    }
+        // PATCH /api/usuarios/perfil/{id} — el usuario actualiza su propio perfil
+    @PatchMapping("/perfil/{id}")
+    public ResponseEntity<UsuarioDto> actualizarPerfil(
+            @PathVariable String id,
+            @RequestBody Map<String, String> campos) {
+        return ResponseEntity.ok(usuarioService.actualizarPerfil(id, campos));
+    }
 }
