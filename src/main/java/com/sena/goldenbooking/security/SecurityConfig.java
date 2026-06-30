@@ -47,6 +47,14 @@ public class SecurityConfig {
                         "/ws/**"
                     ).permitAll()
 
+                    // ── Documentación Swagger / OpenAPI ───────────────────
+                    .requestMatchers(
+                        "/swagger-ui.html",
+                        "/swagger-ui/**",
+                        "/v3/api-docs/**",
+                        "/v3/api-docs.yaml"
+                    ).permitAll()
+
                     // ── Perfil propio — VA PRIMERO antes que restricciones de ADMIN ──
                     .requestMatchers(HttpMethod.GET,   "/api/usuarios/perfil/**").hasAnyAuthority("ROL_ADMIN", "ROL_CLIENTE")
                     .requestMatchers(HttpMethod.PATCH, "/api/usuarios/perfil/**").hasAnyAuthority("ROL_ADMIN", "ROL_CLIENTE")

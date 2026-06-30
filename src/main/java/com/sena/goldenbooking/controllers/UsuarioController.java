@@ -15,7 +15,9 @@ import org.springframework.data.domain.Pageable;
 
 
 import jakarta.validation.Valid;
+import io.swagger.v3.oas.annotations.tags.Tag;
 
+@Tag(name = "Usuarios", description = "Registro, perfil y administración de usuarios.")
 @RestController
 @RequestMapping("/api/usuarios")
 public class UsuarioController {

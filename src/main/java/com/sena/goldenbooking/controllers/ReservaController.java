@@ -10,7 +10,9 @@ import com.sena.goldenbooking.dtos.ReservaDto;
 import com.sena.goldenbooking.models.EstadoReserva;
 import com.sena.goldenbooking.models.TipoReserva;
 import com.sena.goldenbooking.services.ReservaService;
+import io.swagger.v3.oas.annotations.tags.Tag;
 
+@Tag(name = "Reservas", description = "Operaciones generales sobre reservas.")
 @RestController
 @RequestMapping("/api/reservas")
 public class ReservaController {

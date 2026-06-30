@@ -35,4 +35,5 @@ Crear manualmente vía POST /api/usuarios/registro:
   "estado": "ACTIVO",
   "roles": ["ROL_ADMIN"]
 }
+
 ```

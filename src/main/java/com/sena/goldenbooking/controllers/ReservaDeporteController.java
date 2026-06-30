@@ -12,8 +12,10 @@ import org.springframework.data.domain.Pageable;
 import java.util.Map;
 
 import jakarta.validation.Valid;
+import io.swagger.v3.oas.annotations.tags.Tag;
 
 // Controlador REST para gestionar las reservas de deporte
+@Tag(name = "Reservas - Deporte", description = "Reservas de canchas e instalaciones deportivas.")
 @RestController
 
 // Base URL para todas las operaciones relacionadas con reservas de deporte

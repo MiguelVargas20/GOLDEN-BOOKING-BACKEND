@@ -8,8 +8,10 @@ import com.sena.goldenbooking.dtos.ReservaHotelDto;
 import com.sena.goldenbooking.services.ReservaHotelService;
 
 import jakarta.validation.Valid;
+import io.swagger.v3.oas.annotations.tags.Tag;
 
 // Controlador REST para gestionar las reservas de hotel
+@Tag(name = "Reservas - Hotel", description = "Reservas de habitaciones de hotel.")
 @RestController
 
 // Base URL para todas las operaciones relacionadas con reservas de hotel

@@ -145,4 +145,11 @@ public class ReservaHotelServiceImpl implements ReservaHotelService {
 
         log.info("Cancelación exitosa. Reserva {} liberada.", id);
     }
+
+    // Método adicional para obtener reservas por documento de usuario
+    @Override
+        public List<ReservaHotelDto> obtenerPorUsuario(String docUsuario) {
+            log.info("Listando reservas hotel para usuario: {}", docUsuario);
+            return mapper.toDtoList(reservaHotelRepo.findByDocUsuario(docUsuario));
+        }
 }

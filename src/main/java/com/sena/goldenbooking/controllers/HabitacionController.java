@@ -11,7 +11,9 @@ import com.sena.goldenbooking.dtos.HabitacionDto;
 import com.sena.goldenbooking.services.HabitacionService;
 
 import org.springframework.data.domain.Pageable;
+import io.swagger.v3.oas.annotations.tags.Tag;
 
+@Tag(name = "Habitaciones", description = "Gestión de habitaciones del hotel.")
 @RestController
 @RequestMapping("/api/habitaciones")
 

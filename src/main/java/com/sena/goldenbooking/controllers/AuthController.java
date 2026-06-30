@@ -19,7 +19,9 @@ import com.sena.goldenbooking.security.JwtService;
 import com.sena.goldenbooking.services.AuthService;  // ← NUEVO import
 
 import jakarta.validation.Valid;
+import io.swagger.v3.oas.annotations.tags.Tag;
 
+@Tag(name = "Autenticación", description = "Login, recuperación de contraseña y generación de tokens JWT.")
 @RestController
 @RequestMapping("/auth")
 

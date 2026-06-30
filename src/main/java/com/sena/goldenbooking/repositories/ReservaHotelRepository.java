@@ -11,4 +11,8 @@ public interface ReservaHotelRepository extends MongoRepository<ReservaHotel, St
 
     // Reservas hotel por habitación específica
     List<ReservaHotel> findByDatosH_Id(String idHabitacion);
+
+    // Reservas hotel por documento de usuario
+    List<ReservaHotel> findByDocUsuario(String docUsuario);
+
 }

@@ -6,8 +6,10 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import com.sena.goldenbooking.dtos.TipoHabitacionDto;
 import com.sena.goldenbooking.services.TipoHabitacionService;
+import io.swagger.v3.oas.annotations.tags.Tag;
 
 // Controlador REST para manejar las solicitudes relacionadas con los tipos de habitación
+@Tag(name = "Tipos de Habitación", description = "Gestión de los tipos/categorías de habitación.")
 @RestController
 
 // Define la ruta base para las operaciones de tipo de habitación y permite solicitudes desde cualquier origen
