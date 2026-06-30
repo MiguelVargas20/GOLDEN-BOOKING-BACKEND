@@ -4,6 +4,10 @@ target/
 !**/src/main/**/target/
 !**/src/test/**/target/
 
+### Logs ###
+logs/
+
+
 
 ### Node Modules ###
 node_modules/
@@ -41,5 +45,3 @@ build/
 *.jar
 application-local.properties
 
-### Logs ###
-logs/

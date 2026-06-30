@@ -87,6 +87,14 @@ public class SecurityConfig {
                     .requestMatchers(HttpMethod.GET, "/api/habitaciones/**").hasAnyAuthority("ROL_ADMIN", "ROL_CLIENTE")
                     .requestMatchers(HttpMethod.GET, "/api/tipohabitaciones/**").hasAnyAuthority("ROL_ADMIN", "ROL_CLIENTE")
 
+                    // ── ADMIN o CLIENTE — Mensajes de contacto ─────────────
+                    .requestMatchers(HttpMethod.POST, "/api/contacto").hasAnyAuthority("ROL_ADMIN", "ROL_CLIENTE")
+
+                    // ── Solo ADMIN — Mensajes de contacto ───────────────────
+                    .requestMatchers(HttpMethod.GET,   "/api/contacto/**").hasAuthority("ROL_ADMIN")
+                    .requestMatchers(HttpMethod.PATCH, "/api/contacto/**").hasAuthority("ROL_ADMIN")
+
+
                     // ── Todo lo demás requiere JWT ────────────────────────
                     .anyRequest().authenticated()
                 )
