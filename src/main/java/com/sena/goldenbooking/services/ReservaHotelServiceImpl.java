@@ -3,6 +3,8 @@ package com.sena.goldenbooking.services;
 import java.time.LocalDateTime;
 import java.time.temporal.ChronoUnit;
 import java.util.List;
+import java.util.Map;
+import java.util.stream.Collectors;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import com.sena.goldenbooking.dtos.ReservaHotelDto;
@@ -94,22 +96,22 @@ public class ReservaHotelServiceImpl implements ReservaHotelService {
 
     @Override
     public List<ReservaHotelDto> listarTodas() {
-        return mapper.toDtoList(reservaHotelRepo.findAll());
+        return conEstado(reservaHotelRepo.findAll());
     }
 
     @Override
     public ReservaHotelDto obtenerPorId(String id) {
-        return reservaHotelRepo.findById(id)
-                .map(mapper::toDto)
+        ReservaHotel rh = reservaHotelRepo.findById(id)
                 .orElseThrow(() -> {
                     log.warn("Consulta fallida: Reserva hotel {} no encontrada.", id);
                     return new RuntimeException("No encontrada.");
                 });
+        return conEstado(List.of(rh)).get(0);
     }
 
     @Override
     public List<ReservaHotelDto> obtenerPorReserva(String idReserva) {
-        return mapper.toDtoList(reservaHotelRepo.findByIdReserva(idReserva));
+        return conEstado(reservaHotelRepo.findByIdReserva(idReserva));
     }
 
     @Override
@@ -150,6 +152,36 @@ public class ReservaHotelServiceImpl implements ReservaHotelService {
     @Override
         public List<ReservaHotelDto> obtenerPorUsuario(String docUsuario) {
             log.info("Listando reservas hotel para usuario: {}", docUsuario);
-            return mapper.toDtoList(reservaHotelRepo.findByDocUsuario(docUsuario));
+            return conEstado(reservaHotelRepo.findByDocUsuario(docUsuario));
         }
+
+    // ── Helper ────────────────────────────────────────────────────
+    // ReservaHotel NO guarda su propio estado; el estado real vive en el
+    // documento padre "Reserva" (colección distinta). El mapper por sí solo
+    // no tiene acceso a esa data, así que aquí la buscamos en batch (1 sola
+    // consulta con findAllById) y la inyectamos en cada DTO antes de devolverlo.
+    // Esto es lo que corrige que "estado" y "fReserva" llegaran siempre null
+    // al frontend, rompiendo cualquier filtro/badge que dependiera de ellos.
+    private List<ReservaHotelDto> conEstado(List<ReservaHotel> lista) {
+        List<ReservaHotelDto> dtos = mapper.toDtoList(lista);
+        if (dtos.isEmpty()) return dtos;
+
+        List<String> idsReserva = lista.stream()
+                .map(ReservaHotel::getIdReserva)
+                .filter(id -> id != null)
+                .distinct()
+                .collect(Collectors.toList());
+
+        Map<String, Reserva> reservasPorId = reservaRepo.findAllById(idsReserva).stream()
+                .collect(Collectors.toMap(Reserva::getId, r -> r));
+
+        for (int i = 0; i < lista.size(); i++) {
+            Reserva padre = reservasPorId.get(lista.get(i).getIdReserva());
+            if (padre != null) {
+                dtos.get(i).setEstado(padre.getEstado());
+                dtos.get(i).setFReserva(padre.getFechaReserva());
+            }
+        }
+        return dtos;
+    }
 }

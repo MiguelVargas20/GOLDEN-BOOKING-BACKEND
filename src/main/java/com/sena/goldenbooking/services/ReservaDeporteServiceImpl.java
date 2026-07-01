@@ -103,6 +103,7 @@ public class ReservaDeporteServiceImpl implements ReservaDeporteService {
                     .fechaReserva(dto.getFInicioReserva())
                     .fechaFinReserva(dto.getFFinReserva())
                     .precio(precioTotal)
+                    .estado(EstadoReserva.PENDIENTE)
                     .build();
 
             ReservaDeporteDto resultado = mapper.toDto(reservaDeporteRepo.save(reservaDeporte));
@@ -188,6 +189,12 @@ public class ReservaDeporteServiceImpl implements ReservaDeporteService {
         try {
             reserva.setEstado(EstadoReserva.CANCELADA);
             reservaRepo.save(reserva);
+
+            // ── FIX: sincronizar el estado también en ReservaDeporte,
+            // que es la colección que realmente se lee en las vistas
+            // "Gestionar reservas" y "Mis reservas" ────────────────
+            rd.setEstado(EstadoReserva.CANCELADA);
+            reservaDeporteRepo.save(rd);
 
             // ── NUEVO: Notificar cancelación a todos los clientes ────
             ReservaDeporteEventDto evento = ReservaDeporteEventDto.builder()

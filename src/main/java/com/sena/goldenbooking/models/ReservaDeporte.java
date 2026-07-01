@@ -37,4 +37,6 @@ public class ReservaDeporte {
     private LocalDateTime fechaFinReserva;
 
     private Double precio;
+
+    private EstadoReserva estado;
 }

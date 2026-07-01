@@ -1,6 +1,7 @@
 package com.sena.goldenbooking.mapper;
 
 import com.sena.goldenbooking.dtos.ReservaDeporteDto;
+import com.sena.goldenbooking.models.EstadoReserva;
 import com.sena.goldenbooking.models.ReservaDeporte;
 import org.springframework.stereotype.Component;
 import java.util.List;
@@ -42,6 +43,7 @@ public class ReservaDeporteMapperImpl implements ReservaDeporteMapper {
                 .fInicioReserva(rd.getFechaReserva())
                 .fFinReserva(rd.getFechaFinReserva())
                 .pr(rd.getPrecio())
+                .estado(rd.getEstado())
                 .build();
     }
     // Mapeo de lista de ReservaDeporte a lista de ReservaDeporteDto
