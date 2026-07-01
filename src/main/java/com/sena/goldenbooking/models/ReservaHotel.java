@@ -27,4 +27,6 @@ public class ReservaHotel {
     
     private Integer noches;
     private Double precioTotal;
+
+    private EstadoReserva estado;
 }

@@ -3,9 +3,11 @@ package com.sena.goldenbooking.controllers;
 import java.util.List;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 import com.sena.goldenbooking.dtos.ReservaDeporteDto;
 import com.sena.goldenbooking.services.ReservaDeporteService;
+import com.sena.goldenbooking.services.UsuarioService;
 
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
@@ -25,10 +27,13 @@ public class ReservaDeporteController {
 
     // Inyección de la capa de servicio para manejar la lógica de negocio
     private final ReservaDeporteService service;
+    // Se usa para resolver el docUsuario del usuario autenticado a partir del JWT
+    private final UsuarioService usuarioService;
 
     // Constructor para inyectar la dependencia del servicio
-    public ReservaDeporteController(ReservaDeporteService service) {
+    public ReservaDeporteController(ReservaDeporteService service, UsuarioService usuarioService) {
         this.service = service;
+        this.usuarioService = usuarioService;
     }
 
     // POST /api/reservas/deporte
@@ -38,7 +43,7 @@ public class ReservaDeporteController {
     }
     
     // GET /api/reservas/deporte
-    // Endpoint para listar todas las reservas de deporte con paginación
+    // Endpoint para listar todas las reservas de deporte con paginación (uso exclusivo de ADMIN en el front)
     @GetMapping
     public ResponseEntity<Map<String, Object>> listarTodas(
             @RequestParam(defaultValue = "0") int page,
@@ -53,6 +58,15 @@ public class ReservaDeporteController {
             "totalPaginas",   pagina.getTotalPages(),
             "totalElementos", pagina.getTotalElements()
         ));
+    }
+
+    // GET /api/reservas/deporte/mis-reservas
+    // Endpoint dedicado para que el usuario autenticado obtenga SOLO sus propias reservas.
+    // Reemplaza el patrón inseguro de traer 100 reservas y filtrar en el frontend.
+    @GetMapping("/mis-reservas")
+    public ResponseEntity<List<ReservaDeporteDto>> misReservas(Authentication authentication) {
+        String docUsuario = usuarioService.obtenerDocumentoPorUsername(authentication.getName());
+        return ResponseEntity.ok(service.obtenerPorUsuario(docUsuario));
     }
 
     // GET /api/reservas/deporte/{id}
@@ -76,9 +90,14 @@ public class ReservaDeporteController {
     }
 
     // PATCH /api/reservas/deporte/{id}/cancelar
+    // Solo el dueño de la reserva o un ADMIN pueden cancelarla (fix IDOR)
     @PatchMapping("/{id}/cancelar")
-    public ResponseEntity<Void> cancelar(@PathVariable String id) {
-        service.cancelar(id);
+    public ResponseEntity<Void> cancelar(@PathVariable String id, Authentication authentication) {
+        boolean esAdmin = authentication.getAuthorities().stream()
+                .anyMatch(a -> a.getAuthority().equals("ROL_ADMIN"));
+        String docUsuario = usuarioService.obtenerDocumentoPorUsername(authentication.getName());
+
+        service.cancelar(id, docUsuario, esAdmin);
         return ResponseEntity.noContent().build();
     }
 }

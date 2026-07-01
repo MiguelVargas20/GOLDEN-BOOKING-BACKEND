@@ -12,6 +12,9 @@ public interface ReservaDeporteRepository extends MongoRepository<ReservaDeporte
     // Todas las reservas deporte ligadas a una Reserva padre
     List<ReservaDeporte> findByIdReserva(String idReserva);
 
+    // Reservas de un usuario específico — usado por el endpoint /mis-reservas
+    List<ReservaDeporte> findByDocUsuario(String docUsuario);
+
     // Filtrar por tipo de cancha
     List<ReservaDeporte> findByTipoCancha(String tipoCancha);
 

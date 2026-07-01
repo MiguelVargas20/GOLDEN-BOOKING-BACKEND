@@ -46,7 +46,43 @@ public class GlobalExceptionHandler {
         ));
     }
 
-    // 3. Otros errores de negocio o tiempo de ejecución (RuntimeException)
+    // 3. Recurso no encontrado (reserva, usuario, etc.)
+    @ExceptionHandler(com.sena.goldenbooking.exception.ReservaNoEncontradaException.class)
+    public ResponseEntity<Map<String, Object>> handleNoEncontrada(com.sena.goldenbooking.exception.ReservaNoEncontradaException ex) {
+        log.warn("Recurso no encontrado: {}", ex.getMessage());
+
+        return ResponseEntity.status(HttpStatus.NOT_FOUND).body(Map.of(
+                "timestamp", LocalDateTime.now(),
+                "status", HttpStatus.NOT_FOUND.value(),
+                "error", ex.getMessage()
+        ));
+    }
+
+    // 4. Conflictos de negocio (horario ocupado, reserva ya cancelada, etc.)
+    @ExceptionHandler(com.sena.goldenbooking.exception.ConflictoDeNegocioException.class)
+    public ResponseEntity<Map<String, Object>> handleConflicto(com.sena.goldenbooking.exception.ConflictoDeNegocioException ex) {
+        log.warn("Conflicto de negocio: {}", ex.getMessage());
+
+        return ResponseEntity.status(HttpStatus.CONFLICT).body(Map.of(
+                "timestamp", LocalDateTime.now(),
+                "status", HttpStatus.CONFLICT.value(),
+                "error", ex.getMessage()
+        ));
+    }
+
+    // 5. Acceso denegado por no ser dueño del recurso (protección IDOR)
+    @ExceptionHandler(com.sena.goldenbooking.exception.AccesoDenegadoException.class)
+    public ResponseEntity<Map<String, Object>> handleAccesoDenegado(com.sena.goldenbooking.exception.AccesoDenegadoException ex) {
+        log.warn("Acceso denegado: {}", ex.getMessage());
+
+        return ResponseEntity.status(HttpStatus.FORBIDDEN).body(Map.of(
+                "timestamp", LocalDateTime.now(),
+                "status", HttpStatus.FORBIDDEN.value(),
+                "error", ex.getMessage()
+        ));
+    }
+
+    // 6. Otros errores de negocio o tiempo de ejecución (RuntimeException genérica, ya no debería usarse en Reserva Deporte)
     @ExceptionHandler(RuntimeException.class)
     public ResponseEntity<Map<String, Object>> handleRuntime(RuntimeException ex) {
         log.warn("Error de ejecución (RuntimeException): {}", ex.getMessage());
@@ -58,7 +94,7 @@ public class GlobalExceptionHandler {
         ));
     }
 
-    // 4. Cualquier otro error no controlado (La magia del error crítico)
+    // 7. Cualquier otro error no controlado (La magia del error crítico)
     @ExceptionHandler(Exception.class)
     public ResponseEntity<Map<String, Object>> handleGeneral(Exception ex) {
         // AQUÍ ESTÁ LA MAGIA: El usuario recibe una respuesta limpia sin exponer tripas del sistema,

@@ -1,6 +1,7 @@
 package com.sena.goldenbooking.mapper;
 
 import com.sena.goldenbooking.dtos.ReservaHotelDto;
+import com.sena.goldenbooking.models.EstadoReserva;
 import com.sena.goldenbooking.models.ReservaHotel;
 import org.springframework.stereotype.Component;
 import java.util.List;
@@ -40,6 +41,7 @@ public class ReservaHotelMapperImpl implements ReservaHotelMapper {
                 .fCheckOut(rh.getFechaCheckOut())
                 .noch(rh.getNoches())
                 .pTotal(rh.getPrecioTotal())
+                .estado(rh.getEstado())
                 .build();
 
         if (rh.getDatosH() != null) {

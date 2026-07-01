@@ -3,14 +3,15 @@ package com.sena.goldenbooking.services;
 import java.time.LocalDateTime;
 import java.time.temporal.ChronoUnit;
 import java.util.List;
-import java.util.Map;
-import java.util.stream.Collectors;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import com.sena.goldenbooking.dtos.ReservaHotelDto;
 import com.sena.goldenbooking.mapper.ReservaHotelMapper;
 import com.sena.goldenbooking.models.*;
 import com.sena.goldenbooking.repositories.*;
+import com.sena.goldenbooking.exception.ReservaNoEncontradaException;
+import com.sena.goldenbooking.exception.ConflictoDeNegocioException;
+import com.sena.goldenbooking.exception.AccesoDenegadoException;
 
 @Slf4j
 @Service
@@ -39,21 +40,21 @@ public class ReservaHotelServiceImpl implements ReservaHotelService {
         // 1. Validaciones
         if (dto.getDocUsuario() == null || dto.getIdHabitacion() == null) {
             log.warn("Intento de creación fallido: Datos incompletos.");
-            throw new RuntimeException("Datos obligatorios faltantes.");
+            throw new IllegalArgumentException("Datos obligatorios faltantes.");
         }
 
         // 2. Búsqueda y disponibilidad
         Habitacion habitacion = habitacionRepo.findById(dto.getIdHabitacion())
-                .orElseThrow(() -> new RuntimeException("Habitación no encontrada."));
+                .orElseThrow(() -> new ReservaNoEncontradaException("Habitación no encontrada."));
 
         if (!"disponible".equalsIgnoreCase(habitacion.getEstado())) {
             log.warn("Intento de reserva en habitación no disponible: ID {}", habitacion.getId());
-            throw new RuntimeException("Habitación no disponible.");
+            throw new ConflictoDeNegocioException("Habitación no disponible.");
         }
 
         // 3. Cálculos
         long noches = ChronoUnit.DAYS.between(dto.getFCheckIn().toLocalDate(), dto.getFCheckOut().toLocalDate());
-        if (noches <= 0) throw new RuntimeException("Fechas inválidas.");
+        if (noches <= 0) throw new IllegalArgumentException("Fechas inválidas.");
         double precioTotal = noches * habitacion.getPrecNoche();
 
         // 4. Persistencia
@@ -78,6 +79,7 @@ public class ReservaHotelServiceImpl implements ReservaHotelService {
                     .fechaCheckOut(dto.getFCheckOut())
                     .noches((int) noches)
                     .precioTotal(precioTotal)
+                    .estado(EstadoReserva.PENDIENTE)
                     .build();
 
             ReservaHotel guardada = reservaHotelRepo.save(reservaHotel);
@@ -96,52 +98,64 @@ public class ReservaHotelServiceImpl implements ReservaHotelService {
 
     @Override
     public List<ReservaHotelDto> listarTodas() {
-        return conEstado(reservaHotelRepo.findAll());
+        return mapper.toDtoList(reservaHotelRepo.findAll());
     }
 
     @Override
     public ReservaHotelDto obtenerPorId(String id) {
-        ReservaHotel rh = reservaHotelRepo.findById(id)
+        return reservaHotelRepo.findById(id)
+                .map(mapper::toDto)
                 .orElseThrow(() -> {
                     log.warn("Consulta fallida: Reserva hotel {} no encontrada.", id);
-                    return new RuntimeException("No encontrada.");
+                    return new ReservaNoEncontradaException("No encontrada.");
                 });
-        return conEstado(List.of(rh)).get(0);
     }
 
     @Override
     public List<ReservaHotelDto> obtenerPorReserva(String idReserva) {
-        return conEstado(reservaHotelRepo.findByIdReserva(idReserva));
+        return mapper.toDtoList(reservaHotelRepo.findByIdReserva(idReserva));
     }
 
     @Override
     public ReservaHotelDto actualizar(String id, ReservaHotelDto dto) {
         log.info("Actualizando reserva hotel ID: {}", id);
         ReservaHotel rh = reservaHotelRepo.findById(id)
-                .orElseThrow(() -> new RuntimeException("No encontrada."));
+                .orElseThrow(() -> new ReservaNoEncontradaException("No encontrada."));
         mapper.actualizarReservaHotel(dto, rh);
         return mapper.toDto(reservaHotelRepo.save(rh));
     }
 
     @Override
-    public void cancelar(String id) {
+    public void cancelar(String id, String docUsuarioSolicitante, boolean esAdmin) {
         log.info("Iniciando cancelación de reserva hotel ID: {}", id);
         ReservaHotel rh = reservaHotelRepo.findById(id)
-                .orElseThrow(() -> new RuntimeException("No encontrada."));
+                .orElseThrow(() -> new ReservaNoEncontradaException("No encontrada."));
+
+        // ── FIX IDOR: solo el dueño de la reserva o un ADMIN pueden cancelarla ──
+        if (!esAdmin && !rh.getDocUsuario().equals(docUsuarioSolicitante)) {
+            log.warn("Intento de cancelación no autorizado. Usuario {} intentó cancelar la reserva {} del usuario {}.",
+                    docUsuarioSolicitante, id, rh.getDocUsuario());
+            throw new AccesoDenegadoException("No tienes permiso para cancelar esta reserva.");
+        }
 
         Reserva reserva = reservaRepo.findById(rh.getIdReserva())
-                .orElseThrow(() -> new RuntimeException("Reserva padre no encontrada."));
+                .orElseThrow(() -> new ReservaNoEncontradaException("Reserva padre no encontrada."));
         
         if (reserva.getEstado() == EstadoReserva.CANCELADA) {
             log.warn("Intento de cancelar una reserva ya cancelada: {}", id);
-            throw new RuntimeException("Ya está cancelada.");
+            throw new ConflictoDeNegocioException("Ya está cancelada.");
         }
 
         reserva.setEstado(EstadoReserva.CANCELADA);
         reservaRepo.save(reserva);
 
+        // ── FIX: sincronizar el estado también en ReservaHotel,
+        // que es la colección que realmente se lee en las vistas de reservas ──
+        rh.setEstado(EstadoReserva.CANCELADA);
+        reservaHotelRepo.save(rh);
+
         Habitacion habitacion = habitacionRepo.findById(rh.getIdHabitacion())
-                .orElseThrow(() -> new RuntimeException("Habitación no encontrada."));
+                .orElseThrow(() -> new ReservaNoEncontradaException("Habitación no encontrada."));
         habitacion.setEstado("disponible");
         habitacionRepo.save(habitacion);
 
@@ -152,36 +166,6 @@ public class ReservaHotelServiceImpl implements ReservaHotelService {
     @Override
         public List<ReservaHotelDto> obtenerPorUsuario(String docUsuario) {
             log.info("Listando reservas hotel para usuario: {}", docUsuario);
-            return conEstado(reservaHotelRepo.findByDocUsuario(docUsuario));
+            return mapper.toDtoList(reservaHotelRepo.findByDocUsuario(docUsuario));
         }
-
-    // ── Helper ────────────────────────────────────────────────────
-    // ReservaHotel NO guarda su propio estado; el estado real vive en el
-    // documento padre "Reserva" (colección distinta). El mapper por sí solo
-    // no tiene acceso a esa data, así que aquí la buscamos en batch (1 sola
-    // consulta con findAllById) y la inyectamos en cada DTO antes de devolverlo.
-    // Esto es lo que corrige que "estado" y "fReserva" llegaran siempre null
-    // al frontend, rompiendo cualquier filtro/badge que dependiera de ellos.
-    private List<ReservaHotelDto> conEstado(List<ReservaHotel> lista) {
-        List<ReservaHotelDto> dtos = mapper.toDtoList(lista);
-        if (dtos.isEmpty()) return dtos;
-
-        List<String> idsReserva = lista.stream()
-                .map(ReservaHotel::getIdReserva)
-                .filter(id -> id != null)
-                .distinct()
-                .collect(Collectors.toList());
-
-        Map<String, Reserva> reservasPorId = reservaRepo.findAllById(idsReserva).stream()
-                .collect(Collectors.toMap(Reserva::getId, r -> r));
-
-        for (int i = 0; i < lista.size(); i++) {
-            Reserva padre = reservasPorId.get(lista.get(i).getIdReserva());
-            if (padre != null) {
-                dtos.get(i).setEstado(padre.getEstado());
-                dtos.get(i).setFReserva(padre.getFechaReserva());
-            }
-        }
-        return dtos;
-    }
 }

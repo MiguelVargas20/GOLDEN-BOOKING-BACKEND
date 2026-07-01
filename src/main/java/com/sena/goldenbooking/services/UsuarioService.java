@@ -45,4 +45,11 @@ public interface UsuarioService {
 
     // Actualiza el perfil del usuario con los campos proporcionados en el mapa.
     UsuarioDto actualizarPerfil(String id, Map<String, String> campos);
+
+    /**
+     * Resuelve el número de documento del usuario a partir de su username
+     * (el "subject" que viaja en el JWT). Se usa para validar que un
+     * usuario solo pueda operar sobre sus propias reservas.
+     */
+    String obtenerDocumentoPorUsername(String username);
 }

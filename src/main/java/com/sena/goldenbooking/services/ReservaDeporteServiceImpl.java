@@ -15,6 +15,9 @@ import com.sena.goldenbooking.models.ReservaDeporte;
 import com.sena.goldenbooking.models.TipoReserva;
 import com.sena.goldenbooking.repositories.ReservaDeporteRepository;
 import com.sena.goldenbooking.repositories.ReservaRepository;
+import com.sena.goldenbooking.exception.ReservaNoEncontradaException;
+import com.sena.goldenbooking.exception.ConflictoDeNegocioException;
+import com.sena.goldenbooking.exception.AccesoDenegadoException;
 
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -46,23 +49,23 @@ public class ReservaDeporteServiceImpl implements ReservaDeporteService {
 
         if (dto.getDocUsuario() == null || dto.getDocUsuario().isBlank()) {
             log.warn("Reserva rechazada: Documento de usuario nulo o vacío.");
-            throw new RuntimeException("El documento del usuario es obligatorio.");
+            throw new IllegalArgumentException("El documento del usuario es obligatorio.");
         }
 
         if (dto.getTCancha() == null || dto.getTCancha().isBlank()) {
             log.warn("Reserva rechazada: Tipo de cancha nulo o vacío para usuario {}.", dto.getDocUsuario());
-            throw new RuntimeException("El tipo de cancha es obligatorio.");
+            throw new IllegalArgumentException("El tipo de cancha es obligatorio.");
         }
 
         if (dto.getFInicioReserva() == null || dto.getFFinReserva() == null) {
             log.warn("Reserva rechazada: Fechas incompletas para usuario {}.", dto.getDocUsuario());
-            throw new RuntimeException("Las fechas de inicio y fin son obligatorias.");
+            throw new IllegalArgumentException("Las fechas de inicio y fin son obligatorias.");
         }
 
         long horas = ChronoUnit.HOURS.between(dto.getFInicioReserva(), dto.getFFinReserva());
         if (horas <= 0) {
             log.warn("Reserva rechazada: Fecha de fin no es posterior a inicio. Usuario {}.", dto.getDocUsuario());
-            throw new RuntimeException("La fecha de fin debe ser posterior al inicio.");
+            throw new IllegalArgumentException("La fecha de fin debe ser posterior al inicio.");
         }
 
         // ── NUEVO: validación atómica de disponibilidad ──────────
@@ -73,7 +76,7 @@ public class ReservaDeporteServiceImpl implements ReservaDeporteService {
         );
         if (!solapadas.isEmpty()) {
             log.warn("Conflicto de disponibilidad: La cancha {} ya está reservada en el horario solicitado por el usuario {}.", dto.getTCancha(), dto.getDocUsuario());
-            throw new RuntimeException(
+            throw new ConflictoDeNegocioException(
                 "La cancha " + dto.getTCancha() +
                 " ya está reservada en ese horario."
             );
@@ -143,7 +146,7 @@ public class ReservaDeporteServiceImpl implements ReservaDeporteService {
                 .map(mapper::toDto)
                 .orElseThrow(() -> {
                     log.warn("Consulta fallida: Reserva deportiva {} no encontrada.", id);
-                    return new RuntimeException("Reserva deporte no encontrada: " + id);
+                    return new ReservaNoEncontradaException("Reserva deporte no encontrada: " + id);
                 });
     }
 
@@ -158,7 +161,7 @@ public class ReservaDeporteServiceImpl implements ReservaDeporteService {
         ReservaDeporte rd = reservaDeporteRepo.findById(id)
                 .orElseThrow(() -> {
                     log.warn("Actualización fallida: Reserva deportiva {} no encontrada.", id);
-                    return new RuntimeException("Reserva deporte no encontrada: " + id);
+                    return new ReservaNoEncontradaException("Reserva deporte no encontrada: " + id);
                 });
         mapper.actualizarReservaDeporte(dto, rd);
         ReservaDeporteDto resultado = mapper.toDto(reservaDeporteRepo.save(rd));
@@ -167,23 +170,30 @@ public class ReservaDeporteServiceImpl implements ReservaDeporteService {
     }
 
     @Override
-    public void cancelar(String id) {
+    public void cancelar(String id, String docUsuarioSolicitante, boolean esAdmin) {
         log.info("Iniciando cancelación de reserva deportiva ID: {}", id);
         ReservaDeporte rd = reservaDeporteRepo.findById(id)
                 .orElseThrow(() -> {
                     log.warn("Cancelación fallida: Reserva deportiva {} no encontrada.", id);
-                    return new RuntimeException("Reserva deporte no encontrada: " + id);
+                    return new ReservaNoEncontradaException("Reserva deporte no encontrada: " + id);
                 });
+
+        // ── FIX IDOR: solo el dueño de la reserva o un ADMIN pueden cancelarla ──
+        if (!esAdmin && !rd.getDocUsuario().equals(docUsuarioSolicitante)) {
+            log.warn("Intento de cancelación no autorizado. Usuario {} intentó cancelar la reserva {} del usuario {}.",
+                    docUsuarioSolicitante, id, rd.getDocUsuario());
+            throw new AccesoDenegadoException("No tienes permiso para cancelar esta reserva.");
+        }
 
         Reserva reserva = reservaRepo.findById(rd.getIdReserva())
                 .orElseThrow(() -> {
                     log.error("¡Inconsistencia! Reserva padre no encontrada para la reserva deportiva {}", id);
-                    return new RuntimeException("Reserva padre no encontrada.");
+                    return new ReservaNoEncontradaException("Reserva padre no encontrada.");
                 });
 
         if (reserva.getEstado() == EstadoReserva.CANCELADA) {
             log.warn("Intento de cancelar una reserva deportiva ya cancelada. ID: {}", id);
-            throw new RuntimeException("La reserva ya está cancelada.");
+            throw new ConflictoDeNegocioException("La reserva ya está cancelada.");
         }
 
         try {
@@ -214,6 +224,13 @@ public class ReservaDeporteServiceImpl implements ReservaDeporteService {
             log.error("Error crítico al cancelar o notificar la reserva deportiva ID {}: {}", id, e.getMessage(), e);
             throw e;
         }
+    }
+
+    // Reservas del usuario autenticado — reemplaza el filtrado inseguro del frontend
+    @Override
+    public List<ReservaDeporteDto> obtenerPorUsuario(String docUsuario) {
+        log.info("Listando reservas deportivas del usuario: {}", docUsuario);
+        return mapper.toDtoList(reservaDeporteRepo.findByDocUsuario(docUsuario));
     }
 
     // Método adicional para listar todas las reservas con paginación

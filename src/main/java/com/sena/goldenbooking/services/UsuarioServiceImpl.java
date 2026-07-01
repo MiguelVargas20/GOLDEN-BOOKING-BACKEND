@@ -181,4 +181,22 @@ public class UsuarioServiceImpl implements UsuarioService {
         log.info("Perfil del usuario ID: {} actualizado correctamente.", id);
         return resultado;
     }
+
+    // Resuelve el número de documento del usuario a partir de su username (subject del JWT)
+    @Override
+    public String obtenerDocumentoPorUsername(String username) {
+        UsuarioAuth auth = authRepo.findByUser(username)
+                .orElseThrow(() -> {
+                    log.warn("No se encontró UsuarioAuth para username: {}", username);
+                    return new RuntimeException("Usuario autenticado no encontrado.");
+                });
+
+        Usuario perfil = userRepo.findById(auth.getId())
+                .orElseThrow(() -> {
+                    log.warn("No se encontró perfil de Usuario para id: {}", auth.getId());
+                    return new RuntimeException("Perfil de usuario no encontrado.");
+                });
+
+        return perfil.getDocId() != null ? perfil.getDocId().getNumeroD() : null;
+    }
 }

@@ -23,8 +23,13 @@ public interface ReservaDeporteService {
     // Actualiza una reserva de deporte existente con el ID proporcionado utilizando los datos del DTO y devuelve el DTO actualizado
     ReservaDeporteDto actualizar(String id, ReservaDeporteDto dto);
 
-    // Elimina una reserva de deporte existente con el ID proporcionado
-    void cancelar(String id);
+    // Elimina una reserva de deporte existente con el ID proporcionado.
+    // docUsuarioSolicitante y esAdmin se usan para validar que quien cancela
+    // sea el dueño de la reserva o un administrador (protección IDOR).
+    void cancelar(String id, String docUsuarioSolicitante, boolean esAdmin);
+
+    // Devuelve las reservas de deporte del usuario autenticado (endpoint dedicado, sin filtrar en el frontend)
+    List<ReservaDeporteDto> obtenerPorUsuario(String docUsuario);
 
     // Devuelve una página de DTOs de reserva de deporte según los parámetros de paginación proporcionados
     Page<ReservaDeporteDto> listarTodasPaginadas(Pageable pageable);
