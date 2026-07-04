@@ -3,6 +3,7 @@ package com.sena.goldenbooking.security;
 import java.security.Key;
 import java.util.Date;
 import java.util.List;
+import java.util.UUID;
 
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
@@ -36,6 +37,7 @@ public class JwtService {
      */
     public String generarToken(String email, List<String> roles, String nombre, String apellido, String id) {
         return Jwts.builder()
+                .setId(UUID.randomUUID().toString())        // jti — identificador único del token (auditoría)
                 .setSubject(email)                          // email como identificador principal
                 .claim("roles", roles)                      // roles del usuario
                 .claim("nombre", nombre)                    // para mostrar en el frontend

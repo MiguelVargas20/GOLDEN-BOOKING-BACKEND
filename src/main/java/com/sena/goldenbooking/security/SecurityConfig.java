@@ -42,6 +42,7 @@ public class SecurityConfig {
                         // ── Públicas ─────────────────────────────────────────
                     .requestMatchers(
                         "/auth/login",
+                        "/auth/refresh",
                         "/auth/recuperar-password",
                         "/api/usuarios/registro",
                         "/ws/**"

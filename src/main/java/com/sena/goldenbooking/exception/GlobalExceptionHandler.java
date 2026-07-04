@@ -82,7 +82,19 @@ public class GlobalExceptionHandler {
         ));
     }
 
-    // 6. Otros errores de negocio o tiempo de ejecución (RuntimeException genérica, ya no debería usarse en Reserva Deporte)
+    // 6. Refresh token inválido, expirado o reusado (posible robo de token)
+    @ExceptionHandler(RefreshTokenInvalidoException.class)
+    public ResponseEntity<Map<String, Object>> handleRefreshInvalido(RefreshTokenInvalidoException ex) {
+        log.warn("Refresh token rechazado: {}", ex.getMessage());
+
+        return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of(
+                "timestamp", LocalDateTime.now(),
+                "status", HttpStatus.UNAUTHORIZED.value(),
+                "error", ex.getMessage()
+        ));
+    }
+
+    // 7. Otros errores de negocio o tiempo de ejecución (RuntimeException genérica, ya no debería usarse en Reserva Deporte)
     @ExceptionHandler(RuntimeException.class)
     public ResponseEntity<Map<String, Object>> handleRuntime(RuntimeException ex) {
         log.warn("Error de ejecución (RuntimeException): {}", ex.getMessage());
@@ -94,7 +106,7 @@ public class GlobalExceptionHandler {
         ));
     }
 
-    // 7. Cualquier otro error no controlado (La magia del error crítico)
+    // 8. Cualquier otro error no controlado (La magia del error crítico)
     @ExceptionHandler(Exception.class)
     public ResponseEntity<Map<String, Object>> handleGeneral(Exception ex) {
         // AQUÍ ESTÁ LA MAGIA: El usuario recibe una respuesta limpia sin exponer tripas del sistema,
