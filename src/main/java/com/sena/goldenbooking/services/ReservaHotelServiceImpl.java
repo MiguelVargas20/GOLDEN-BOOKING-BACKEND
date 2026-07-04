@@ -6,6 +6,7 @@ import java.util.List;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import com.sena.goldenbooking.dtos.ReservaHotelDto;
+import com.sena.goldenbooking.dtos.RangoOcupadoDto;
 import com.sena.goldenbooking.mapper.ReservaHotelMapper;
 import com.sena.goldenbooking.models.*;
 import com.sena.goldenbooking.repositories.*;
@@ -43,18 +44,39 @@ public class ReservaHotelServiceImpl implements ReservaHotelService {
             throw new IllegalArgumentException("Datos obligatorios faltantes.");
         }
 
-        // 2. Búsqueda y disponibilidad
+        // 2. Búsqueda de la habitación
         Habitacion habitacion = habitacionRepo.findById(dto.getIdHabitacion())
                 .orElseThrow(() -> new ReservaNoEncontradaException("Habitación no encontrada."));
 
-        if (!"disponible".equalsIgnoreCase(habitacion.getEstado())) {
-            log.warn("Intento de reserva en habitación no disponible: ID {}", habitacion.getId());
-            throw new ConflictoDeNegocioException("Habitación no disponible.");
+        // 2.1 "mantenimiento" sigue siendo un bloqueo total decidido por el ADMIN,
+        //      independiente de fechas (ej: la habitación está dañada).
+        if ("mantenimiento".equalsIgnoreCase(habitacion.getEstado())) {
+            log.warn("Intento de reserva en habitación en mantenimiento: ID {}", habitacion.getId());
+            throw new ConflictoDeNegocioException("Esta habitación está en mantenimiento.");
+        }
+
+        // 2.2 Validación de fechas antes de comparar solapamientos
+        long noches = ChronoUnit.DAYS.between(dto.getFCheckIn().toLocalDate(), dto.getFCheckOut().toLocalDate());
+        if (noches <= 0) throw new IllegalArgumentException("Fechas inválidas.");
+
+        // 2.3 Disponibilidad REAL: ya no depende de un campo global "ocupada",
+        //     sino de si el rango pedido se cruza con alguna reserva activa
+        //     (no cancelada) de ESTA habitación puntual.
+        List<ReservaHotel> reservasActivas = reservaHotelRepo
+                .findByIdHabitacionAndEstadoNot(habitacion.getId(), EstadoReserva.CANCELADA);
+
+        boolean haySolapamiento = reservasActivas.stream()
+                .anyMatch(r -> seSolapan(r.getFechaCheckIn(), r.getFechaCheckOut(),
+                                          dto.getFCheckIn(), dto.getFCheckOut()));
+
+        if (haySolapamiento) {
+            log.warn("Intento de reserva solapada en habitación {} para fechas {} - {}",
+                    habitacion.getId(), dto.getFCheckIn(), dto.getFCheckOut());
+            throw new ConflictoDeNegocioException(
+                    "Esta habitación ya está reservada para esas fechas. Elige otro rango u otra habitación.");
         }
 
         // 3. Cálculos
-        long noches = ChronoUnit.DAYS.between(dto.getFCheckIn().toLocalDate(), dto.getFCheckOut().toLocalDate());
-        if (noches <= 0) throw new IllegalArgumentException("Fechas inválidas.");
         double precioTotal = noches * habitacion.getPrecNoche();
 
         // 4. Persistencia
@@ -84,8 +106,9 @@ public class ReservaHotelServiceImpl implements ReservaHotelService {
 
             ReservaHotel guardada = reservaHotelRepo.save(reservaHotel);
 
-            habitacion.setEstado("ocupada");
-            habitacionRepo.save(habitacion);
+            // Ya NO tocamos habitacion.estado aquí: la disponibilidad ahora se calcula
+            // dinámicamente por fecha (ver findByIdHabitacionAndEstadoNot arriba),
+            // así la misma habitación puede tener reservas distintas en fechas distintas.
 
             log.info("Reserva hotel creada con éxito. ID: {}, Usuario: {}", guardada.getIdHotelReserva(), dto.getDocUsuario());
             return mapper.toDto(guardada);
@@ -154,10 +177,9 @@ public class ReservaHotelServiceImpl implements ReservaHotelService {
         rh.setEstado(EstadoReserva.CANCELADA);
         reservaHotelRepo.save(rh);
 
-        Habitacion habitacion = habitacionRepo.findById(rh.getIdHabitacion())
-                .orElseThrow(() -> new ReservaNoEncontradaException("Habitación no encontrada."));
-        habitacion.setEstado("disponible");
-        habitacionRepo.save(habitacion);
+        // Al cancelar, la reserva pasa a CANCELADA y por eso deja de contar en
+        // findByIdHabitacionAndEstadoNot(...): esas fechas quedan libres
+        // automáticamente, sin necesidad de tocar Habitacion.estado.
 
         log.info("Cancelación exitosa. Reserva {} liberada.", id);
     }
@@ -168,4 +190,27 @@ public class ReservaHotelServiceImpl implements ReservaHotelService {
             log.info("Listando reservas hotel para usuario: {}", docUsuario);
             return mapper.toDtoList(reservaHotelRepo.findByDocUsuario(docUsuario));
         }
+
+    @Override
+    public List<RangoOcupadoDto> obtenerFechasOcupadas(String idHabitacion) {
+        return reservaHotelRepo.findByIdHabitacionAndEstadoNot(idHabitacion, EstadoReserva.CANCELADA)
+                .stream()
+                .map(r -> RangoOcupadoDto.builder()
+                        .checkIn(r.getFechaCheckIn())
+                        .checkOut(r.getFechaCheckOut())
+                        .build())
+                .toList();
+    }
+
+    // Dos rangos de fechas [inicioA, finA) y [inicioB, finB) se solapan si
+    // uno empieza ANTES de que el otro termine, en ambos sentidos.
+    // Ejemplo: reserva existente 10-15 julio, nueva reserva 14-18 julio →
+    // 10 < 18 (true) Y 15 > 14 (true) → SE SOLAPAN.
+    // Nueva reserva 15-20 julio (empieza justo cuando la otra termina) →
+    // 10 < 20 (true) Y 15 > 15 (false) → NO se solapan (check-out y check-in
+    // el mismo día se permite, como en cualquier hotel real).
+    private boolean seSolapan(LocalDateTime inicioA, LocalDateTime finA,
+                               LocalDateTime inicioB, LocalDateTime finB) {
+        return inicioA.isBefore(finB) && finA.isAfter(inicioB);
+    }
 }

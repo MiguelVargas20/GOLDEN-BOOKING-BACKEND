@@ -48,6 +48,12 @@ public class MensajeController {
         ));
     }
 
+    // GET /api/contacto/no-leidos/count — solo ADMIN, para el badge del banner
+    @GetMapping("/no-leidos/count")
+    public ResponseEntity<Map<String, Long>> contarNoLeidos() {
+        return ResponseEntity.ok(Map.of("noLeidos", service.contarNoLeidos()));
+    }
+
     // PATCH /api/contacto/{id}/leido — solo ADMIN
     @PatchMapping("/{id}/leido")
     public ResponseEntity<MensajeDto> marcarLeido(@PathVariable String id) {
