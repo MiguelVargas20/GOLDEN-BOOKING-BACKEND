@@ -6,6 +6,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 import com.sena.goldenbooking.dtos.ReservaHotelDto;
+import com.sena.goldenbooking.dtos.RangoOcupadoDto;
 import com.sena.goldenbooking.services.ReservaHotelService;
 import com.sena.goldenbooking.services.UsuarioService;
 
@@ -67,6 +68,16 @@ public class ReservaHotelController {
     @GetMapping("/reserva/{idReserva}")
     public ResponseEntity<List<ReservaHotelDto>> obtenerPorReserva(@PathVariable String idReserva) {
         return ResponseEntity.ok(service.obtenerPorReserva(idReserva));
+    }
+
+    // GET /api/reservas/hotel/habitacion/{idHabitacion}/ocupadas
+    // Devuelve los rangos de fechas donde ESA habitación ya tiene reservas activas.
+    // El frontend lo usa para bloquear esas fechas en el datepicker antes de
+    // que el usuario intente reservar (evita el viaje redondo al backend
+    // solo para enterarse del conflicto).
+    @GetMapping("/habitacion/{idHabitacion}/ocupadas")
+    public ResponseEntity<List<RangoOcupadoDto>> obtenerFechasOcupadas(@PathVariable String idHabitacion) {
+        return ResponseEntity.ok(service.obtenerFechasOcupadas(idHabitacion));
     }
 
     // PUT /api/reservas/hotel/{id}

@@ -85,4 +85,9 @@ public class MensajeServiceImpl implements MensajeService {
         mensaje.setLeido(true);
         return toDto(repo.save(mensaje));
     }
+
+    @Override
+    public long contarNoLeidos() {
+        return repo.countByLeidoFalse();
+    }
 }

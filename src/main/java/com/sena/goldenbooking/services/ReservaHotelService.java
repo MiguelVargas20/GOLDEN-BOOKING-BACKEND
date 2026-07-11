@@ -2,6 +2,7 @@ package com.sena.goldenbooking.services;
 
 import java.util.List;
 import com.sena.goldenbooking.dtos.ReservaHotelDto;
+import com.sena.goldenbooking.dtos.RangoOcupadoDto;
 
 public interface ReservaHotelService {
 
@@ -27,4 +28,9 @@ public interface ReservaHotelService {
 
     // Devuelve una lista de DTOs de reserva de hotel correspondientes al documento de usuario proporcionado
     List<ReservaHotelDto> obtenerPorUsuario(String docUsuario);
+
+    // Devuelve los rangos de fechas en los que una habitación específica
+    // ya tiene reservas activas (no canceladas). El frontend lo usa para
+    // bloquear esas fechas en el selector antes de que el usuario intente reservar.
+    List<RangoOcupadoDto> obtenerFechasOcupadas(String idHabitacion);
 }
