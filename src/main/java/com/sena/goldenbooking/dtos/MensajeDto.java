@@ -32,4 +32,8 @@ public class MensajeDto {
 
     private LocalDateTime fechaEnvio;
     private Boolean leido;
-}   
+
+    private String respuesta;
+    private LocalDateTime fechaRespuesta;
+    private Boolean respuestaVista;
+}

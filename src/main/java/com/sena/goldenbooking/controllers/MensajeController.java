@@ -6,9 +6,14 @@ import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 
 import com.sena.goldenbooking.dtos.MensajeDto;
+import com.sena.goldenbooking.dtos.ResponderMensajeDto;
+import com.sena.goldenbooking.models.UsuarioAuth;
+import com.sena.goldenbooking.repositories.UsuarioAuthRepository;
+import com.sena.goldenbooking.repositories.UsuarioRepository;
 import com.sena.goldenbooking.services.MensajeService;
 
 import jakarta.validation.Valid;
@@ -20,9 +25,22 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 public class MensajeController {
 
     private final MensajeService service;
+    private final UsuarioAuthRepository authRepo;
+    private final UsuarioRepository usuarioRepo;
 
-    public MensajeController(MensajeService service) {
+    public MensajeController(MensajeService service, UsuarioAuthRepository authRepo, UsuarioRepository usuarioRepo) {
         this.service = service;
+        this.authRepo = authRepo;
+        this.usuarioRepo = usuarioRepo;
+    }
+
+    // Resuelve el correo real del usuario autenticado a partir del username (subject del JWT)
+    private String correoDe(Authentication authentication) {
+        UsuarioAuth auth = authRepo.findByUser(authentication.getName())
+                .orElseThrow(() -> new RuntimeException("Usuario autenticado no encontrado."));
+        return usuarioRepo.findById(auth.getId())
+                .orElseThrow(() -> new RuntimeException("Perfil no encontrado."))
+                .getCorreo();
     }
 
     // POST /api/contacto — cualquier usuario autenticado puede enviar un mensaje
@@ -32,13 +50,17 @@ public class MensajeController {
     }
 
     // GET /api/contacto — solo ADMIN, para revisar los mensajes recibidos
+    // Si se envía "nombre", filtra por remitente (búsqueda parcial, sin mayúsculas/minúsculas)
     @GetMapping
     public ResponseEntity<Map<String, Object>> listar(
             @RequestParam(defaultValue = "0") int page,
-            @RequestParam(defaultValue = "10") int size) {
+            @RequestParam(defaultValue = "10") int size,
+            @RequestParam(required = false) String nombre) {
 
         Pageable pageable = PageRequest.of(page, size);
-        var pagina = service.listarPaginados(pageable);
+        var pagina = (nombre == null || nombre.isBlank())
+                ? service.listarPaginados(pageable)
+                : service.buscarPorNombre(nombre.trim(), pageable);
 
         return ResponseEntity.ok(Map.of(
             "contenido",      pagina.getContent(),
@@ -58,5 +80,44 @@ public class MensajeController {
     @PatchMapping("/{id}/leido")
     public ResponseEntity<MensajeDto> marcarLeido(@PathVariable String id) {
         return ResponseEntity.ok(service.marcarLeido(id));
+    }
+
+    // PATCH /api/contacto/{id}/responder — solo ADMIN, envía la respuesta por correo al usuario
+    @PatchMapping("/{id}/responder")
+    public ResponseEntity<MensajeDto> responder(@PathVariable String id,
+                                                 @Valid @RequestBody ResponderMensajeDto dto) {
+        return ResponseEntity.ok(service.responder(id, dto.getRespuesta()));
+    }
+
+    // ── Lado del usuario (ADMIN o CLIENTE, solo ve SUS mensajes) ──────
+
+    // GET /api/contacto/mios — el historial de mensajes que el usuario envió, con las respuestas del admin
+    @GetMapping("/mios")
+    public ResponseEntity<Map<String, Object>> misMensajes(
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "10") int size,
+            Authentication authentication) {
+
+        Pageable pageable = PageRequest.of(page, size);
+        var pagina = service.misMensajes(correoDe(authentication), pageable);
+
+        return ResponseEntity.ok(Map.of(
+            "contenido",      pagina.getContent(),
+            "paginaActual",   pagina.getNumber(),
+            "totalPaginas",   pagina.getTotalPages(),
+            "totalElementos", pagina.getTotalElements()
+        ));
+    }
+
+    // GET /api/contacto/mios/no-vistas/count — para el badge de notificaciones del usuario
+    @GetMapping("/mios/no-vistas/count")
+    public ResponseEntity<Map<String, Long>> contarRespuestasNoVistas(Authentication authentication) {
+        return ResponseEntity.ok(Map.of("noVistas", service.contarRespuestasNoVistas(correoDe(authentication))));
+    }
+
+    // PATCH /api/contacto/{id}/respuesta-vista — el usuario marca que ya leyó la respuesta del admin
+    @PatchMapping("/{id}/respuesta-vista")
+    public ResponseEntity<MensajeDto> marcarRespuestaVista(@PathVariable String id, Authentication authentication) {
+        return ResponseEntity.ok(service.marcarRespuestaVista(id, correoDe(authentication)));
     }
 }

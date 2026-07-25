@@ -91,6 +91,11 @@ public class SecurityConfig {
                     // ── ADMIN o CLIENTE — Mensajes de contacto ─────────────
                     .requestMatchers(HttpMethod.POST, "/api/contacto").hasAnyAuthority("ROL_ADMIN", "ROL_CLIENTE")
 
+                    // ── ADMIN o CLIENTE — el usuario ve y gestiona SUS PROPIOS mensajes/respuestas
+                    // (deben ir ANTES que la regla general de abajo, que restringe todo /api/contacto/** a ADMIN)
+                    .requestMatchers(HttpMethod.GET,   "/api/contacto/mios/**").hasAnyAuthority("ROL_ADMIN", "ROL_CLIENTE")
+                    .requestMatchers(HttpMethod.PATCH, "/api/contacto/*/respuesta-vista").hasAnyAuthority("ROL_ADMIN", "ROL_CLIENTE")
+
                     // ── Solo ADMIN — Mensajes de contacto ───────────────────
                     .requestMatchers(HttpMethod.GET,   "/api/contacto/**").hasAuthority("ROL_ADMIN")
                     .requestMatchers(HttpMethod.PATCH, "/api/contacto/**").hasAuthority("ROL_ADMIN")
