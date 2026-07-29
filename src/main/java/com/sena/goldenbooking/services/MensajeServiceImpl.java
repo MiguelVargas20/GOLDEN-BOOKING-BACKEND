@@ -9,6 +9,7 @@ import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.stereotype.Service;
 
 import com.sena.goldenbooking.dtos.MensajeDto;
+import com.sena.goldenbooking.exception.AccesoDenegadoException;
 import com.sena.goldenbooking.models.Mensaje;
 import com.sena.goldenbooking.repositories.MensajeRepository;
 
@@ -35,6 +36,9 @@ public class MensajeServiceImpl implements MensajeService {
                 .contenido(m.getContenido())
                 .fechaEnvio(m.getFechaEnvio())
                 .leido(m.isLeido())
+                .respuesta(m.getRespuesta())
+                .fechaRespuesta(m.getFechaRespuesta())
+                .respuestaVista(m.isRespuestaVista())
                 .build();
     }
 
@@ -79,6 +83,11 @@ public class MensajeServiceImpl implements MensajeService {
     }
 
     @Override
+    public Page<MensajeDto> buscarPorNombre(String nombre, Pageable pageable) {
+        return repo.findByNombreContainingIgnoreCaseOrderByFechaEnvioDesc(nombre, pageable).map(this::toDto);
+    }
+
+    @Override
     public MensajeDto marcarLeido(String id) {
         Mensaje mensaje = repo.findById(id)
                 .orElseThrow(() -> new RuntimeException("Mensaje no encontrado con ID: " + id));
@@ -87,7 +96,59 @@ public class MensajeServiceImpl implements MensajeService {
     }
 
     @Override
+    public MensajeDto responder(String id, String textoRespuesta) {
+        Mensaje mensaje = repo.findById(id)
+                .orElseThrow(() -> new RuntimeException("Mensaje no encontrado con ID: " + id));
+
+        mensaje.setRespuesta(textoRespuesta);
+        mensaje.setFechaRespuesta(LocalDateTime.now());
+        mensaje.setRespuestaVista(false); // nueva respuesta => el usuario aún no la ha visto
+        mensaje.setLeido(true); // responder implica que ya fue atendido
+        Mensaje guardado = repo.save(mensaje);
+
+        try {
+            SimpleMailMessage email = new SimpleMailMessage();
+            email.setTo(guardado.getCorreo());
+            email.setSubject("Golden Booking - Respuesta a tu mensaje");
+            email.setText("Hola " + guardado.getNombre() + ",\n\n" +
+                          "Recibimos tu mensaje:\n\"" + guardado.getContenido() + "\"\n\n" +
+                          "Nuestra respuesta:\n" + textoRespuesta + "\n\n" +
+                          "— Equipo Golden Booking");
+
+            mailSender.send(email);
+            log.info("Correo de respuesta enviado a: {}", guardado.getCorreo());
+        } catch (Exception e) {
+            log.error("Error al enviar el correo de respuesta: {}", e.getMessage());
+        }
+
+        return toDto(guardado);
+    }
+
+    @Override
     public long contarNoLeidos() {
         return repo.countByLeidoFalse();
+    }
+
+    @Override
+    public Page<MensajeDto> misMensajes(String correo, Pageable pageable) {
+        return repo.findByCorreoOrderByFechaEnvioDesc(correo, pageable).map(this::toDto);
+    }
+
+    @Override
+    public long contarRespuestasNoVistas(String correo) {
+        return repo.countByCorreoAndRespuestaIsNotNullAndRespuestaVistaFalse(correo);
+    }
+
+    @Override
+    public MensajeDto marcarRespuestaVista(String id, String correo) {
+        Mensaje mensaje = repo.findById(id)
+                .orElseThrow(() -> new RuntimeException("Mensaje no encontrado con ID: " + id));
+
+        if (!mensaje.getCorreo().equalsIgnoreCase(correo)) {
+            throw new AccesoDenegadoException("No puedes ver la respuesta de un mensaje que no es tuyo.");
+        }
+
+        mensaje.setRespuestaVista(true);
+        return toDto(repo.save(mensaje));
     }
 }

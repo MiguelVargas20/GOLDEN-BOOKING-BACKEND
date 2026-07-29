@@ -25,4 +25,8 @@ public class Mensaje {
     private String contenido;
     private LocalDateTime fechaEnvio;
     private boolean leido;
+
+    private String respuesta;             // texto que el admin envía como respuesta
+    private LocalDateTime fechaRespuesta;  // cuándo se respondió (null si no se ha respondido)
+    private boolean respuestaVista;        // si el usuario dueño del mensaje ya vio la respuesta (para el badge de notificaciones)
 }
