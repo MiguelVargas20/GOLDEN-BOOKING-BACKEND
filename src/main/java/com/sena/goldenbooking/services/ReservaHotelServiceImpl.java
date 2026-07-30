@@ -13,6 +13,7 @@ import com.sena.goldenbooking.repositories.*;
 import com.sena.goldenbooking.exception.ReservaNoEncontradaException;
 import com.sena.goldenbooking.exception.ConflictoDeNegocioException;
 import com.sena.goldenbooking.exception.AccesoDenegadoException;
+import com.sena.goldenbooking.dtos.UsuarioDto;
 
 @Slf4j
 @Service
@@ -22,18 +23,23 @@ public class ReservaHotelServiceImpl implements ReservaHotelService {
     private final ReservaRepository reservaRepo;
     private final HabitacionRepository habitacionRepo;
     private final ReservaHotelMapper mapper;
+    private final EmailService emailService;
+    private final UsuarioService usuarioService;
 
-    public ReservaHotelServiceImpl(
-            ReservaHotelRepository reservaHotelRepo,
-            ReservaRepository reservaRepo,
-            HabitacionRepository habitacionRepo,
-            ReservaHotelMapper mapper) {
-        this.reservaHotelRepo = reservaHotelRepo;
-        this.reservaRepo = reservaRepo;
-        this.habitacionRepo = habitacionRepo;
-        this.mapper = mapper;
-    }
-
+public ReservaHotelServiceImpl(
+        ReservaHotelRepository reservaHotelRepo,
+        ReservaRepository reservaRepo,
+        HabitacionRepository habitacionRepo,
+        ReservaHotelMapper mapper,
+        EmailService emailService,           // ← nuevo
+        UsuarioService usuarioService) {     // ← nuevo
+    this.reservaHotelRepo = reservaHotelRepo;
+    this.reservaRepo = reservaRepo;
+    this.habitacionRepo = habitacionRepo;
+    this.mapper = mapper;
+    this.emailService = emailService;
+    this.usuarioService = usuarioService;
+}
     @Override
     public ReservaHotelDto crear(ReservaHotelDto dto) {
         log.info("Iniciando creación de reserva hotel para usuario: {}", dto.getDocUsuario());
@@ -106,6 +112,45 @@ public class ReservaHotelServiceImpl implements ReservaHotelService {
 
             ReservaHotel guardada = reservaHotelRepo.save(reservaHotel);
 
+
+            // ── NUEVO: Enviar confirmación por correo con archivo .ics ──
+            try {
+                UsuarioDto usuario = usuarioService.obtenerPorDocNum(dto.getDocUsuario());
+                String tituloEvento = "Reserva Hotel: Habitación " + habitacion.getNumHab();
+                String cuerpoHtml = """
+                        <div style="font-family: 'Poppins', sans-serif; max-width: 500px; margin: auto; padding: 30px; border-radius: 12px; border: 1px solid #eee;">
+                            <h2 style="color: #1a1a2e;">Reserva confirmada — <span style="color:#f68b1e;">Golden Booking</span></h2>
+                            <p style="color: #4a5568;">Hola %s, tu reserva de hotel quedó registrada con los siguientes detalles:</p>
+                            <ul style="color: #4a5568; line-height: 1.8;">
+                                <li><strong>Habitación:</strong> %s</li>
+                                <li><strong>Check-in:</strong> %s</li>
+                                <li><strong>Check-out:</strong> %s</li>
+                                <li><strong>Noches:</strong> %d</li>
+                                <li><strong>Total:</strong> $%,.0f</li>
+                            </ul>
+                            <p style="color: #a0aec0; font-size: 0.85rem;">Adjuntamos un archivo de calendario para que agregues este evento directamente a Google Calendar u Outlook.</p>
+                        </div>
+                        """.formatted(
+                        usuario.getNombre(),
+                        habitacion.getNumHab(),
+                        dto.getFCheckIn(),
+                        dto.getFCheckOut(),
+                        noches,
+                        precioTotal
+                );
+
+                emailService.enviarConfirmacionReserva(
+                        usuario.getEmail(),
+                        tituloEvento,
+                        cuerpoHtml,
+                        dto.getFCheckIn(),
+                        dto.getFCheckOut()
+                );
+            } catch (Exception e) {
+                log.warn("No se pudo enviar la confirmación por correo para la reserva hotel del usuario {}: {}",
+                        dto.getDocUsuario(), e.getMessage());
+            }
+            // ──────────────────────────────────────────────────────────
             // Ya NO tocamos habitacion.estado aquí: la disponibilidad ahora se calcula
             // dinámicamente por fecha (ver findByIdHabitacionAndEstadoNot arriba),
             // así la misma habitación puede tener reservas distintas en fechas distintas.
@@ -176,6 +221,37 @@ public class ReservaHotelServiceImpl implements ReservaHotelService {
         // que es la colección que realmente se lee en las vistas de reservas ──
         rh.setEstado(EstadoReserva.CANCELADA);
         reservaHotelRepo.save(rh);
+
+        reserva.setEstado(EstadoReserva.CANCELADA);
+        reservaRepo.save(reserva);
+
+        rh.setEstado(EstadoReserva.CANCELADA);
+        reservaHotelRepo.save(rh);
+
+        // ── NUEVO: Aviso de cancelación por correo ──
+        try {
+            UsuarioDto usuario = usuarioService.obtenerPorDocNum(rh.getDocUsuario());
+            String detalleHtml = """
+                    <ul style="color: #4a5568; line-height: 1.8;">
+                        <li><strong>Habitación:</strong> %s</li>
+                        <li><strong>Check-in:</strong> %s</li>
+                        <li><strong>Check-out:</strong> %s</li>
+                    </ul>
+                    """.formatted(
+                    rh.getDatosH().getNumHab(),
+                    rh.getFechaCheckIn(),
+                    rh.getFechaCheckOut()
+            );
+
+            emailService.enviarAvisoCancelacion(
+                    usuario.getEmail(),
+                    "Habitación " + rh.getDatosH().getNumHab(),
+                    detalleHtml
+            );
+        } catch (Exception e) {
+            log.warn("No se pudo enviar el aviso de cancelación para la reserva hotel {}: {}", id, e.getMessage());
+        }
+        // ─────────────────────────────────────────────
 
         // Al cancelar, la reserva pasa a CANCELADA y por eso deja de contar en
         // findByIdHabitacionAndEstadoNot(...): esas fechas quedan libres
