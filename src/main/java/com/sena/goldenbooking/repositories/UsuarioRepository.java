@@ -1,8 +1,10 @@
 package com.sena.goldenbooking.repositories;
 
 import java.util.Optional;
+
 import org.springframework.data.mongodb.repository.MongoRepository;
 import org.springframework.data.mongodb.repository.Query;
+
 import com.sena.goldenbooking.models.Usuario;
 
 public interface UsuarioRepository extends MongoRepository<Usuario, String> {
@@ -12,4 +14,6 @@ public interface UsuarioRepository extends MongoRepository<Usuario, String> {
 
     @Query(value = "{ 'docId.numeroD' : ?0 }", exists = true)
     boolean existsByDocNum(String docnum);
+
+    Optional<Usuario> findByCorreo(String correo);
 }

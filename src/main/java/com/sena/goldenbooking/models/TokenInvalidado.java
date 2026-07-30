@@ -20,7 +20,6 @@ public class TokenInvalidado {
     private String token;           // El token mismo es el ID (evita duplicados)
 
 
-    
     @Indexed(expireAfterSeconds = 0) // MongoDB borra el documento cuando llegue a 'expiracion'
     private Date expiracion;         // Misma fecha de expiración que el JWT
 }

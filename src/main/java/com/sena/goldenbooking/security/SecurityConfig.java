@@ -1,6 +1,7 @@
 package com.sena.goldenbooking.security;
 
 import java.util.List;
+
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.HttpMethod;
@@ -41,11 +42,15 @@ public class SecurityConfig {
 
                         // ── Públicas ─────────────────────────────────────────
                     .requestMatchers(
-                        "/auth/login",
+                         "/auth/login",
                         "/auth/refresh",
                         "/auth/recuperar-password",
+                        "/auth/verificar-cuenta",        // ← nuevo
+                        "/auth/solicitar-recuperacion",  // ← nuevo
+                        "/auth/restablecer-password",    // ← nuevo
                         "/api/usuarios/registro",
                         "/ws/**"
+                        
                     ).permitAll()
 
                     // ── Documentación Swagger / OpenAPI ───────────────────

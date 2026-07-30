@@ -51,4 +51,8 @@ public class Usuario {
  
     /** Fecha de registro en el sistema */
     private LocalDateTime fReg;
+    
+    /** Indica si el usuario confirmó su correo electrónico */
+    @Builder.Default
+    private boolean verificado = false;
 }

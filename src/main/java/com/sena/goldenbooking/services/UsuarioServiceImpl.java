@@ -5,6 +5,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -12,13 +14,12 @@ import org.springframework.transaction.annotation.Transactional;
 import com.sena.goldenbooking.dtos.UsuarioDto;
 import com.sena.goldenbooking.dtos.UsuarioRegistroDto;
 import com.sena.goldenbooking.mapper.UsuarioMapper;
+import com.sena.goldenbooking.models.Rol;
+import com.sena.goldenbooking.models.TipoToken;
 import com.sena.goldenbooking.models.Usuario;
 import com.sena.goldenbooking.models.UsuarioAuth;
-import com.sena.goldenbooking.models.Rol;
 import com.sena.goldenbooking.repositories.UsuarioAuthRepository;
 import com.sena.goldenbooking.repositories.UsuarioRepository;
-import org.springframework.data.domain.Page;
-import org.springframework.data.domain.Pageable;
 
 import lombok.extern.slf4j.Slf4j;
 
@@ -30,12 +31,18 @@ public class UsuarioServiceImpl implements UsuarioService {
     private final UsuarioAuthRepository authRepo;
     private final UsuarioMapper userMapper;
     private final PasswordEncoder passwordEncoder;
+    private final EmailService emailService;
+    private final TokenService tokenService;
 
-    public UsuarioServiceImpl(UsuarioRepository userRepo, UsuarioAuthRepository authRepo, UsuarioMapper userMapper, PasswordEncoder passwordEncoder) {
+    public UsuarioServiceImpl(UsuarioRepository userRepo, UsuarioAuthRepository authRepo,
+            UsuarioMapper userMapper, PasswordEncoder passwordEncoder,
+            EmailService emailService, TokenService tokenService) {   // ← 2 parámetros nuevos
         this.userRepo = userRepo;
         this.authRepo = authRepo;
         this.userMapper = userMapper;
         this.passwordEncoder = passwordEncoder;
+        this.emailService = emailService;
+        this.tokenService = tokenService;
     }
 
     @Override
@@ -67,6 +74,14 @@ public class UsuarioServiceImpl implements UsuarioService {
                 .build();
 
         Usuario perfilGuardado = userRepo.save(perfil);
+
+        // Dispara el correo de verificación (no bloquea el registro si falla el envío)
+        try {
+            String token = tokenService.generarToken(perfilGuardado.getCorreo(), TipoToken.VERIFICACION_CUENTA);
+            emailService.enviarCorreoVerificacion(perfilGuardado.getCorreo(), token);
+        } catch (Exception e) {
+            log.warn("No se pudo enviar el correo de verificación a {}: {}", perfilGuardado.getCorreo(), e.getMessage());
+        }
 
         // 2. Guardar credenciales en colección UsuarioAuth con el mismo ID
         UsuarioAuth auth = new UsuarioAuth();
