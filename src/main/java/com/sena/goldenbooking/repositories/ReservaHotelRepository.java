@@ -1,9 +1,12 @@
 package com.sena.goldenbooking.repositories;
 
+import java.time.LocalDateTime;
+import java.util.List;
+
+import org.springframework.data.mongodb.repository.MongoRepository;
+
 import com.sena.goldenbooking.models.EstadoReserva;
 import com.sena.goldenbooking.models.ReservaHotel;
-import org.springframework.data.mongodb.repository.MongoRepository;
-import java.util.List;
 
 public interface ReservaHotelRepository extends MongoRepository<ReservaHotel, String> {
 
@@ -22,4 +25,9 @@ public interface ReservaHotelRepository extends MongoRepository<ReservaHotel, St
     // libre para esas fechas (aunque sí lo esté para otras).
     List<ReservaHotel> findByIdHabitacionAndEstadoNot(String idHabitacion, EstadoReserva estado);
 
+        // En ReservaHotelRepository
+    List<ReservaHotel> findByEstadoNotAndRecordatorio24hEnviadoFalseAndFechaCheckInBetween(
+            EstadoReserva estado, LocalDateTime desde, LocalDateTime hasta);
+    List<ReservaHotel> findByEstadoNotAndRecordatorio2hEnviadoFalseAndFechaCheckInBetween(
+            EstadoReserva estado, LocalDateTime desde, LocalDateTime hasta);
 }

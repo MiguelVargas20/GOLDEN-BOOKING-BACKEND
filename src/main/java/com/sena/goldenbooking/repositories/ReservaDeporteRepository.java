@@ -1,11 +1,13 @@
 package com.sena.goldenbooking.repositories;
 
-import com.sena.goldenbooking.models.ReservaDeporte;
+import java.time.LocalDateTime;
+import java.util.List;
+
 import org.springframework.data.mongodb.repository.MongoRepository;
 import org.springframework.data.mongodb.repository.Query;
 
-import java.time.LocalDateTime;
-import java.util.List;
+import com.sena.goldenbooking.models.EstadoReserva;
+import com.sena.goldenbooking.models.ReservaDeporte;
 
 public interface ReservaDeporteRepository extends MongoRepository<ReservaDeporte, String> {
 
@@ -32,4 +34,10 @@ public interface ReservaDeporteRepository extends MongoRepository<ReservaDeporte
             LocalDateTime inicioNuevo,
             LocalDateTime finNuevo
     );
+    
+    // En ReservaDeporteRepository
+    List<ReservaDeporte> findByEstadoNotAndRecordatorio24hEnviadoFalseAndFechaReservaBetween(
+            EstadoReserva estado, LocalDateTime desde, LocalDateTime hasta);
+    List<ReservaDeporte> findByEstadoNotAndRecordatorio2hEnviadoFalseAndFechaReservaBetween(
+            EstadoReserva estado, LocalDateTime desde, LocalDateTime hasta);
 }

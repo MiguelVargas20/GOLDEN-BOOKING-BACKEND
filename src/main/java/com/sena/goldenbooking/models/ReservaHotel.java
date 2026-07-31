@@ -1,10 +1,14 @@
 package com.sena.goldenbooking.models;
 
 import java.time.LocalDateTime;
-import lombok.*;
 
 import org.springframework.data.annotation.Id;
 import org.springframework.data.mongodb.core.mapping.Document;
+
+import lombok.AllArgsConstructor;
+import lombok.Builder;
+import lombok.Data;
+import lombok.NoArgsConstructor;
 
 @Document(collection = "ReservaHotel")
 @Data @AllArgsConstructor @NoArgsConstructor @Builder
@@ -29,4 +33,8 @@ public class ReservaHotel {
     private Double precioTotal;
 
     private EstadoReserva estado;
+
+    private boolean recordatorio24hEnviado;
+    
+    private boolean recordatorio2hEnviado;
 }

@@ -39,4 +39,8 @@ public class ReservaDeporte {
     private Double precio;
 
     private EstadoReserva estado;
+
+    private boolean recordatorio24hEnviado;
+
+    private boolean recordatorio2hEnviado;
 }
