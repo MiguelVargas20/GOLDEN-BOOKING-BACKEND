@@ -90,6 +90,13 @@ public class AuthController {
         Usuario perfil = usuarioRepo.findById(auth.getId())
                 .orElseThrow(() -> new RuntimeException("Perfil no encontrado"));
 
+        // ── NUEVO: bloquear login si la cuenta no está verificada ──
+        if (!perfil.isVerificado()) {
+            return ResponseEntity.status(403).body(Map.of(
+                "error", "Debes verificar tu cuenta antes de iniciar sesión. Revisa tu correo."
+            ));
+        }
+
         List<String> roles = auth.getRls().stream()
                 .map(Enum::name)
                 .toList();
