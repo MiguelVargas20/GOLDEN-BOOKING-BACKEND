@@ -12,22 +12,32 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.crypto.password.PasswordEncoder;
-import org.springframework.web.bind.annotation.*;
+import org.springframework.web.bind.annotation.CookieValue;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestHeader;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.RestController;
 
 import com.sena.goldenbooking.dtos.LoginDto;
 import com.sena.goldenbooking.exception.RefreshTokenInvalidoException;
+import com.sena.goldenbooking.models.TipoToken;
 import com.sena.goldenbooking.models.Usuario;
 import com.sena.goldenbooking.models.UsuarioAuth;
-import com.sena.goldenbooking.repositories.UsuarioAuthRepository;
+import com.sena.goldenbooking.repositories.UsuarioAuthRepository;  // ← NUEVO import
 import com.sena.goldenbooking.repositories.UsuarioRepository;
 import com.sena.goldenbooking.security.JwtService;
-import com.sena.goldenbooking.services.AuthService;  // ← NUEVO import
+import com.sena.goldenbooking.services.AuthService;
+import com.sena.goldenbooking.services.EmailService;
 import com.sena.goldenbooking.services.RefreshTokenService;
 import com.sena.goldenbooking.services.RefreshTokenService.RefreshTokenPair;
+import com.sena.goldenbooking.services.TokenService;
 
+import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.servlet.http.HttpServletResponse;
 import jakarta.validation.Valid;
-import io.swagger.v3.oas.annotations.tags.Tag;
 
 @Tag(name = "Autenticación", description = "Login, recuperación de contraseña y generación de tokens JWT.")
 @RestController
@@ -35,6 +45,7 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 
 public class AuthController {
 
+    private final EmailService emailService;
     private final JwtService jwtService;
     private final AuthenticationManager authManager;
     private final UsuarioAuthRepository authRepo;
@@ -42,6 +53,7 @@ public class AuthController {
     private final PasswordEncoder passwordEncoder;
     private final AuthService authService;             // ← NUEVO campo
     private final RefreshTokenService refreshTokenService;
+    private final TokenService tokenService;
 
     private static final String COOKIE_REFRESH = "refreshToken";
 
@@ -52,14 +64,17 @@ public class AuthController {
             UsuarioRepository usuarioRepo,
             PasswordEncoder passwordEncoder,
             AuthService authService,                   // ← NUEVO parámetro
-            RefreshTokenService refreshTokenService) {
+            TokenService tokenService,   
+            RefreshTokenService refreshTokenService, EmailService emailService) {
         this.jwtService = jwtService;
         this.authManager = authManager;
         this.authRepo = authRepo;
         this.usuarioRepo = usuarioRepo;
         this.passwordEncoder = passwordEncoder;
-        this.authService = authService;                // ← NUEVO
+        this.authService = authService;            
+        this.tokenService = tokenService;        // ← NUEVO
         this.refreshTokenService = refreshTokenService;
+        this.emailService = emailService;
     }
 
     @PostMapping("/login")
@@ -226,4 +241,66 @@ public class AuthController {
 
         return ResponseEntity.noContent().build(); // 204
     }
+
+
+    @GetMapping("/verificar-cuenta")
+    public ResponseEntity<Map<String, Object>> verificarCuenta(@RequestParam String token) {
+        String correo = tokenService.validarYObtenerCorreo(token, TipoToken.VERIFICACION_CUENTA);
+
+        Usuario usuario = usuarioRepo.findByCorreo(correo)
+                .orElseThrow(() -> new RuntimeException("Usuario no encontrado"));
+
+        usuario.setVerificado(true);
+        usuarioRepo.save(usuario);
+        tokenService.invalidarToken(token);
+
+        return ResponseEntity.ok(Map.of(
+            "mensaje", "Cuenta verificada correctamente. Ya puedes iniciar sesión."
+        ));
+    }
+
+    @PostMapping("/solicitar-recuperacion")
+    public ResponseEntity<Map<String, Object>> solicitarRecuperacion(@RequestBody Map<String, String> body) {
+        String correo = body.get("correo");
+
+        Usuario usuario = usuarioRepo.findByCorreo(correo).orElse(null);
+
+        // Por seguridad, respondemos igual exista o no el correo —
+        // así nadie puede usar este endpoint para "adivinar" qué correos están registrados.
+        if (usuario != null) {
+            String token = tokenService.generarToken(correo, TipoToken.RECUPERACION_PASSWORD);
+            emailService.enviarCorreoRecuperacion(correo, token);
+        }
+
+        return ResponseEntity.ok(Map.of(
+            "mensaje", "Si el correo está registrado, te enviamos un enlace de recuperación."
+        ));
+    }
+
+    @PostMapping("/restablecer-password")
+    public ResponseEntity<Map<String, Object>> restablecerPassword(@RequestBody Map<String, String> body) {
+        String token = body.get("token");
+        String nuevaPassword = body.get("nuevaPassword");
+
+        if (nuevaPassword == null || nuevaPassword.length() < 6) {
+            return ResponseEntity.badRequest().body(Map.of("error", "La contraseña debe tener mínimo 6 caracteres"));
+        }
+
+        String correo = tokenService.validarYObtenerCorreo(token, TipoToken.RECUPERACION_PASSWORD);
+
+        Usuario usuario = usuarioRepo.findByCorreo(correo)
+                .orElseThrow(() -> new RuntimeException("Usuario no encontrado"));
+
+        UsuarioAuth auth = authRepo.findById(usuario.getId())
+                .orElseThrow(() -> new RuntimeException("Credenciales no encontradas"));
+
+        auth.setPwd(passwordEncoder.encode(nuevaPassword));
+        authRepo.save(auth);
+        tokenService.invalidarToken(token);
+
+        return ResponseEntity.ok(Map.of(
+            "mensaje", "Contraseña restablecida correctamente. Ya puedes iniciar sesión."
+        ));
+    }
 }
+
