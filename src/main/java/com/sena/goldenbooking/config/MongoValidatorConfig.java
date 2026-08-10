@@ -1,6 +1,7 @@
 package com.sena.goldenbooking.config;
 
 import com.mongodb.client.MongoClient;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.CommandLineRunner;
 import org.springframework.stereotype.Component;
@@ -10,6 +11,7 @@ import java.util.List;
 
 // Esta clase se ejecutará al iniciar la aplicación para verificar que la base de datos MongoDB esté accesible y que la base de datos 'goldenbooking' exista. Si no se encuentra, se lanzará una excepción para evitar que la aplicación continúe con errores posteriores.
 
+@Slf4j
 @Component
 public class MongoValidatorConfig implements CommandLineRunner {
 
@@ -28,8 +30,8 @@ public class MongoValidatorConfig implements CommandLineRunner {
     // Este método se ejecutará al iniciar la aplicación
     @Override
     public void run(String... args) {
-        System.out.println("--- Iniciando verificación de base de datos ---");
-        
+        log.info("--- Iniciando verificación de base de datos ---");
+
         // 1. Obtenemos la lista de nombres de BD en el servidor
         List<String> databases = mongoClient
                 .listDatabaseNames()
@@ -37,16 +39,14 @@ public class MongoValidatorConfig implements CommandLineRunner {
 
         // 2. Verificamos si existe nuestra DB 'goldenbooking'
         if (!databases.contains(databaseName)) {
-            System.err.println("CRITICAL ERROR: La base de datos '" + databaseName + "' no fue encontrada.");
-            System.err.println("Bases de datos detectadas: " + databases);
-            
-            // Forzamos el cierre de la aplicación para evitar errores en ejecución
-//            throw new IllegalStateException("Fallo en el arranque: La base de datos '" + databaseName + "' es obligatoria.");
+            log.error("La base de datos '{}' no fue encontrada. Bases de datos detectadas: {}", databaseName, databases);
+
+            // Frenamos el arranque: sin la base de datos correcta, la app
+            // fallaría de forma impredecible más adelante en cada request.
+            throw new IllegalStateException("Fallo en el arranque: La base de datos '" + databaseName + "' es obligatoria.");
         }
 
-
         // Si llegamos aquí, la conexión es exitosa y la base de datos existe
-        System.out.println("CONEXIÓN EXITOSA: Base de datos '" + databaseName + "' verificada y lista.");
-        System.out.println("-----------------------------------------------");
+        log.info("Conexión exitosa: base de datos '{}' verificada y lista.", databaseName);
     }
 }

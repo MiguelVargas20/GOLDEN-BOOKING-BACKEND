@@ -58,6 +58,18 @@ public class GlobalExceptionHandler {
         ));
     }
 
+    // 3.1 Recurso genérico no encontrado (habitación, mensaje, usuario, etc.)
+    @ExceptionHandler(com.sena.goldenbooking.exception.RecursoNoEncontradoException.class)
+    public ResponseEntity<Map<String, Object>> handleRecursoNoEncontrado(com.sena.goldenbooking.exception.RecursoNoEncontradoException ex) {
+        log.warn("Recurso no encontrado: {}", ex.getMessage());
+
+        return ResponseEntity.status(HttpStatus.NOT_FOUND).body(Map.of(
+                "timestamp", LocalDateTime.now(),
+                "status", HttpStatus.NOT_FOUND.value(),
+                "error", ex.getMessage()
+        ));
+    }
+
     // 4. Conflictos de negocio (horario ocupado, reserva ya cancelada, etc.)
     @ExceptionHandler(com.sena.goldenbooking.exception.ConflictoDeNegocioException.class)
     public ResponseEntity<Map<String, Object>> handleConflicto(com.sena.goldenbooking.exception.ConflictoDeNegocioException ex) {

@@ -1,6 +1,6 @@
 package com.sena.goldenbooking.services;
 
-import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.mail.SimpleMailMessage;
 import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.mail.javamail.MimeMessageHelper;
@@ -20,8 +20,16 @@ import jakarta.mail.internet.MimeMessage;
 @Service
 public class EmailService {
 
-    @Autowired
-    private JavaMailSender mailSender;
+    private final JavaMailSender mailSender;
+
+    // URL base del frontend — configurable vía app.frontend.url
+    // (antes hardcodeada como "http://localhost:5173" en cada método)
+    @Value("${app.frontend.url}")
+    private String frontendUrl;
+
+    public EmailService(JavaMailSender mailSender) {
+        this.mailSender = mailSender;
+    }
 
     public void enviarCorreoSimple(String destinatario, String asunto, String cuerpo) {
         SimpleMailMessage mensaje = new SimpleMailMessage();
@@ -49,7 +57,7 @@ public class EmailService {
     }
 
     public void enviarCorreoVerificacion(String destinatario, String token) {
-        String urlVerificacion = "http://localhost:5173/verificar-cuenta?token=" + token;
+        String urlVerificacion = frontendUrl + "/verificar-cuenta?token=" + token;
         String html = """
                 <div style="font-family: 'Poppins', sans-serif; max-width: 500px; margin: auto; padding: 30px; border-radius: 12px; border: 1px solid #eee;">
                     <h2 style="color: #1a1a2e;">Bienvenido a <span style="color:#f68b1e;">Golden Booking</span></h2>
@@ -65,7 +73,7 @@ public class EmailService {
     }
 
     public void enviarCorreoRecuperacion(String destinatario, String token) {
-        String urlRecuperacion = "http://localhost:5173/restablecer-password?token=" + token;
+        String urlRecuperacion = frontendUrl + "/restablecer-password?token=" + token;
         String html = """
                 <div style="font-family: 'Poppins', sans-serif; max-width: 500px; margin: auto; padding: 30px; border-radius: 12px; border: 1px solid #eee;">
                     <h2 style="color: #1a1a2e;">Recupera tu contraseña</h2>

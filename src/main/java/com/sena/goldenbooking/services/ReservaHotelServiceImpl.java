@@ -217,14 +217,8 @@ public ReservaHotelServiceImpl(
         reserva.setEstado(EstadoReserva.CANCELADA);
         reservaRepo.save(reserva);
 
-        // ── FIX: sincronizar el estado también en ReservaHotel,
-        // que es la colección que realmente se lee en las vistas de reservas ──
-        rh.setEstado(EstadoReserva.CANCELADA);
-        reservaHotelRepo.save(rh);
-
-        reserva.setEstado(EstadoReserva.CANCELADA);
-        reservaRepo.save(reserva);
-
+        // Sincronizamos el estado también en ReservaHotel, que es la
+        // colección que realmente se lee en las vistas de reservas.
         rh.setEstado(EstadoReserva.CANCELADA);
         reservaHotelRepo.save(rh);
 

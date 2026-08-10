@@ -4,6 +4,8 @@ import java.time.LocalDateTime;
 import java.util.List;
 import org.springframework.stereotype.Service;
 import com.sena.goldenbooking.dtos.ReservaDto;
+import com.sena.goldenbooking.exception.ConflictoDeNegocioException;
+import com.sena.goldenbooking.exception.ReservaNoEncontradaException;
 import com.sena.goldenbooking.mapper.ReservaMapper;
 import com.sena.goldenbooking.models.EstadoReserva;
 import com.sena.goldenbooking.models.Reserva;
@@ -31,11 +33,11 @@ public class ReservaServiceImpl implements ReservaService {
     public ReservaDto crearReserva(ReservaDto dto) {
         // Validación de campos obligatorios en el DTO
         if (dto.getDocUsuario() == null || dto.getDocUsuario().isBlank()) {
-            throw new RuntimeException("El documento del usuario es obligatorio.");
+            throw new IllegalArgumentException("El documento del usuario es obligatorio.");
         }
         // Validación adicional para el tipo de reserva
         if (dto.getTp() == null) {
-            throw new RuntimeException("El tipo de reserva es obligatorio.");
+            throw new IllegalArgumentException("El tipo de reserva es obligatorio.");
         }
 
 
@@ -71,7 +73,7 @@ public class ReservaServiceImpl implements ReservaService {
     @Override
     public ReservaDto obtenerPorId(String id) {
         Reserva reserva = reservaRepo.findById(id)
-                .orElseThrow(() -> new RuntimeException("Reserva no encontrada con ID: " + id));
+                .orElseThrow(() -> new ReservaNoEncontradaException("Reserva no encontrada con ID: " + id));
         return reservaMapper.toDto(reserva);
     }
 
@@ -87,7 +89,7 @@ public class ReservaServiceImpl implements ReservaService {
     @Override
     public ReservaDto actualizarReserva(String id, ReservaDto dto) {
         Reserva reservaExistente = reservaRepo.findById(id)
-                .orElseThrow(() -> new RuntimeException("Reserva no encontrada con ID: " + id));
+                .orElseThrow(() -> new ReservaNoEncontradaException("Reserva no encontrada con ID: " + id));
         reservaMapper.actualizarReserva(dto, reservaExistente);
         return reservaMapper.toDto(reservaRepo.save(reservaExistente));
     }
@@ -97,9 +99,9 @@ public class ReservaServiceImpl implements ReservaService {
     @Override
     public void cancelarReserva(String id) {
         Reserva reserva = reservaRepo.findById(id)
-                .orElseThrow(() -> new RuntimeException("Reserva no encontrada con ID: " + id));
+                .orElseThrow(() -> new ReservaNoEncontradaException("Reserva no encontrada con ID: " + id));
         if (reserva.getEstado() == EstadoReserva.CANCELADA) {
-            throw new RuntimeException("La reserva ya está cancelada.");
+            throw new ConflictoDeNegocioException("La reserva ya está cancelada.");
         }
         reserva.setEstado(EstadoReserva.CANCELADA);
         reservaRepo.save(reserva);
