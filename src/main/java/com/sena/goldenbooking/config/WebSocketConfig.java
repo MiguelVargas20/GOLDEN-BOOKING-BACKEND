@@ -1,5 +1,6 @@
 package com.sena.goldenbooking.config;
 
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.messaging.simp.config.MessageBrokerRegistry;
 import org.springframework.web.socket.config.annotation.EnableWebSocketMessageBroker;
@@ -9,6 +10,13 @@ import org.springframework.web.socket.config.annotation.WebSocketMessageBrokerCo
 @Configuration
 @EnableWebSocketMessageBroker
 public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
+
+    // Mismos orígenes permitidos que usa SecurityConfig para el resto de la API
+    // (app.cors.allowed-origins). Antes estaban hardcodeados a localhost aquí,
+    // así que al desplegar a un dominio real el WebSocket se habría quedado
+    // roto en silencio aunque el resto de la app funcionara bien.
+    @Value("${app.cors.allowed-origins}")
+    private String allowedOrigins;
 
     @Override
     public void configureMessageBroker(MessageBrokerRegistry config) {
@@ -25,7 +33,7 @@ public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
         // Endpoint al que el front se conecta para iniciar WebSocket
         // SockJS es un fallback para navegadores que no soportan WebSocket nativo
         registry.addEndpoint("/ws")
-                .setAllowedOrigins("http://localhost:5173", "http://localhost:56083")
+                .setAllowedOrigins(allowedOrigins.split(","))
                 .withSockJS();
     }
 }

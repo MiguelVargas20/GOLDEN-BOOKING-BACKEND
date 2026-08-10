@@ -12,11 +12,10 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 @Tag(name = "Tipos de Habitación", description = "Gestión de los tipos/categorías de habitación.")
 @RestController
 
-// Define la ruta base para las operaciones de tipo de habitación y permite solicitudes desde cualquier origen
+// Define la ruta base para las operaciones de tipo de habitación.
+// CORS ya se maneja de forma centralizada en SecurityConfig (app.cors.allowed-origins),
+// así que no se declara aquí para evitar reglas duplicadas/contradictorias.
 @RequestMapping("/api/tipohabitaciones")
-
-// Permite solicitudes desde cualquier origen para evitar problemas de CORS
-@CrossOrigin(origins = "*")
 public class TipoHabitacionController {
 
     // Inyección de dependencia del servicio para manejar la lógica de negocio

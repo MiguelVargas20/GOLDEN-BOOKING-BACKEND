@@ -185,14 +185,20 @@ public ReservaHotelServiceImpl(
     }
 
     @Override
-    public ReservaHotelDto actualizar(String id, ReservaHotelDto dto) {
-        log.info("Actualizando reserva hotel ID: {}", id);
-        ReservaHotel rh = reservaHotelRepo.findById(id)
-                .orElseThrow(() -> new ReservaNoEncontradaException("No encontrada."));
-        mapper.actualizarReservaHotel(dto, rh);
-        return mapper.toDto(reservaHotelRepo.save(rh));
+public ReservaHotelDto actualizar(String id, ReservaHotelDto dto, String docUsuarioSolicitante, boolean esAdmin) {
+    log.info("Actualizando reserva hotel ID: {}", id);
+    ReservaHotel rh = reservaHotelRepo.findById(id)
+            .orElseThrow(() -> new ReservaNoEncontradaException("No encontrada."));
+
+    // Validación de permisos IDOR (misma lógica que en cancelar)
+    if (!esAdmin && !rh.getDocUsuario().equals(docUsuarioSolicitante)) {
+        log.warn("Intento de actualización no autorizado por el usuario {}", docUsuarioSolicitante);
+        throw new AccesoDenegadoException("No tienes permiso para modificar esta reserva.");
     }
 
+    mapper.actualizarReservaHotel(dto, rh);
+    return mapper.toDto(reservaHotelRepo.save(rh));
+}
     @Override
     public void cancelar(String id, String docUsuarioSolicitante, boolean esAdmin) {
         log.info("Iniciando cancelación de reserva hotel ID: {}", id);
