@@ -4,6 +4,7 @@ import java.time.LocalDateTime;
 import java.time.temporal.ChronoUnit;
 import java.util.List;
 
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
@@ -35,6 +36,11 @@ public class ReservaDeporteServiceImpl implements ReservaDeporteService {
     private final SimpMessagingTemplate messagingTemplate;
     private final EmailService emailService;
     private final UsuarioService usuarioService;
+
+    // Tarifa por hora de reservas deportivas — configurable vía
+    // app.reservas.deporte.tarifa-hora (antes hardcodeada como 50000.0 en este método)
+    @Value("${app.reservas.deporte.tarifa-hora}")
+    private double tarifaHora;
 
     public ReservaDeporteServiceImpl(
             ReservaDeporteRepository reservaDeporteRepo,
@@ -90,7 +96,6 @@ public class ReservaDeporteServiceImpl implements ReservaDeporteService {
         }
 
         try {
-            double tarifaHora = 50000.0;
             double precioTotal = horas * tarifaHora;
 
             Reserva reserva = Reserva.builder()

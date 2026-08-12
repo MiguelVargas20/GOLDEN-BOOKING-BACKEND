@@ -18,8 +18,11 @@ public interface ReservaHotelService {
     // Devuelve una lista de DTOs de reserva de hotel correspondientes al ID de reserva proporcionado
     List<ReservaHotelDto> obtenerPorReserva(String idReserva);
 
-    // Actualiza una reserva de hotel existente con el ID proporcionado utilizando los datos del DTO y devuelve el DTO actualizado
-    ReservaHotelDto actualizar(String id, ReservaHotelDto dto);
+    // Actualiza una reserva de hotel existente con el ID proporcionado utilizando los datos del DTO y devuelve el DTO actualizado.
+    // docUsuarioSolicitante y esAdmin se usan para validar que quien actualiza
+    // sea el dueño de la reserva o un administrador (protección IDOR — mismo
+    // patrón que ya se aplica en cancelar()).
+    ReservaHotelDto actualizar(String id, ReservaHotelDto dto, String docUsuarioSolicitante, boolean esAdmin);
 
     // Elimina una reserva de hotel existente con el ID proporcionado.
     // docUsuarioSolicitante y esAdmin se usan para validar que quien cancela

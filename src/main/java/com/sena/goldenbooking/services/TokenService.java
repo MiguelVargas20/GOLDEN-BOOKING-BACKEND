@@ -3,9 +3,9 @@ package com.sena.goldenbooking.services;
 import java.time.LocalDateTime;
 import java.util.UUID;
 
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
+import com.sena.goldenbooking.exception.RecursoNoEncontradoException;
 import com.sena.goldenbooking.models.TipoToken;
 import com.sena.goldenbooking.models.TokenVerificacion;
 import com.sena.goldenbooking.repositories.TokenVerificacionRepository;
@@ -13,8 +13,11 @@ import com.sena.goldenbooking.repositories.TokenVerificacionRepository;
 @Service
 public class TokenService {
 
-    @Autowired
-    private TokenVerificacionRepository tokenRepository;
+    private final TokenVerificacionRepository tokenRepository;
+
+    public TokenService(TokenVerificacionRepository tokenRepository) {
+        this.tokenRepository = tokenRepository;
+    }
 
     /**
      * Genera un token nuevo para el correo dado, eliminando primero
@@ -43,10 +46,10 @@ public class TokenService {
      */
     public String validarYObtenerCorreo(String token, TipoToken tipoEsperado) {
         TokenVerificacion tokenEncontrado = tokenRepository.findByToken(token)
-                .orElseThrow(() -> new RuntimeException("El enlace no es válido o ya expiró."));
+                .orElseThrow(() -> new RecursoNoEncontradoException("El enlace no es válido o ya expiró."));
 
         if (tokenEncontrado.getTipo() != tipoEsperado) {
-            throw new RuntimeException("Este enlace no corresponde a esta acción.");
+            throw new IllegalArgumentException("Este enlace no corresponde a esta acción.");
         }
 
         return tokenEncontrado.getCorreo();

@@ -13,6 +13,8 @@ import org.springframework.transaction.annotation.Transactional;
 
 import com.sena.goldenbooking.dtos.UsuarioDto;
 import com.sena.goldenbooking.dtos.UsuarioRegistroDto;
+import com.sena.goldenbooking.exception.ConflictoDeNegocioException;
+import com.sena.goldenbooking.exception.RecursoNoEncontradoException;
 import com.sena.goldenbooking.mapper.UsuarioMapper;
 import com.sena.goldenbooking.models.Rol;
 import com.sena.goldenbooking.models.TipoToken;
@@ -53,11 +55,11 @@ public class UsuarioServiceImpl implements UsuarioService {
         // Validaciones previas
         if (userRepo.existsByDocNum(dto.getDocumento().getNumeroD())) {
             log.warn("Registro rechazado: documento {} ya registrado.", dto.getDocumento().getNumeroD());
-            throw new RuntimeException("El documento ya está registrado.");
+            throw new ConflictoDeNegocioException("El documento ya está registrado.");
         }
         if (authRepo.existsByUser(dto.getUsername())) {
             log.warn("Registro rechazado: username '{}' ya en uso.", dto.getUsername());
-            throw new RuntimeException("El nombre de usuario ya está en uso.");
+            throw new ConflictoDeNegocioException("El nombre de usuario ya está en uso.");
         }
 
         // 1. Guardar perfil en colección UsuarioPerfil
@@ -119,7 +121,7 @@ public class UsuarioServiceImpl implements UsuarioService {
                 })
                 .orElseThrow(() -> {
                     log.warn("Usuario no encontrado con ID: {}", id);
-                    return new RuntimeException("Usuario no encontrado con ID: " + id);
+                    return new RecursoNoEncontradoException("Usuario no encontrado con ID: " + id);
                 });
     }
 
@@ -129,7 +131,7 @@ public class UsuarioServiceImpl implements UsuarioService {
                 .map(userMapper::toDto)
                 .orElseThrow(() -> {
                     log.warn("Usuario no encontrado con documento: {}", docnum);
-                    return new RuntimeException("Usuario no encontrado con documento: " + docnum);
+                    return new RecursoNoEncontradoException("Usuario no encontrado con documento: " + docnum);
                 });
     }
 
@@ -144,7 +146,7 @@ public class UsuarioServiceImpl implements UsuarioService {
         Usuario usuarioExistente = userRepo.findById(id)
                 .orElseThrow(() -> {
                     log.warn("Actualización fallida: usuario con ID {} no encontrado.", id);
-                    return new RuntimeException("No existe usuario con ID: " + id);
+                    return new RecursoNoEncontradoException("No existe usuario con ID: " + id);
                 });
 
         userMapper.actualizarUsuario(usuarioDto, usuarioExistente);
@@ -159,7 +161,7 @@ public class UsuarioServiceImpl implements UsuarioService {
         log.info("Iniciando eliminación de usuario con ID: {}", id);
         if (!userRepo.existsById(id)) {
             log.warn("Eliminación fallida: usuario con ID {} no encontrado.", id);
-            throw new RuntimeException("ID no encontrado para eliminar.");
+            throw new RecursoNoEncontradoException("ID no encontrado para eliminar.");
         }
         userRepo.deleteById(id);
         if (authRepo.existsById(id)) {
@@ -183,7 +185,7 @@ public class UsuarioServiceImpl implements UsuarioService {
         Usuario usuario = userRepo.findById(id)
                 .orElseThrow(() -> {
                     log.warn("Perfil no encontrado con ID: {}", id);
-                    return new RuntimeException("Usuario no encontrado con ID: " + id);
+                    return new RecursoNoEncontradoException("Usuario no encontrado con ID: " + id);
                 });
 
         // Solo permite cambiar nombre, apellido, teléfono y correo
@@ -203,13 +205,13 @@ public class UsuarioServiceImpl implements UsuarioService {
         UsuarioAuth auth = authRepo.findByUser(username)
                 .orElseThrow(() -> {
                     log.warn("No se encontró UsuarioAuth para username: {}", username);
-                    return new RuntimeException("Usuario autenticado no encontrado.");
+                    return new RecursoNoEncontradoException("Usuario autenticado no encontrado.");
                 });
 
         Usuario perfil = userRepo.findById(auth.getId())
                 .orElseThrow(() -> {
                     log.warn("No se encontró perfil de Usuario para id: {}", auth.getId());
-                    return new RuntimeException("Perfil de usuario no encontrado.");
+                    return new RecursoNoEncontradoException("Perfil de usuario no encontrado.");
                 });
 
         return perfil.getDocId() != null ? perfil.getDocId().getNumeroD() : null;

@@ -9,6 +9,9 @@ import java.io.FileReader;
 
 import org.springframework.scheduling.annotation.EnableScheduling;
 
+import lombok.extern.slf4j.Slf4j;
+
+@Slf4j
 @EnableScheduling
 @SpringBootApplication
 public class GoldenbookingApplication {
@@ -29,7 +32,7 @@ public class GoldenbookingApplication {
         File archivoEnv = new File(".env");
 
         if (!archivoEnv.exists()) {
-            System.out.println("=== ADVERTENCIA: no se encontró el archivo .env en la raíz del proyecto ===");
+            log.warn("No se encontró el archivo .env en la raíz del proyecto.");
             return;
         }
 
@@ -52,9 +55,9 @@ public class GoldenbookingApplication {
                 }
             }
 
-            System.out.println("=== .env cargado correctamente: " + cargadas + " variables ===");
+            log.info(".env cargado correctamente: {} variables.", cargadas);
         } catch (Exception e) {
-            System.out.println("=== ERROR leyendo .env: " + e.getMessage() + " ===");
+            log.error("Error leyendo .env: {}", e.getMessage());
         }
     }
 }

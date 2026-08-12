@@ -37,8 +37,17 @@ public class ReservaDeporteController {
     }
 
     // POST /api/reservas/deporte
+    // Si quien reserva es CLIENTE, se ignora cualquier docUsuario que venga en el
+    // body y se fuerza el del usuario autenticado — así nadie puede crear una
+    // reserva "a nombre de" otro documento con solo cambiar el JSON.
+    // Un ADMIN sí puede reservar a nombre de otra persona (ej. recepción con un usuario presencial).
     @PostMapping
-    public ResponseEntity<ReservaDeporteDto> crear(@Valid @RequestBody ReservaDeporteDto dto) {
+    public ResponseEntity<ReservaDeporteDto> crear(@Valid @RequestBody ReservaDeporteDto dto, Authentication authentication) {
+        boolean esAdmin = authentication.getAuthorities().stream()
+                .anyMatch(a -> a.getAuthority().equals("ROL_ADMIN"));
+        if (!esAdmin) {
+            dto.setDocUsuario(usuarioService.obtenerDocumentoPorUsername(authentication.getName()));
+        }
         return ResponseEntity.status(HttpStatus.CREATED).body(service.crear(dto));
     }
     
