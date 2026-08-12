@@ -7,6 +7,7 @@ import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 import com.sena.goldenbooking.dtos.ReservaHotelDto;
 import com.sena.goldenbooking.dtos.RangoOcupadoDto;
+import com.sena.goldenbooking.security.AutenticacionUtils;
 import com.sena.goldenbooking.services.ReservaHotelService;
 import com.sena.goldenbooking.services.UsuarioService;
 
@@ -43,8 +44,7 @@ public class ReservaHotelController {
     // Un ADMIN sí puede reservar a nombre de otra persona (ej. recepción con un huésped presencial).
     @PostMapping
     public ResponseEntity<ReservaHotelDto> crear(@Valid @RequestBody ReservaHotelDto dto, Authentication authentication) {
-        boolean esAdmin = authentication.getAuthorities().stream()
-                .anyMatch(a -> a.getAuthority().equals("ROL_ADMIN"));
+        boolean esAdmin = AutenticacionUtils.esAdmin(authentication);
         if (!esAdmin) {
             dto.setDocUsuario(usuarioService.obtenerDocumentoPorUsername(authentication.getName()));
         }
@@ -68,9 +68,13 @@ public class ReservaHotelController {
     }
 
     // GET /api/reservas/hotel/{id}
+    // Solo el dueño de la reserva o un ADMIN pueden verla (fix IDOR)
     @GetMapping("/{id}")
-    public ResponseEntity<ReservaHotelDto> obtenerPorId(@PathVariable String id) {
-        return ResponseEntity.ok(service.obtenerPorId(id));
+    public ResponseEntity<ReservaHotelDto> obtenerPorId(@PathVariable String id, Authentication authentication) {
+        boolean esAdmin = AutenticacionUtils.esAdmin(authentication);
+        String docUsuario = usuarioService.obtenerDocumentoPorUsername(authentication.getName());
+
+        return ResponseEntity.ok(service.obtenerPorId(id, docUsuario, esAdmin));
     }
 
     // GET /api/reservas/hotel/reserva/{idReserva}
@@ -90,19 +94,23 @@ public class ReservaHotelController {
     }
 
     // PUT /api/reservas/hotel/{id}
+    // Solo el dueño de la reserva o un ADMIN pueden actualizarla (mismo patrón IDOR que cancelar())
     @PutMapping("/{id}")
     public ResponseEntity<ReservaHotelDto> actualizar(
             @PathVariable String id,
-            @RequestBody ReservaHotelDto dto) {
-        return ResponseEntity.ok(service.actualizar(id, dto));
+            @Valid @RequestBody ReservaHotelDto dto,
+            Authentication authentication) {
+        boolean esAdmin = AutenticacionUtils.esAdmin(authentication);
+        String docUsuario = usuarioService.obtenerDocumentoPorUsername(authentication.getName());
+
+        return ResponseEntity.ok(service.actualizar(id, dto, docUsuario, esAdmin));
     }
 
     // PATCH /api/reservas/hotel/{id}/cancelar
     // Solo el dueño de la reserva o un ADMIN pueden cancelarla (fix IDOR)
     @PatchMapping("/{id}/cancelar")
     public ResponseEntity<Void> cancelar(@PathVariable String id, Authentication authentication) {
-        boolean esAdmin = authentication.getAuthorities().stream()
-                .anyMatch(a -> a.getAuthority().equals("ROL_ADMIN"));
+        boolean esAdmin = AutenticacionUtils.esAdmin(authentication);
         String docUsuario = usuarioService.obtenerDocumentoPorUsername(authentication.getName());
 
         service.cancelar(id, docUsuario, esAdmin);

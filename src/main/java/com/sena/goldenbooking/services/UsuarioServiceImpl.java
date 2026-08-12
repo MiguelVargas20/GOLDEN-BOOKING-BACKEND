@@ -216,4 +216,17 @@ public class UsuarioServiceImpl implements UsuarioService {
 
         return perfil.getDocId() != null ? perfil.getDocId().getNumeroD() : null;
     }
+
+    // UsuarioAuth y Usuario (UsuarioPerfil) se registran con el mismo ID
+    // (ver registrarUsuario), así que basta con leer el ID desde UsuarioAuth
+    // sin necesidad de ir también a buscar el perfil completo.
+    @Override
+    public String obtenerIdPorUsername(String username) {
+        UsuarioAuth auth = authRepo.findByUser(username)
+                .orElseThrow(() -> {
+                    log.warn("No se encontró UsuarioAuth para username: {}", username);
+                    return new RecursoNoEncontradoException("Usuario autenticado no encontrado.");
+                });
+        return auth.getId();
+    }
 }

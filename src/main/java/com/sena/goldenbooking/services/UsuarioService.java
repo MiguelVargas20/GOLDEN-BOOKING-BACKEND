@@ -52,4 +52,12 @@ public interface UsuarioService {
      * usuario solo pueda operar sobre sus propias reservas.
      */
     String obtenerDocumentoPorUsername(String username);
+
+    /**
+     * Resuelve el ID de Mongo (el mismo que usan UsuarioPerfil y UsuarioAuth)
+     * del usuario autenticado a partir de su username (subject del JWT).
+     * Se usa para validar que un usuario solo pueda ver/editar SU PROPIO
+     * perfil en /api/usuarios/perfil/{id} (protección IDOR).
+     */
+    String obtenerIdPorUsername(String username);
 }

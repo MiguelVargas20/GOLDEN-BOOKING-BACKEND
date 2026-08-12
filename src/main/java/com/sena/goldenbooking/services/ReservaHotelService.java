@@ -1,8 +1,9 @@
 package com.sena.goldenbooking.services;
 
 import java.util.List;
-import com.sena.goldenbooking.dtos.ReservaHotelDto;
+
 import com.sena.goldenbooking.dtos.RangoOcupadoDto;
+import com.sena.goldenbooking.dtos.ReservaHotelDto;
 
 public interface ReservaHotelService {
 
@@ -12,8 +13,10 @@ public interface ReservaHotelService {
     // Devuelve una lista de todas las reservas de hotel en forma de DTOs
     List<ReservaHotelDto> listarTodas();
 
-    // Devuelve un DTO de reserva de hotel correspondiente al ID proporcionado
-    ReservaHotelDto obtenerPorId(String id);
+    // Devuelve un DTO de reserva de hotel correspondiente al ID proporcionado.
+    // docUsuarioSolicitante y esAdmin se usan para validar que quien consulta
+    // sea el dueño de la reserva o un administrador (protección IDOR).
+    ReservaHotelDto obtenerPorId(String id, String docUsuarioSolicitante, boolean esAdmin);
 
     // Devuelve una lista de DTOs de reserva de hotel correspondientes al ID de reserva proporcionado
     List<ReservaHotelDto> obtenerPorReserva(String idReserva);
