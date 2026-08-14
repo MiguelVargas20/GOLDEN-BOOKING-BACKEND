@@ -7,17 +7,25 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
-import org.springframework.web.bind.annotation.*;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PatchMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.RestController;
 
 import com.sena.goldenbooking.dtos.MensajeDto;
 import com.sena.goldenbooking.dtos.ResponderMensajeDto;
+import com.sena.goldenbooking.exception.RecursoNoEncontradoException;
 import com.sena.goldenbooking.models.UsuarioAuth;
 import com.sena.goldenbooking.repositories.UsuarioAuthRepository;
 import com.sena.goldenbooking.repositories.UsuarioRepository;
 import com.sena.goldenbooking.services.MensajeService;
 
-import jakarta.validation.Valid;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.validation.Valid;
 
 @Tag(name = "Contacto", description = "Mensajes enviados desde el formulario de contacto.")
 @RestController
@@ -37,9 +45,9 @@ public class MensajeController {
     // Resuelve el correo real del usuario autenticado a partir del username (subject del JWT)
     private String correoDe(Authentication authentication) {
         UsuarioAuth auth = authRepo.findByUser(authentication.getName())
-                .orElseThrow(() -> new RuntimeException("Usuario autenticado no encontrado."));
+                .orElseThrow(() -> new RecursoNoEncontradoException("Usuario autenticado no encontrado."));
         return usuarioRepo.findById(auth.getId())
-                .orElseThrow(() -> new RuntimeException("Perfil no encontrado."))
+                .orElseThrow(() -> new RecursoNoEncontradoException("Perfil no encontrado."))
                 .getCorreo();
     }
 

@@ -22,6 +22,7 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.sena.goldenbooking.dtos.LoginDto;
+import com.sena.goldenbooking.exception.RecursoNoEncontradoException;
 import com.sena.goldenbooking.exception.RefreshTokenInvalidoException;
 import com.sena.goldenbooking.models.TipoToken;
 import com.sena.goldenbooking.models.Usuario;
@@ -85,10 +86,17 @@ public class AuthController {
                 new UsernamePasswordAuthenticationToken(dto.getUsername(), dto.getPassword()));
 
         UsuarioAuth auth = authRepo.findByUser(dto.getUsername())
-                .orElseThrow(() -> new RuntimeException("Usuario no encontrado"));
+                .orElseThrow(() -> new RecursoNoEncontradoException("Usuario no encontrado"));
 
         Usuario perfil = usuarioRepo.findById(auth.getId())
-                .orElseThrow(() -> new RuntimeException("Perfil no encontrado"));
+                .orElseThrow(() -> new RecursoNoEncontradoException("Perfil no encontrado"));
+
+        // ── NUEVO: bloquear login si la cuenta no está verificada ──
+        if (!perfil.isVerificado()) {
+            return ResponseEntity.status(403).body(Map.of(
+                "error", "Debes verificar tu cuenta antes de iniciar sesión. Revisa tu correo."
+            ));
+        }
 
         List<String> roles = auth.getRls().stream()
                 .map(Enum::name)
@@ -135,9 +143,9 @@ public class AuthController {
         RefreshTokenPair nuevoRefresh = refreshTokenService.rotar(refreshCookie);
 
         UsuarioAuth auth = authRepo.findById(nuevoRefresh.userId())
-                .orElseThrow(() -> new RuntimeException("Usuario no encontrado"));
+                .orElseThrow(() -> new RecursoNoEncontradoException("Usuario no encontrado"));
         Usuario perfil = usuarioRepo.findById(nuevoRefresh.userId())
-                .orElseThrow(() -> new RuntimeException("Perfil no encontrado"));
+                .orElseThrow(() -> new RecursoNoEncontradoException("Perfil no encontrado"));
 
         List<String> roles = auth.getRls().stream()
                 .map(Enum::name)
@@ -202,7 +210,7 @@ public class AuthController {
         }
 
         UsuarioAuth auth = authRepo.findByUser(username)
-                .orElseThrow(() -> new RuntimeException("Usuario no encontrado"));
+                .orElseThrow(() -> new RecursoNoEncontradoException("Usuario no encontrado"));
 
         if (!passwordEncoder.matches(passwordAntigua, auth.getPwd())) {
             return ResponseEntity.badRequest().body(Map.of(
@@ -248,7 +256,7 @@ public class AuthController {
         String correo = tokenService.validarYObtenerCorreo(token, TipoToken.VERIFICACION_CUENTA);
 
         Usuario usuario = usuarioRepo.findByCorreo(correo)
-                .orElseThrow(() -> new RuntimeException("Usuario no encontrado"));
+                .orElseThrow(() -> new RecursoNoEncontradoException("Usuario no encontrado"));
 
         usuario.setVerificado(true);
         usuarioRepo.save(usuario);
@@ -289,10 +297,10 @@ public class AuthController {
         String correo = tokenService.validarYObtenerCorreo(token, TipoToken.RECUPERACION_PASSWORD);
 
         Usuario usuario = usuarioRepo.findByCorreo(correo)
-                .orElseThrow(() -> new RuntimeException("Usuario no encontrado"));
+                .orElseThrow(() -> new RecursoNoEncontradoException("Usuario no encontrado"));
 
         UsuarioAuth auth = authRepo.findById(usuario.getId())
-                .orElseThrow(() -> new RuntimeException("Credenciales no encontradas"));
+                .orElseThrow(() -> new RecursoNoEncontradoException("Credenciales no encontradas"));
 
         auth.setPwd(passwordEncoder.encode(nuevaPassword));
         authRepo.save(auth);
@@ -303,4 +311,3 @@ public class AuthController {
         ));
     }
 }
-

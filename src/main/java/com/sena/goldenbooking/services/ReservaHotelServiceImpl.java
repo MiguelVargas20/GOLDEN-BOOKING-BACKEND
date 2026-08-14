@@ -3,17 +3,26 @@ package com.sena.goldenbooking.services;
 import java.time.LocalDateTime;
 import java.time.temporal.ChronoUnit;
 import java.util.List;
-import lombok.extern.slf4j.Slf4j;
+
 import org.springframework.stereotype.Service;
-import com.sena.goldenbooking.dtos.ReservaHotelDto;
+
 import com.sena.goldenbooking.dtos.RangoOcupadoDto;
-import com.sena.goldenbooking.mapper.ReservaHotelMapper;
-import com.sena.goldenbooking.models.*;
-import com.sena.goldenbooking.repositories.*;
-import com.sena.goldenbooking.exception.ReservaNoEncontradaException;
-import com.sena.goldenbooking.exception.ConflictoDeNegocioException;
-import com.sena.goldenbooking.exception.AccesoDenegadoException;
+import com.sena.goldenbooking.dtos.ReservaHotelDto;
 import com.sena.goldenbooking.dtos.UsuarioDto;
+import com.sena.goldenbooking.exception.AccesoDenegadoException;
+import com.sena.goldenbooking.exception.ConflictoDeNegocioException;
+import com.sena.goldenbooking.exception.ReservaNoEncontradaException;
+import com.sena.goldenbooking.mapper.ReservaHotelMapper;
+import com.sena.goldenbooking.models.EstadoReserva;
+import com.sena.goldenbooking.models.Habitacion;
+import com.sena.goldenbooking.models.Reserva;
+import com.sena.goldenbooking.models.ReservaHotel;
+import com.sena.goldenbooking.models.TipoReserva;
+import com.sena.goldenbooking.repositories.HabitacionRepository;
+import com.sena.goldenbooking.repositories.ReservaHotelRepository;
+import com.sena.goldenbooking.repositories.ReservaRepository;
+
+import lombok.extern.slf4j.Slf4j;
 
 @Slf4j
 @Service
@@ -170,13 +179,21 @@ public ReservaHotelServiceImpl(
     }
 
     @Override
-    public ReservaHotelDto obtenerPorId(String id) {
-        return reservaHotelRepo.findById(id)
-                .map(mapper::toDto)
+    public ReservaHotelDto obtenerPorId(String id, String docUsuarioSolicitante, boolean esAdmin) {
+        ReservaHotel rh = reservaHotelRepo.findById(id)
                 .orElseThrow(() -> {
                     log.warn("Consulta fallida: Reserva hotel {} no encontrada.", id);
                     return new ReservaNoEncontradaException("No encontrada.");
                 });
+
+        // Solo el dueño de la reserva o un ADMIN pueden consultarla (fix IDOR)
+        if (!esAdmin && !rh.getDocUsuario().equals(docUsuarioSolicitante)) {
+            log.warn("Intento de consulta no autorizado. Usuario {} intentó ver la reserva {} del usuario {}.",
+                    docUsuarioSolicitante, id, rh.getDocUsuario());
+            throw new AccesoDenegadoException("No tienes permiso para ver esta reserva.");
+        }
+
+        return mapper.toDto(rh);
     }
 
     @Override
@@ -185,14 +202,20 @@ public ReservaHotelServiceImpl(
     }
 
     @Override
-    public ReservaHotelDto actualizar(String id, ReservaHotelDto dto) {
-        log.info("Actualizando reserva hotel ID: {}", id);
-        ReservaHotel rh = reservaHotelRepo.findById(id)
-                .orElseThrow(() -> new ReservaNoEncontradaException("No encontrada."));
-        mapper.actualizarReservaHotel(dto, rh);
-        return mapper.toDto(reservaHotelRepo.save(rh));
+public ReservaHotelDto actualizar(String id, ReservaHotelDto dto, String docUsuarioSolicitante, boolean esAdmin) {
+    log.info("Actualizando reserva hotel ID: {}", id);
+    ReservaHotel rh = reservaHotelRepo.findById(id)
+            .orElseThrow(() -> new ReservaNoEncontradaException("No encontrada."));
+
+    // Validación de permisos IDOR (misma lógica que en cancelar)
+    if (!esAdmin && !rh.getDocUsuario().equals(docUsuarioSolicitante)) {
+        log.warn("Intento de actualización no autorizado por el usuario {}", docUsuarioSolicitante);
+        throw new AccesoDenegadoException("No tienes permiso para modificar esta reserva.");
     }
 
+    mapper.actualizarReservaHotel(dto, rh);
+    return mapper.toDto(reservaHotelRepo.save(rh));
+}
     @Override
     public void cancelar(String id, String docUsuarioSolicitante, boolean esAdmin) {
         log.info("Iniciando cancelación de reserva hotel ID: {}", id);
@@ -217,14 +240,8 @@ public ReservaHotelServiceImpl(
         reserva.setEstado(EstadoReserva.CANCELADA);
         reservaRepo.save(reserva);
 
-        // ── FIX: sincronizar el estado también en ReservaHotel,
-        // que es la colección que realmente se lee en las vistas de reservas ──
-        rh.setEstado(EstadoReserva.CANCELADA);
-        reservaHotelRepo.save(rh);
-
-        reserva.setEstado(EstadoReserva.CANCELADA);
-        reservaRepo.save(reserva);
-
+        // Sincronizamos el estado también en ReservaHotel, que es la
+        // colección que realmente se lee en las vistas de reservas.
         rh.setEstado(EstadoReserva.CANCELADA);
         reservaHotelRepo.save(rh);
 

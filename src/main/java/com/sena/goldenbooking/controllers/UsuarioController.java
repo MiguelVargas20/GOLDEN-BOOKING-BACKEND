@@ -4,10 +4,13 @@ import java.util.Map;
 
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 
 import com.sena.goldenbooking.dtos.UsuarioDto;
 import com.sena.goldenbooking.dtos.UsuarioRegistroDto;
+import com.sena.goldenbooking.exception.AccesoDenegadoException;
+import com.sena.goldenbooking.security.AutenticacionUtils;
 import com.sena.goldenbooking.services.UsuarioService;
 
 import org.springframework.data.domain.PageRequest;
@@ -78,15 +81,35 @@ public class UsuarioController {
     }
 
     // GET /api/usuarios/perfil/{id} — el usuario obtiene su propio perfil
+    // Un ADMIN puede consultar el perfil de cualquiera; un CLIENTE solo el suyo (fix IDOR).
     @GetMapping("/perfil/{id}")
-    public ResponseEntity<UsuarioDto> obtenerPerfil(@PathVariable String id) {
+    public ResponseEntity<UsuarioDto> obtenerPerfil(@PathVariable String id, Authentication authentication) {
+        validarPropioPerfil(id, authentication);
         return ResponseEntity.ok(usuarioService.obtenerPorId(id));
     }
-        // PATCH /api/usuarios/perfil/{id} — el usuario actualiza su propio perfil
+
+    // PATCH /api/usuarios/perfil/{id} — el usuario actualiza su propio perfil
+    // Un ADMIN puede editar el perfil de cualquiera; un CLIENTE solo el suyo (fix IDOR).
     @PatchMapping("/perfil/{id}")
     public ResponseEntity<UsuarioDto> actualizarPerfil(
             @PathVariable String id,
-            @RequestBody Map<String, String> campos) {
+            @RequestBody Map<String, String> campos,
+            Authentication authentication) {
+        validarPropioPerfil(id, authentication);
         return ResponseEntity.ok(usuarioService.actualizarPerfil(id, campos));
+    }
+
+    // Un ADMIN puede operar sobre el perfil de cualquiera. Un CLIENTE solo
+    // sobre el suyo: se compara el {id} de la URL contra el ID resuelto desde
+    // el JWT, en vez de confiar en lo que venga en la ruta.
+    private void validarPropioPerfil(String id, Authentication authentication) {
+        boolean esAdmin = AutenticacionUtils.esAdmin(authentication);
+        if (esAdmin) {
+            return;
+        }
+        String propioId = usuarioService.obtenerIdPorUsername(authentication.getName());
+        if (!propioId.equals(id)) {
+            throw new AccesoDenegadoException("No tienes permiso para acceder a este perfil.");
+        }
     }
 }

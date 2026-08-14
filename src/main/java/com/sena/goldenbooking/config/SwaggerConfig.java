@@ -1,5 +1,7 @@
 package com.sena.goldenbooking.config;
 
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
 import io.swagger.v3.oas.annotations.OpenAPIDefinition;
@@ -10,15 +12,20 @@ import io.swagger.v3.oas.annotations.info.Info;
 import io.swagger.v3.oas.annotations.info.License;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.security.SecurityScheme;
-import io.swagger.v3.oas.annotations.servers.Server;
+import io.swagger.v3.oas.models.OpenAPI;
+import io.swagger.v3.oas.models.servers.Server;
+
+import java.util.List;
 
 /**
  * Configuración central de OpenAPI/Swagger para Golden Booking.
  *
- * - @OpenAPIDefinition: define la metadata general (título, versión, servidores)
+ * - @OpenAPIDefinition: define la metadata general (título, versión)
  *   y aplica el requisito de seguridad "bearerAuth" a TODOS los endpoints por defecto.
  * - @SecurityScheme: declara cómo se autentica la API (JWT tipo Bearer), lo que hace
  *   aparecer el botón "Authorize" en Swagger UI.
+ * - El bean openAPI() define el servidor dinámicamente (puerto configurable),
+ *   ya que las anotaciones no admiten placeholders ${...} de application.properties.
  *
  * No se necesita ningún bean adicional: springdoc-openapi escanea esta clase
  * automáticamente al iniciar la aplicación.
@@ -48,9 +55,6 @@ import io.swagger.v3.oas.annotations.servers.Server;
             name = "Uso académico - SENA"
         )
     ),
-    servers = {
-        @Server(url = "http://localhost:8080", description = "Servidor local de desarrollo")
-    },
     security = @SecurityRequirement(name = "bearerAuth")
 )
 @SecurityScheme(
@@ -63,4 +67,15 @@ import io.swagger.v3.oas.annotations.servers.Server;
 )
 public class SwaggerConfig {
 
+    @Value("${server.port}")
+    private String puerto;
+
+    // Define el servidor de Swagger dinámicamente a partir del puerto configurado
+    // (antes era "http://localhost:8080" fijo en la anotación @Server).
+    @Bean
+    public OpenAPI openAPI() {
+        return new OpenAPI().servers(List.of(
+                new Server().url("http://localhost:" + puerto).description("Servidor local de desarrollo")
+        ));
+    }
 }

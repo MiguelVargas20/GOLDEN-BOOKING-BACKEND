@@ -3,10 +3,10 @@ package com.sena.goldenbooking.services;
 import java.util.List;
 import org.springframework.stereotype.Service;
 import com.sena.goldenbooking.dtos.HabitacionDto;
-import com.sena.goldenbooking.dtos.ReservaDeporteDto;
 import com.sena.goldenbooking.mapper.HabitacionMapper;
 import com.sena.goldenbooking.models.Habitacion;
 import com.sena.goldenbooking.repositories.HabitacionRepository;
+import com.sena.goldenbooking.exception.RecursoNoEncontradoException;
 
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -76,7 +76,7 @@ public class HabitacionServiceImpl implements HabitacionService {
                 })
                 .orElseThrow(() -> {
                     log.warn("Habitación no encontrada con ID: {}", id);
-                    return new RuntimeException("Habitación no encontrada con ID: " + id);
+                    return new RecursoNoEncontradoException("Habitación no encontrada con ID: " + id);
                 });
     }
 
@@ -87,7 +87,7 @@ public class HabitacionServiceImpl implements HabitacionService {
         Habitacion habExistente = habRepo.findById(id)
                 .orElseThrow(() -> {
                     log.warn("Actualización fallida: habitación con ID {} no encontrada.", id);
-                    return new RuntimeException("No se puede actualizar, ID no encontrado: " + id);
+                    return new RecursoNoEncontradoException("No se puede actualizar, ID no encontrado: " + id);
                 });
         
         // Usamos el método de Mapper para pasar los datos del DTO a la entidad existente
@@ -105,7 +105,7 @@ public class HabitacionServiceImpl implements HabitacionService {
         Habitacion hab = habRepo.findById(id)
                 .orElseThrow(() -> {
                     log.warn("Cambio de estado fallido: habitación ID {} no encontrada.", id);
-                    return new RuntimeException("Habitación no encontrada: " + id);
+                    return new RecursoNoEncontradoException("Habitación no encontrada: " + id);
                 });
         
         hab.setEstado(nuevoEstado);
@@ -120,7 +120,7 @@ public class HabitacionServiceImpl implements HabitacionService {
         log.info("Eliminando habitación con ID: {}", id);
         if (!habRepo.existsById(id)) {
             log.warn("Eliminación fallida: habitación con ID {} no encontrada.", id);
-            throw new RuntimeException("No se puede eliminar, ID no existe: " + id);
+            throw new RecursoNoEncontradoException("No se puede eliminar, ID no existe: " + id);
         }
         habRepo.deleteById(id);
         log.info("Habitación con ID: {} eliminada correctamente.", id);

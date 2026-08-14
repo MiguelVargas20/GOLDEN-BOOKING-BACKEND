@@ -2,6 +2,7 @@ package com.sena.goldenbooking.services;
 
 import java.time.LocalDateTime;
 
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.mail.SimpleMailMessage;
@@ -10,6 +11,7 @@ import org.springframework.stereotype.Service;
 
 import com.sena.goldenbooking.dtos.MensajeDto;
 import com.sena.goldenbooking.exception.AccesoDenegadoException;
+import com.sena.goldenbooking.exception.RecursoNoEncontradoException;
 import com.sena.goldenbooking.models.Mensaje;
 import com.sena.goldenbooking.repositories.MensajeRepository;
 
@@ -21,6 +23,11 @@ public class MensajeServiceImpl implements MensajeService {
 
     private final MensajeRepository repo;
     private final JavaMailSender mailSender; // 1. Agregamos el enviador de correos como dependencia final
+
+    // Correo que recibe las notificaciones de contacto — configurable vía
+    // app.admin.correo-notificaciones (application.properties / variable de entorno)
+    @Value("${app.admin.correo-notificaciones}")
+    private String correoAdminNotificaciones;
 
     // 2. Lo inyectamos a través del constructor (Mejor práctica que @Autowired)
     public MensajeServiceImpl(MensajeRepository repo, JavaMailSender mailSender) {
@@ -59,7 +66,7 @@ public class MensajeServiceImpl implements MensajeService {
         // 3. Implementación segura del envío de correo
         try {
             SimpleMailMessage email = new SimpleMailMessage();
-            email.setTo("tu-correo-admin@gmail.com"); // <-- Cambia esto por tu correo real de administrador
+            email.setTo(correoAdminNotificaciones);
             email.setSubject("Golden Booking - Nuevo mensaje de: " + guardado.getNombre());
             email.setText("Has recibido un nuevo mensaje de contacto:\n\n" +
                           "Nombre: " + guardado.getNombre() + "\n" +
@@ -90,7 +97,7 @@ public class MensajeServiceImpl implements MensajeService {
     @Override
     public MensajeDto marcarLeido(String id) {
         Mensaje mensaje = repo.findById(id)
-                .orElseThrow(() -> new RuntimeException("Mensaje no encontrado con ID: " + id));
+                .orElseThrow(() -> new RecursoNoEncontradoException("Mensaje no encontrado con ID: " + id));
         mensaje.setLeido(true);
         return toDto(repo.save(mensaje));
     }
@@ -98,7 +105,7 @@ public class MensajeServiceImpl implements MensajeService {
     @Override
     public MensajeDto responder(String id, String textoRespuesta) {
         Mensaje mensaje = repo.findById(id)
-                .orElseThrow(() -> new RuntimeException("Mensaje no encontrado con ID: " + id));
+                .orElseThrow(() -> new RecursoNoEncontradoException("Mensaje no encontrado con ID: " + id));
 
         mensaje.setRespuesta(textoRespuesta);
         mensaje.setFechaRespuesta(LocalDateTime.now());
@@ -142,7 +149,7 @@ public class MensajeServiceImpl implements MensajeService {
     @Override
     public MensajeDto marcarRespuestaVista(String id, String correo) {
         Mensaje mensaje = repo.findById(id)
-                .orElseThrow(() -> new RuntimeException("Mensaje no encontrado con ID: " + id));
+                .orElseThrow(() -> new RecursoNoEncontradoException("Mensaje no encontrado con ID: " + id));
 
         if (!mensaje.getCorreo().equalsIgnoreCase(correo)) {
             throw new AccesoDenegadoException("No puedes ver la respuesta de un mensaje que no es tuyo.");

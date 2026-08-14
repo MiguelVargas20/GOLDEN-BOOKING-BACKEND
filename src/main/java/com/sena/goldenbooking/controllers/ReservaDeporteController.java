@@ -6,6 +6,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 import com.sena.goldenbooking.dtos.ReservaDeporteDto;
+import com.sena.goldenbooking.security.AutenticacionUtils;
 import com.sena.goldenbooking.services.ReservaDeporteService;
 import com.sena.goldenbooking.services.UsuarioService;
 
@@ -37,8 +38,16 @@ public class ReservaDeporteController {
     }
 
     // POST /api/reservas/deporte
+    // Si quien reserva es CLIENTE, se ignora cualquier docUsuario que venga en el
+    // body y se fuerza el del usuario autenticado — así nadie puede crear una
+    // reserva "a nombre de" otro documento con solo cambiar el JSON.
+    // Un ADMIN sí puede reservar a nombre de otra persona (ej. recepción con un usuario presencial).
     @PostMapping
-    public ResponseEntity<ReservaDeporteDto> crear(@Valid @RequestBody ReservaDeporteDto dto) {
+    public ResponseEntity<ReservaDeporteDto> crear(@Valid @RequestBody ReservaDeporteDto dto, Authentication authentication) {
+        boolean esAdmin = AutenticacionUtils.esAdmin(authentication);
+        if (!esAdmin) {
+            dto.setDocUsuario(usuarioService.obtenerDocumentoPorUsername(authentication.getName()));
+        }
         return ResponseEntity.status(HttpStatus.CREATED).body(service.crear(dto));
     }
     
@@ -70,9 +79,13 @@ public class ReservaDeporteController {
     }
 
     // GET /api/reservas/deporte/{id}
+    // Solo el dueño de la reserva o un ADMIN pueden verla (fix IDOR)
     @GetMapping("/{id}")
-    public ResponseEntity<ReservaDeporteDto> obtenerPorId(@PathVariable String id) {
-        return ResponseEntity.ok(service.obtenerPorId(id));
+    public ResponseEntity<ReservaDeporteDto> obtenerPorId(@PathVariable String id, Authentication authentication) {
+        boolean esAdmin = AutenticacionUtils.esAdmin(authentication);
+        String docUsuario = usuarioService.obtenerDocumentoPorUsername(authentication.getName());
+
+        return ResponseEntity.ok(service.obtenerPorId(id, docUsuario, esAdmin));
     }
 
     // GET /api/reservas/deporte/reserva/{idReserva}
@@ -82,19 +95,23 @@ public class ReservaDeporteController {
     }
 
     // PUT /api/reservas/deporte/{id}
+    // Solo el dueño de la reserva o un ADMIN pueden actualizarla (fix IDOR)
     @PutMapping("/{id}")
     public ResponseEntity<ReservaDeporteDto> actualizar(
             @PathVariable String id,
-            @RequestBody ReservaDeporteDto dto) {
-        return ResponseEntity.ok(service.actualizar(id, dto));
+            @Valid @RequestBody ReservaDeporteDto dto,
+            Authentication authentication) {
+        boolean esAdmin = AutenticacionUtils.esAdmin(authentication);
+        String docUsuario = usuarioService.obtenerDocumentoPorUsername(authentication.getName());
+
+        return ResponseEntity.ok(service.actualizar(id, dto, docUsuario, esAdmin));
     }
 
     // PATCH /api/reservas/deporte/{id}/cancelar
     // Solo el dueño de la reserva o un ADMIN pueden cancelarla (fix IDOR)
     @PatchMapping("/{id}/cancelar")
     public ResponseEntity<Void> cancelar(@PathVariable String id, Authentication authentication) {
-        boolean esAdmin = authentication.getAuthorities().stream()
-                .anyMatch(a -> a.getAuthority().equals("ROL_ADMIN"));
+        boolean esAdmin = AutenticacionUtils.esAdmin(authentication);
         String docUsuario = usuarioService.obtenerDocumentoPorUsername(authentication.getName());
 
         service.cancelar(id, docUsuario, esAdmin);

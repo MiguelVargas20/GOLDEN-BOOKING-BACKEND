@@ -3,6 +3,7 @@ package com.sena.goldenbooking.services;
 import java.util.List;
 import org.springframework.stereotype.Service;
 import com.sena.goldenbooking.dtos.TipoHabitacionDto;
+import com.sena.goldenbooking.exception.RecursoNoEncontradoException;
 import com.sena.goldenbooking.mapper.TipoHabitacionMapper;
 import com.sena.goldenbooking.models.TipoHabitacion;
 import com.sena.goldenbooking.repositories.TipoHabitacionRepository;
@@ -42,7 +43,7 @@ public class TipoHabitacionServiceImpl implements TipoHabitacionService {
     @Override
     public TipoHabitacionDto obtenerPorId(String id) {
         TipoHabitacion tipo = repo.findById(id)
-                .orElseThrow(() -> new RuntimeException("Tipo de habitación no encontrado: " + id));
+                .orElseThrow(() -> new RecursoNoEncontradoException("Tipo de habitación no encontrado: " + id));
         return mapper.toDto(tipo);
     }
 
@@ -50,7 +51,7 @@ public class TipoHabitacionServiceImpl implements TipoHabitacionService {
     @Override
     public TipoHabitacionDto actualizar(String id, TipoHabitacionDto dto) {
         TipoHabitacion tipo = repo.findById(id)
-                .orElseThrow(() -> new RuntimeException("Tipo de habitación no encontrado: " + id));
+                .orElseThrow(() -> new RecursoNoEncontradoException("Tipo de habitación no encontrado: " + id));
         mapper.actualizar(dto, tipo);
         return mapper.toDto(repo.save(tipo));
     }
@@ -58,7 +59,7 @@ public class TipoHabitacionServiceImpl implements TipoHabitacionService {
     // Método para eliminar un tipo de habitación por su ID, lanzando una excepción si no se encuentra
     @Override
     public void eliminar(String id) {
-        if (!repo.existsById(id)) throw new RuntimeException("No existe el tipo: " + id);
+        if (!repo.existsById(id)) throw new RecursoNoEncontradoException("No existe el tipo: " + id);
         repo.deleteById(id);
     }
 }

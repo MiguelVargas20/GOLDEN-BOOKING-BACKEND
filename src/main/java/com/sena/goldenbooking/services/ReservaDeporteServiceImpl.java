@@ -4,6 +4,7 @@ import java.time.LocalDateTime;
 import java.time.temporal.ChronoUnit;
 import java.util.List;
 
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
@@ -35,6 +36,11 @@ public class ReservaDeporteServiceImpl implements ReservaDeporteService {
     private final SimpMessagingTemplate messagingTemplate;
     private final EmailService emailService;
     private final UsuarioService usuarioService;
+
+    // Tarifa por hora de reservas deportivas — configurable vía
+    // app.reservas.deporte.tarifa-hora (antes hardcodeada como 50000.0 en este método)
+    @Value("${app.reservas.deporte.tarifa-hora}")
+    private double tarifaHora;
 
     public ReservaDeporteServiceImpl(
             ReservaDeporteRepository reservaDeporteRepo,
@@ -90,7 +96,6 @@ public class ReservaDeporteServiceImpl implements ReservaDeporteService {
         }
 
         try {
-            double tarifaHora = 50000.0;
             double precioTotal = horas * tarifaHora;
 
             Reserva reserva = Reserva.builder()
@@ -181,13 +186,21 @@ public class ReservaDeporteServiceImpl implements ReservaDeporteService {
     }
 
     @Override
-    public ReservaDeporteDto obtenerPorId(String id) {
-        return reservaDeporteRepo.findById(id)
-                .map(mapper::toDto)
+    public ReservaDeporteDto obtenerPorId(String id, String docUsuarioSolicitante, boolean esAdmin) {
+        ReservaDeporte rd = reservaDeporteRepo.findById(id)
                 .orElseThrow(() -> {
                     log.warn("Consulta fallida: Reserva deportiva {} no encontrada.", id);
                     return new ReservaNoEncontradaException("Reserva deporte no encontrada: " + id);
                 });
+
+        // Solo el dueño de la reserva o un ADMIN pueden consultarla (fix IDOR)
+        if (!esAdmin && !rd.getDocUsuario().equals(docUsuarioSolicitante)) {
+            log.warn("Intento de consulta no autorizado. Usuario {} intentó ver la reserva {} del usuario {}.",
+                    docUsuarioSolicitante, id, rd.getDocUsuario());
+            throw new AccesoDenegadoException("No tienes permiso para ver esta reserva.");
+        }
+
+        return mapper.toDto(rd);
     }
 
     @Override
@@ -196,13 +209,21 @@ public class ReservaDeporteServiceImpl implements ReservaDeporteService {
     }
 
     @Override
-    public ReservaDeporteDto actualizar(String id, ReservaDeporteDto dto) {
+    public ReservaDeporteDto actualizar(String id, ReservaDeporteDto dto, String docUsuarioSolicitante, boolean esAdmin) {
         log.info("Actualizando reserva deportiva ID: {}", id);
         ReservaDeporte rd = reservaDeporteRepo.findById(id)
                 .orElseThrow(() -> {
                     log.warn("Actualización fallida: Reserva deportiva {} no encontrada.", id);
                     return new ReservaNoEncontradaException("Reserva deporte no encontrada: " + id);
                 });
+
+        // Solo el dueño de la reserva o un ADMIN pueden actualizarla (fix IDOR)
+        if (!esAdmin && !rd.getDocUsuario().equals(docUsuarioSolicitante)) {
+            log.warn("Intento de actualización no autorizado. Usuario {} intentó modificar la reserva {} del usuario {}.",
+                    docUsuarioSolicitante, id, rd.getDocUsuario());
+            throw new AccesoDenegadoException("No tienes permiso para modificar esta reserva.");
+        }
+
         mapper.actualizarReservaDeporte(dto, rd);
         ReservaDeporteDto resultado = mapper.toDto(reservaDeporteRepo.save(rd));
         log.info("Reserva deportiva ID: {} actualizada con éxito", id);
