@@ -50,7 +50,7 @@ public class SecurityConfig {
 
                         // ── Públicas ─────────────────────────────────────────
                     .requestMatchers(
-                         "/auth/login",
+                        "/auth/login",
                         "/auth/refresh",
                         "/auth/recuperar-password",
                         "/auth/verificar-cuenta",        // ← nuevo
