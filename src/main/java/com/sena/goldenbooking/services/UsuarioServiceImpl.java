@@ -90,12 +90,11 @@ public class UsuarioServiceImpl implements UsuarioService {
         auth.setId(perfilGuardado.getId());
         auth.setUser(dto.getUsername());
         auth.setPwd(passwordEncoder.encode(dto.getPassword()));
-        // Si el DTO trae roles los usamos, si no, asignamos ROL_CLIENTE por defecto
-        auth.setRls(
-            (dto.getRoles() != null && !dto.getRoles().isEmpty())
-                ? dto.getRoles()
-                : List.of(Rol.ROL_CLIENTE)
-        );
+        // SEGURIDAD: el registro público SIEMPRE asigna ROL_CLIENTE, sin excepción.
+        // Antes este valor se leía de dto.getRoles() (controlado por quien llama al
+        // endpoint), lo que permitía que cualquiera se autoasignara ROL_ADMIN en el
+        // body del registro. El DTO ya no tiene ese campo; esto es la segunda barrera.
+        auth.setRls(List.of(Rol.ROL_CLIENTE));
 
         authRepo.save(auth);
 

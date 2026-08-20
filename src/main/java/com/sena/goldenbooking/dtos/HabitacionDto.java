@@ -1,5 +1,6 @@
 package com.sena.goldenbooking.dtos;
 
+import com.sena.goldenbooking.models.EstadoHabitacion;
 import com.sena.goldenbooking.models.TipoHabitacion;
 
 import lombok.AllArgsConstructor;
@@ -24,7 +25,7 @@ public class HabitacionDto {
  
     /*** Estado de la habitación:
      * "disponible" | "ocupada" | "mantenimiento"*/
-    private String estadoHabitacion;
+    private EstadoHabitacion estadoHabitacion;
  
     private String descripcion;
 

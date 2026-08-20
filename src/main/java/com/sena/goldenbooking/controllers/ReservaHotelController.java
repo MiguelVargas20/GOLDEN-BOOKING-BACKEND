@@ -1,18 +1,28 @@
 package com.sena.goldenbooking.controllers;
 
 import java.util.List;
+
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
-import org.springframework.web.bind.annotation.*;
-import com.sena.goldenbooking.dtos.ReservaHotelDto;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PatchMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RestController;
+
 import com.sena.goldenbooking.dtos.RangoOcupadoDto;
+import com.sena.goldenbooking.dtos.ReservaHotelDto;
+import com.sena.goldenbooking.exception.AccesoDenegadoException;
 import com.sena.goldenbooking.security.AutenticacionUtils;
 import com.sena.goldenbooking.services.ReservaHotelService;
 import com.sena.goldenbooking.services.UsuarioService;
 
-import jakarta.validation.Valid;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.validation.Valid;
 
 // Controlador REST para gestionar las reservas de hotel
 @Tag(name = "Reservas - Hotel", description = "Reservas de habitaciones de hotel.")
@@ -51,9 +61,15 @@ public class ReservaHotelController {
         return ResponseEntity.status(HttpStatus.CREATED).body(service.crear(dto));
     }
 
-    // GET /api/reservas/hotel
+    // GET /api/reservas/hotel — SOLO ADMIN.
+    // Antes esto solo se ocultaba en el front; cualquier CLIENTE autenticado
+    // podía llamarlo directo y ver las reservas de todos los huéspedes.
     @GetMapping
-    public ResponseEntity<List<ReservaHotelDto>> listarTodas() {
+    public ResponseEntity<List<ReservaHotelDto>> listarTodas(Authentication authentication) {
+        if (!AutenticacionUtils.esAdmin(authentication)) {
+            throw new com.sena.goldenbooking.exception.AccesoDenegadoException(
+                    "Solo un administrador puede listar todas las reservas.");
+        }
         return ResponseEntity.ok(service.listarTodas());
     }
 
@@ -116,4 +132,16 @@ public class ReservaHotelController {
         service.cancelar(id, docUsuario, esAdmin);
         return ResponseEntity.noContent().build();
     }
+
+    // ReservaHotelController.java
+    @PatchMapping("/{id}/confirmar")
+    public ResponseEntity<Void> confirmar(@PathVariable String id, Authentication authentication) {
+        if (!AutenticacionUtils.esAdmin(authentication)) {
+            throw new AccesoDenegadoException("Solo un administrador puede confirmar reservas.");
+        }
+        service.confirmar(id);
+        return ResponseEntity.noContent().build();
+    }
+
+    
 }

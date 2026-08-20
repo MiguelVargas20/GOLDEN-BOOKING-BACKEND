@@ -1,21 +1,30 @@
 package com.sena.goldenbooking.controllers;
 
 import java.util.List;
+import java.util.Map;
+
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
-import org.springframework.web.bind.annotation.*;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PatchMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.RestController;
+
 import com.sena.goldenbooking.dtos.ReservaDeporteDto;
 import com.sena.goldenbooking.security.AutenticacionUtils;
 import com.sena.goldenbooking.services.ReservaDeporteService;
 import com.sena.goldenbooking.services.UsuarioService;
 
-import org.springframework.data.domain.PageRequest;
-import org.springframework.data.domain.Pageable;
-import java.util.Map;
-
-import jakarta.validation.Valid;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.validation.Valid;
 
 // Controlador REST para gestionar las reservas de deporte
 @Tag(name = "Reservas - Deporte", description = "Reservas de canchas e instalaciones deportivas.")
@@ -51,12 +60,20 @@ public class ReservaDeporteController {
         return ResponseEntity.status(HttpStatus.CREATED).body(service.crear(dto));
     }
     
-    // GET /api/reservas/deporte
-    // Endpoint para listar todas las reservas de deporte con paginación (uso exclusivo de ADMIN en el front)
+    // GET /api/reservas/deporte — SOLO ADMIN.
+    // Antes el comentario decía "uso exclusivo de ADMIN en el front", pero el
+    // backend no lo exigía: cualquier CLIENTE podía llamarlo directo y ver
+    // las reservas de todos. Ahora se valida también aquí.
     @GetMapping
     public ResponseEntity<Map<String, Object>> listarTodas(
             @RequestParam(defaultValue = "0") int page,
-            @RequestParam(defaultValue = "10") int size) {
+            @RequestParam(defaultValue = "10") int size,
+            Authentication authentication) {
+
+        if (!AutenticacionUtils.esAdmin(authentication)) {
+            throw new com.sena.goldenbooking.exception.AccesoDenegadoException(
+                    "Solo un administrador puede listar todas las reservas.");
+        }
 
         Pageable pageable = PageRequest.of(page, size);
         var pagina = service.listarTodasPaginadas(pageable);

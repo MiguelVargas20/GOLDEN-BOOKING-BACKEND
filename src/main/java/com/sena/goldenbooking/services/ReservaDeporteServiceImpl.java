@@ -3,6 +3,9 @@ package com.sena.goldenbooking.services;
 import java.time.LocalDateTime;
 import java.time.temporal.ChronoUnit;
 import java.util.List;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.locks.Lock;
+import java.util.concurrent.locks.ReentrantLock;
 
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.domain.Page;
@@ -41,6 +44,18 @@ public class ReservaDeporteServiceImpl implements ReservaDeporteService {
     // app.reservas.deporte.tarifa-hora (antes hardcodeada como 50000.0 en este método)
     @Value("${app.reservas.deporte.tarifa-hora}")
     private double tarifaHora;
+
+    // ── FIX RACE CONDITION (mismo patrón que ReservaHotelServiceImpl) ──
+    // Un lock por tipo de cancha: entre "consultar solapamientos" y
+    // "guardar", ningún otro hilo puede colarse a reservar la MISMA cancha.
+    // Limitación honesta: solo sincroniza dentro de esta instancia de la
+    // JVM — con más de una instancia del backend se necesitaría un lock
+    // distribuido (Mongo con índice único + TTL, o Redis/Redisson).
+    private final ConcurrentHashMap<String, Lock> locksPorCancha = new ConcurrentHashMap<>();
+
+    private Lock obtenerLock(String tipoCancha) {
+        return locksPorCancha.computeIfAbsent(tipoCancha, k -> new ReentrantLock());
+    }
 
     public ReservaDeporteServiceImpl(
             ReservaDeporteRepository reservaDeporteRepo,
@@ -82,21 +97,27 @@ public class ReservaDeporteServiceImpl implements ReservaDeporteService {
             throw new IllegalArgumentException("La fecha de fin debe ser posterior al inicio.");
         }
 
-        // Validación atómica de disponibilidad
-        List<ReservaDeporte> solapadas = reservaDeporteRepo.findSolapadas(
-                dto.getTCancha(),
-                dto.getFInicioReserva(),
-                dto.getFFinReserva()
-        );
-        if (!solapadas.isEmpty()) {
-            log.warn("Conflicto de disponibilidad: La cancha {} ya está reservada en el horario solicitado por el usuario {}.", dto.getTCancha(), dto.getDocUsuario());
-            throw new ConflictoDeNegocioException(
-                "La cancha " + dto.getTCancha() + " ya está reservada en ese horario."
-            );
-        }
+        double precioTotal = horas * tarifaHora;
 
+        // ── SECCIÓN CRÍTICA (fix race condition) ────────────────────────
+        // Igual que en ReservaHotelServiceImpl: sin este lock, dos requests
+        // simultáneos para la misma cancha y horario podían pasar ambos la
+        // validación de solapamiento antes de que cualquiera guardara.
+        Lock lock = obtenerLock(dto.getTCancha());
+        ReservaDeporte reservaDeporteGuardada;
+        lock.lock();
         try {
-            double precioTotal = horas * tarifaHora;
+            List<ReservaDeporte> solapadas = reservaDeporteRepo.findSolapadas(
+                    dto.getTCancha(),
+                    dto.getFInicioReserva(),
+                    dto.getFFinReserva()
+            );
+            if (!solapadas.isEmpty()) {
+                log.warn("Conflicto de disponibilidad: La cancha {} ya está reservada en el horario solicitado por el usuario {}.", dto.getTCancha(), dto.getDocUsuario());
+                throw new ConflictoDeNegocioException(
+                    "La cancha " + dto.getTCancha() + " ya está reservada en ese horario."
+                );
+            }
 
             Reserva reserva = Reserva.builder()
                     .documentoUsuario(dto.getDocUsuario())
@@ -121,7 +142,14 @@ public class ReservaDeporteServiceImpl implements ReservaDeporteService {
                     .estado(EstadoReserva.PENDIENTE)
                     .build();
 
-            ReservaDeporteDto resultado = mapper.toDto(reservaDeporteRepo.save(reservaDeporte));
+            reservaDeporteGuardada = reservaDeporteRepo.save(reservaDeporte);
+        } finally {
+            lock.unlock();
+        }
+        // ── FIN SECCIÓN CRÍTICA ──────────────────────────────────────────
+
+        try {
+            ReservaDeporteDto resultado = mapper.toDto(reservaDeporteGuardada);
 
             // Notificar a todos los clientes conectados (WebSockets)
             ReservaDeporteEventDto evento = ReservaDeporteEventDto.builder()

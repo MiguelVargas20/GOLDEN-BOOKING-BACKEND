@@ -1,20 +1,20 @@
 package com.sena.goldenbooking.dtos;
 
 import java.time.LocalDate;
-import java.util.List;
+
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.sena.goldenbooking.models.Direccion;
 import com.sena.goldenbooking.models.Documento;
 import com.sena.goldenbooking.models.EstadoUsuario;
-import com.sena.goldenbooking.models.Rol;
 
-
+import jakarta.validation.constraints.Email;
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Size;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
-
-import jakarta.validation.constraints.*;
 
 @AllArgsConstructor
 @NoArgsConstructor
@@ -33,6 +33,7 @@ public class UsuarioRegistroDto {
     private String telefono;
 
     @NotBlank(message = "El email es obligatorio.")
+    @Email(message = "El correo no tiene un formato válido.")
     private String email;
     private Direccion direccion;
     private LocalDate fechaNacimiento;
@@ -44,9 +45,13 @@ public class UsuarioRegistroDto {
     private String username; 
 
     @NotBlank(message = "La contraseña es obligatoria.")
+    @Size(min = 8, message = "La contraseña debe tener al menos 8 caracteres.")
     @JsonProperty(access = JsonProperty.Access.WRITE_ONLY)
     private String password;
 
-    // Agregamos esto para que el Service sepa qué permisos darle
-    private List<Rol> roles; 
+    // NOTA DE SEGURIDAD: este DTO ya NO tiene un campo "roles".
+    // El registro público (/api/usuarios/registro) SIEMPRE asigna ROL_CLIENTE
+    // desde UsuarioServiceImpl — nunca debe depender de lo que mande el cliente.
+    // Si en el futuro se necesita crear administradores, debe ser un endpoint
+    // aparte protegido con hasAuthority("ROL_ADMIN"), nunca este.
 }

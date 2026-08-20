@@ -2,8 +2,11 @@ package com.sena.goldenbooking.services;
 
 import java.time.LocalDateTime;
 import java.util.List;
+
 import org.springframework.stereotype.Service;
+
 import com.sena.goldenbooking.dtos.ReservaDto;
+import com.sena.goldenbooking.exception.AccesoDenegadoException;
 import com.sena.goldenbooking.exception.ConflictoDeNegocioException;
 import com.sena.goldenbooking.exception.ReservaNoEncontradaException;
 import com.sena.goldenbooking.mapper.ReservaMapper;
@@ -55,13 +58,6 @@ public class ReservaServiceImpl implements ReservaService {
         return reservaMapper.toDtoList(reservaRepo.findByEstado(estado));
     }
 
-    // Método para obtener una lista de reservas filtradas por usuario y tipo, devolviendo una lista de DTOs correspondientes a las reservas encontradas
-    @Override
-    public List<ReservaDto> obtenerPorUsuarioYTipo(String documentoUsuario, TipoReserva tipo) {
-        return reservaMapper.toDtoList(
-            reservaRepo.findByDocumentoUsuarioAndTipo(documentoUsuario, tipo));
-    }
-
     // Método para listar todas las reservas, convirtiendo las entidades a DTOs antes de devolver la lista
     @Override
     public List<ReservaDto> listarReservas() {
@@ -69,41 +65,69 @@ public class ReservaServiceImpl implements ReservaService {
     }
 
 
-    // Método para obtener una reserva por su ID, lanzando una excepción si no se encuentra la reserva
+    // Método para obtener una reserva por su ID.
+    // Fix IDOR: si quien pide no es ADMIN, solo puede ver su propia reserva.
     @Override
-    public ReservaDto obtenerPorId(String id) {
+    public ReservaDto obtenerPorId(String id, String docUsuarioSolicitante, boolean esAdmin) {
         Reserva reserva = reservaRepo.findById(id)
                 .orElseThrow(() -> new ReservaNoEncontradaException("Reserva no encontrada con ID: " + id));
+        validarPropietarioOAdmin(reserva.getDocumentoUsuario(), docUsuarioSolicitante, esAdmin);
         return reservaMapper.toDto(reserva);
     }
 
 
-    // Método para obtener reservas por el documento del usuario, devolviendo una lista de DTOs correspondientes a las reservas encontradas
+    // Método para obtener reservas por el documento del usuario.
+    // Fix IDOR: un CLIENTE solo puede pedir SUS propias reservas (documentoUsuario == docUsuarioSolicitante).
     @Override
-    public List<ReservaDto> obtenerPorUsuario(String documentoUsuario) {
+    public List<ReservaDto> obtenerPorUsuario(String documentoUsuario, String docUsuarioSolicitante, boolean esAdmin) {
+        validarPropietarioOAdmin(documentoUsuario, docUsuarioSolicitante, esAdmin);
         return reservaMapper.toDtoList(
             reservaRepo.findByDocumentoUsuario(documentoUsuario));
     }
 
-    // Método para actualizar una reserva existente, buscando la reserva por ID, actualizando sus campos con los datos del DTO y guardando los cambios
+    // Método para actualizar una reserva existente.
+    // Fix IDOR: solo el dueño de la reserva o un ADMIN pueden modificarla.
     @Override
-    public ReservaDto actualizarReserva(String id, ReservaDto dto) {
+    public ReservaDto actualizarReserva(String id, ReservaDto dto, String docUsuarioSolicitante, boolean esAdmin) {
         Reserva reservaExistente = reservaRepo.findById(id)
                 .orElseThrow(() -> new ReservaNoEncontradaException("Reserva no encontrada con ID: " + id));
+        validarPropietarioOAdmin(reservaExistente.getDocumentoUsuario(), docUsuarioSolicitante, esAdmin);
         reservaMapper.actualizarReserva(dto, reservaExistente);
         return reservaMapper.toDto(reservaRepo.save(reservaExistente));
     }
 
-
-    // Método para cancelar una reserva, buscando la reserva por ID, verificando su estado actual y actualizando el estado a CANCELADA si no está ya cancelada
+    // Método para obtener reservas por usuario y tipo.
+    // Fix IDOR: mismo criterio que obtenerPorUsuario.
     @Override
-    public void cancelarReserva(String id) {
+    public List<ReservaDto> obtenerPorUsuarioYTipo(String documentoUsuario, TipoReserva tipo, String docUsuarioSolicitante, boolean esAdmin) {
+        validarPropietarioOAdmin(documentoUsuario, docUsuarioSolicitante, esAdmin);
+        return reservaMapper.toDtoList(
+            reservaRepo.findByDocumentoUsuarioAndTipo(documentoUsuario, tipo));
+    }
+
+    // Método para cancelar una reserva.
+    // Fix IDOR: solo el dueño de la reserva o un ADMIN pueden cancelarla.
+    @Override
+    public void cancelarReserva(String id, String docUsuarioSolicitante, boolean esAdmin) {
         Reserva reserva = reservaRepo.findById(id)
                 .orElseThrow(() -> new ReservaNoEncontradaException("Reserva no encontrada con ID: " + id));
+        validarPropietarioOAdmin(reserva.getDocumentoUsuario(), docUsuarioSolicitante, esAdmin);
         if (reserva.getEstado() == EstadoReserva.CANCELADA) {
             throw new ConflictoDeNegocioException("La reserva ya está cancelada.");
         }
         reserva.setEstado(EstadoReserva.CANCELADA);
         reservaRepo.save(reserva);
+    }
+
+    // Utilidad centralizada: lanza AccesoDenegadoException si quien solicita
+    // no es ni el dueño del recurso ni un ADMIN. Mismo patrón que ya se usa
+    // en ReservaHotelServiceImpl / ReservaDeporteServiceImpl.
+    private void validarPropietarioOAdmin(String documentoUsuarioDelRecurso, String docUsuarioSolicitante, boolean esAdmin) {
+        if (esAdmin) {
+            return;
+        }
+        if (documentoUsuarioDelRecurso == null || !documentoUsuarioDelRecurso.equals(docUsuarioSolicitante)) {
+            throw new AccesoDenegadoException("No tienes permiso para acceder a esta reserva.");
+        }
     }
 }

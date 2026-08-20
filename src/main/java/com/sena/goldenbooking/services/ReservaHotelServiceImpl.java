@@ -3,6 +3,9 @@ package com.sena.goldenbooking.services;
 import java.time.LocalDateTime;
 import java.time.temporal.ChronoUnit;
 import java.util.List;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.locks.Lock;
+import java.util.concurrent.locks.ReentrantLock;
 
 import org.springframework.stereotype.Service;
 
@@ -34,6 +37,24 @@ public class ReservaHotelServiceImpl implements ReservaHotelService {
     private final ReservaHotelMapper mapper;
     private final EmailService emailService;
     private final UsuarioService usuarioService;
+
+    // ── FIX RACE CONDITION ──────────────────────────────────────────
+    // Un ReentrantLock por habitación (no uno global, para no bloquear
+    // reservas de habitaciones distintas entre sí). Sirve para que, entre
+    // "consultar solapamientos" y "guardar la reserva", ningún otro hilo
+    // pueda colarse a reservar la MISMA habitación al mismo tiempo.
+    //
+    // Límite honesto: esto sincroniza dentro de esta instancia de la JVM.
+    // Si el día de mañana el backend corre en más de una instancia (varios
+    // pods/contenedores detrás de un balanceador), este lock deja de ser
+    // suficiente y hay que migrar a un lock distribuido (ej. un documento
+    // de "lock" en Mongo con índice único + TTL, o Redis con Redisson).
+    // Para un solo proceso, como corre hoy este proyecto, es correcto.
+    private final ConcurrentHashMap<String, Lock> locksPorHabitacion = new ConcurrentHashMap<>();
+
+    private Lock obtenerLock(String idHabitacion) {
+        return locksPorHabitacion.computeIfAbsent(idHabitacion, k -> new ReentrantLock());
+    }
 
 public ReservaHotelServiceImpl(
         ReservaHotelRepository reservaHotelRepo,
@@ -74,28 +95,34 @@ public ReservaHotelServiceImpl(
         long noches = ChronoUnit.DAYS.between(dto.getFCheckIn().toLocalDate(), dto.getFCheckOut().toLocalDate());
         if (noches <= 0) throw new IllegalArgumentException("Fechas inválidas.");
 
-        // 2.3 Disponibilidad REAL: ya no depende de un campo global "ocupada",
-        //     sino de si el rango pedido se cruza con alguna reserva activa
-        //     (no cancelada) de ESTA habitación puntual.
-        List<ReservaHotel> reservasActivas = reservaHotelRepo
-                .findByIdHabitacionAndEstadoNot(habitacion.getId(), EstadoReserva.CANCELADA);
-
-        boolean haySolapamiento = reservasActivas.stream()
-                .anyMatch(r -> seSolapan(r.getFechaCheckIn(), r.getFechaCheckOut(),
-                                          dto.getFCheckIn(), dto.getFCheckOut()));
-
-        if (haySolapamiento) {
-            log.warn("Intento de reserva solapada en habitación {} para fechas {} - {}",
-                    habitacion.getId(), dto.getFCheckIn(), dto.getFCheckOut());
-            throw new ConflictoDeNegocioException(
-                    "Esta habitación ya está reservada para esas fechas. Elige otro rango u otra habitación.");
-        }
-
-        // 3. Cálculos
         double precioTotal = noches * habitacion.getPrecNoche();
 
-        // 4. Persistencia
+        // ── SECCIÓN CRÍTICA (fix race condition) ──────────────────────
+        // Desde acá hasta que soltamos el lock, ningún otro hilo puede estar
+        // validando/guardando una reserva para ESTA MISMA habitación. Así,
+        // "consultar solapamientos" + "guardar" se comportan como una sola
+        // operación atómica para esta habitación puntual.
+        Lock lock = obtenerLock(habitacion.getId());
+        ReservaHotel guardada;
+        lock.lock();
         try {
+            // 2.3 Disponibilidad REAL: ya no depende de un campo global "ocupada",
+            //     sino de si el rango pedido se cruza con alguna reserva activa
+            //     (no cancelada) de ESTA habitación puntual.
+            List<ReservaHotel> reservasActivas = reservaHotelRepo
+                    .findByIdHabitacionAndEstadoNot(habitacion.getId(), EstadoReserva.CANCELADA);
+
+            boolean haySolapamiento = reservasActivas.stream()
+                    .anyMatch(r -> seSolapan(r.getFechaCheckIn(), r.getFechaCheckOut(),
+                                              dto.getFCheckIn(), dto.getFCheckOut()));
+
+            if (haySolapamiento) {
+                log.warn("Intento de reserva solapada en habitación {} para fechas {} - {}",
+                        habitacion.getId(), dto.getFCheckIn(), dto.getFCheckOut());
+                throw new ConflictoDeNegocioException(
+                        "Esta habitación ya está reservada para esas fechas. Elige otro rango u otra habitación.");
+            }
+
             Reserva reserva = Reserva.builder()
                     .documentoUsuario(dto.getDocUsuario())
                     .tipo(TipoReserva.HOTEL)
@@ -119,8 +146,13 @@ public ReservaHotelServiceImpl(
                     .estado(EstadoReserva.PENDIENTE)
                     .build();
 
-            ReservaHotel guardada = reservaHotelRepo.save(reservaHotel);
+            guardada = reservaHotelRepo.save(reservaHotel);
+        } finally {
+            lock.unlock();
+        }
+        // ── FIN SECCIÓN CRÍTICA ────────────────────────────────────────
 
+        try {
 
             // ── NUEVO: Enviar confirmación por correo con archivo .ics ──
             try {
@@ -235,6 +267,11 @@ public ReservaHotelDto actualizar(String id, ReservaHotelDto dto, String docUsua
         if (reserva.getEstado() == EstadoReserva.CANCELADA) {
             log.warn("Intento de cancelar una reserva ya cancelada: {}", id);
             throw new ConflictoDeNegocioException("Ya está cancelada.");
+        }
+
+        //
+        if (rh.getFechaCheckIn().isBefore(LocalDateTime.now().plusHours(24)) && !esAdmin) {
+           throw new ConflictoDeNegocioException("No se puede cancelar con menos de 24h de anticipación.");
         }
 
         reserva.setEstado(EstadoReserva.CANCELADA);

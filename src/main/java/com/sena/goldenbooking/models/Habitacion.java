@@ -29,7 +29,7 @@ public class Habitacion {
  
     /*** Estado de la habitación:
      * "disponible" | "ocupada" | "mantenimiento"*/
-    private String estado;
+    private EstadoHabitacion estado;
  
     /** Descripción de la habitación */
     private String desc;
