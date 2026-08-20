@@ -40,4 +40,7 @@ public interface ReservaDeporteRepository extends MongoRepository<ReservaDeporte
             EstadoReserva estado, LocalDateTime desde, LocalDateTime hasta);
     List<ReservaDeporte> findByEstadoNotAndRecordatorio2hEnviadoFalseAndFechaReservaBetween(
             EstadoReserva estado, LocalDateTime desde, LocalDateTime hasta);
+
+    // Reservas CONFIRMADAS cuyo horario ya terminó — usadas por el job que las cierra como FINALIZADA
+    List<ReservaDeporte> findByEstadoAndFechaFinReservaBefore(EstadoReserva estado, LocalDateTime fecha);
 }

@@ -5,6 +5,7 @@ import org.springframework.stereotype.Service;
 import com.sena.goldenbooking.dtos.HabitacionDto;
 import com.sena.goldenbooking.mapper.HabitacionMapper;
 import com.sena.goldenbooking.models.Habitacion;
+import com.sena.goldenbooking.models.EstadoHabitacion;
 import com.sena.goldenbooking.repositories.HabitacionRepository;
 import com.sena.goldenbooking.exception.RecursoNoEncontradoException;
 
@@ -52,7 +53,7 @@ public class HabitacionServiceImpl implements HabitacionService {
 
     /* Método para listar habitaciones por estado, devolviendo una lista de DTOs */
     @Override
-    public List<HabitacionDto> listarPorEstado(String estado) {
+    public List<HabitacionDto> listarPorEstado(EstadoHabitacion estado) {
         List<HabitacionDto> lista = habMapper.toDtoList(habRepo.findByEstado(estado));
         log.info("Habitaciones en estado '{}': {}", estado, lista.size());
         return lista;
@@ -100,7 +101,7 @@ public class HabitacionServiceImpl implements HabitacionService {
 
     /* Método para cambiar el estado de una habitación, devolviendo el DTO actualizado */
     @Override
-    public HabitacionDto cambiarEstado(String id, String nuevoEstado) {
+    public HabitacionDto cambiarEstado(String id, EstadoHabitacion nuevoEstado) {
         log.info("Cambiando estado de habitación ID: {} a '{}'", id, nuevoEstado);
         Habitacion hab = habRepo.findById(id)
                 .orElseThrow(() -> {

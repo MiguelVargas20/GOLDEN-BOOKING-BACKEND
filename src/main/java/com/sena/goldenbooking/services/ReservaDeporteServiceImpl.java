@@ -285,6 +285,11 @@ public class ReservaDeporteServiceImpl implements ReservaDeporteService {
             throw new ConflictoDeNegocioException("La reserva ya está cancelada.");
         }
 
+        // ── Ventana mínima de cancelación (mismo patrón que ReservaHotelServiceImpl) ──
+        if (rd.getFechaReserva().isBefore(LocalDateTime.now().plusHours(24)) && !esAdmin) {
+            throw new ConflictoDeNegocioException("No se puede cancelar con menos de 24h de anticipación.");
+        }
+
         try {
             reserva.setEstado(EstadoReserva.CANCELADA);
             reservaRepo.save(reserva);
@@ -328,6 +333,33 @@ public class ReservaDeporteServiceImpl implements ReservaDeporteService {
             log.error("Error crítico al cancelar o notificar la reserva deportiva ID {}: {}", id, e.getMessage(), e);
             throw e;
         }
+    }
+
+    @Override
+    public void confirmar(String id) {
+        log.info("Confirmando reserva deportiva ID: {}", id);
+        ReservaDeporte rd = reservaDeporteRepo.findById(id)
+                .orElseThrow(() -> new ReservaNoEncontradaException("Reserva deporte no encontrada: " + id));
+
+        Reserva reserva = reservaRepo.findById(rd.getIdReserva())
+                .orElseThrow(() -> new ReservaNoEncontradaException("Reserva padre no encontrada."));
+
+        if (reserva.getEstado() == EstadoReserva.CANCELADA) {
+            log.warn("Intento de confirmar una reserva deportiva cancelada: {}", id);
+            throw new ConflictoDeNegocioException("No se puede confirmar una reserva cancelada.");
+        }
+        if (reserva.getEstado() == EstadoReserva.CONFIRMADA) {
+            log.warn("Intento de confirmar una reserva deportiva ya confirmada: {}", id);
+            throw new ConflictoDeNegocioException("Ya está confirmada.");
+        }
+
+        reserva.setEstado(EstadoReserva.CONFIRMADA);
+        reservaRepo.save(reserva);
+
+        rd.setEstado(EstadoReserva.CONFIRMADA);
+        reservaDeporteRepo.save(rd);
+
+        log.info("Reserva deportiva ID: {} confirmada correctamente.", id);
     }
 
     @Override

@@ -35,6 +35,10 @@ public interface ReservaHotelService {
     // Devuelve una lista de DTOs de reserva de hotel correspondientes al documento de usuario proporcionado
     List<ReservaHotelDto> obtenerPorUsuario(String docUsuario);
 
+    // Marca una reserva PENDIENTE como CONFIRMADA. Solo la llama un ADMIN
+    // (el chequeo de rol vive en el controller, igual que en el resto del service).
+    void confirmar(String id);
+
     // Devuelve los rangos de fechas en los que una habitación específica
     // ya tiene reservas activas (no canceladas). El frontend lo usa para
     // bloquear esas fechas en el selector antes de que el usuario intente reservar.

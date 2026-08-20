@@ -36,6 +36,10 @@ public interface ReservaDeporteService {
     // Devuelve las reservas de deporte del usuario autenticado (endpoint dedicado, sin filtrar en el frontend)
     List<ReservaDeporteDto> obtenerPorUsuario(String docUsuario);
 
+    // Marca una reserva PENDIENTE como CONFIRMADA. Solo la llama un ADMIN
+    // (el chequeo de rol vive en el controller, igual que en el resto del service).
+    void confirmar(String id);
+
     // Devuelve una página de DTOs de reserva de deporte según los parámetros de paginación proporcionados
     Page<ReservaDeporteDto> listarTodasPaginadas(Pageable pageable);
 }

@@ -8,10 +8,12 @@ import org.springframework.stereotype.Service;
 
 import com.sena.goldenbooking.dtos.UsuarioDto;
 import com.sena.goldenbooking.models.EstadoReserva;
+import com.sena.goldenbooking.models.Reserva;
 import com.sena.goldenbooking.models.ReservaDeporte;
 import com.sena.goldenbooking.models.ReservaHotel;
 import com.sena.goldenbooking.repositories.ReservaDeporteRepository;
 import com.sena.goldenbooking.repositories.ReservaHotelRepository;
+import com.sena.goldenbooking.repositories.ReservaRepository;
 
 import lombok.extern.slf4j.Slf4j;
 
@@ -21,16 +23,19 @@ public class RecordatorioService {
 
     private final ReservaDeporteRepository reservaDeporteRepo;
     private final ReservaHotelRepository reservaHotelRepo;
+    private final ReservaRepository reservaRepo;
     private final EmailService emailService;
     private final UsuarioService usuarioService;
 
     public RecordatorioService(
             ReservaDeporteRepository reservaDeporteRepo,
             ReservaHotelRepository reservaHotelRepo,
+            ReservaRepository reservaRepo,
             EmailService emailService,
             UsuarioService usuarioService) {
         this.reservaDeporteRepo = reservaDeporteRepo;
         this.reservaHotelRepo = reservaHotelRepo;
+        this.reservaRepo = reservaRepo;
         this.emailService = emailService;
         this.usuarioService = usuarioService;
     }
@@ -41,6 +46,56 @@ public class RecordatorioService {
         log.info("Ejecutando revisión de recordatorios...");
         revisarRecordatoriosDeporte();
         revisarRecordatoriosHotel();
+    }
+
+    // Corre todos los días a las 3am. Cierra como FINALIZADA cualquier
+    // reserva CONFIRMADA cuya fecha de check-out / fin de reserva ya pasó.
+    // Solo toca reservas CONFIRMADAS a propósito: una PENDIENTE que nunca
+    // se confirmó no debe "finalizarse sola" — eso es una decisión de
+    // negocio aparte (ej. limpiar reservas abandonadas), no de este job.
+    @Scheduled(cron = "0 0 3 * * *")
+    public void finalizarReservasVencidas() {
+        log.info("Ejecutando finalización automática de reservas vencidas...");
+        finalizarReservasHotelVencidas();
+        finalizarReservasDeporteVencidas();
+    }
+
+    private void finalizarReservasHotelVencidas() {
+        LocalDateTime ahora = LocalDateTime.now();
+        List<ReservaHotel> vencidas = reservaHotelRepo
+                .findByEstadoAndFechaCheckOutBefore(EstadoReserva.CONFIRMADA, ahora);
+
+        for (ReservaHotel rh : vencidas) {
+            rh.setEstado(EstadoReserva.FINALIZADA);
+            reservaHotelRepo.save(rh);
+
+            reservaRepo.findById(rh.getIdReserva()).ifPresent(reserva -> {
+                reserva.setEstado(EstadoReserva.FINALIZADA);
+                reservaRepo.save(reserva);
+            });
+        }
+        if (!vencidas.isEmpty()) {
+            log.info("Reservas de hotel finalizadas automáticamente: {}", vencidas.size());
+        }
+    }
+
+    private void finalizarReservasDeporteVencidas() {
+        LocalDateTime ahora = LocalDateTime.now();
+        List<ReservaDeporte> vencidas = reservaDeporteRepo
+                .findByEstadoAndFechaFinReservaBefore(EstadoReserva.CONFIRMADA, ahora);
+
+        for (ReservaDeporte rd : vencidas) {
+            rd.setEstado(EstadoReserva.FINALIZADA);
+            reservaDeporteRepo.save(rd);
+
+            reservaRepo.findById(rd.getIdReserva()).ifPresent(reserva -> {
+                reserva.setEstado(EstadoReserva.FINALIZADA);
+                reservaRepo.save(reserva);
+            });
+        }
+        if (!vencidas.isEmpty()) {
+            log.info("Reservas deportivas finalizadas automáticamente: {}", vencidas.size());
+        }
     }
 
     private void revisarRecordatoriosDeporte() {

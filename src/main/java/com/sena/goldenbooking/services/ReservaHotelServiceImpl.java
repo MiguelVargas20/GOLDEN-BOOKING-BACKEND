@@ -16,6 +16,7 @@ import com.sena.goldenbooking.exception.AccesoDenegadoException;
 import com.sena.goldenbooking.exception.ConflictoDeNegocioException;
 import com.sena.goldenbooking.exception.ReservaNoEncontradaException;
 import com.sena.goldenbooking.mapper.ReservaHotelMapper;
+import com.sena.goldenbooking.models.EstadoHabitacion;
 import com.sena.goldenbooking.models.EstadoReserva;
 import com.sena.goldenbooking.models.Habitacion;
 import com.sena.goldenbooking.models.Reserva;
@@ -86,7 +87,7 @@ public ReservaHotelServiceImpl(
 
         // 2.1 "mantenimiento" sigue siendo un bloqueo total decidido por el ADMIN,
         //      independiente de fechas (ej: la habitación está dañada).
-        if ("mantenimiento".equalsIgnoreCase(habitacion.getEstado())) {
+        if (habitacion.getEstado() == EstadoHabitacion.MANTENIMIENTO) {
             log.warn("Intento de reserva en habitación en mantenimiento: ID {}", habitacion.getId());
             throw new ConflictoDeNegocioException("Esta habitación está en mantenimiento.");
         }
@@ -248,6 +249,35 @@ public ReservaHotelDto actualizar(String id, ReservaHotelDto dto, String docUsua
     mapper.actualizarReservaHotel(dto, rh);
     return mapper.toDto(reservaHotelRepo.save(rh));
 }
+    @Override
+    public void confirmar(String id) {
+        log.info("Confirmando reserva hotel ID: {}", id);
+        ReservaHotel rh = reservaHotelRepo.findById(id)
+                .orElseThrow(() -> new ReservaNoEncontradaException("No encontrada."));
+
+        Reserva reserva = reservaRepo.findById(rh.getIdReserva())
+                .orElseThrow(() -> new ReservaNoEncontradaException("Reserva padre no encontrada."));
+
+        if (reserva.getEstado() == EstadoReserva.CANCELADA) {
+            log.warn("Intento de confirmar una reserva cancelada: {}", id);
+            throw new ConflictoDeNegocioException("No se puede confirmar una reserva cancelada.");
+        }
+        if (reserva.getEstado() == EstadoReserva.CONFIRMADA) {
+            log.warn("Intento de confirmar una reserva ya confirmada: {}", id);
+            throw new ConflictoDeNegocioException("Ya está confirmada.");
+        }
+
+        reserva.setEstado(EstadoReserva.CONFIRMADA);
+        reservaRepo.save(reserva);
+
+        // Sincronizamos el estado también en ReservaHotel, que es la
+        // colección que realmente se lee en las vistas de reservas.
+        rh.setEstado(EstadoReserva.CONFIRMADA);
+        reservaHotelRepo.save(rh);
+
+        log.info("Reserva hotel ID: {} confirmada correctamente.", id);
+    }
+
     @Override
     public void cancelar(String id, String docUsuarioSolicitante, boolean esAdmin) {
         log.info("Iniciando cancelación de reserva hotel ID: {}", id);

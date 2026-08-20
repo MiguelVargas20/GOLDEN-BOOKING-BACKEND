@@ -2,6 +2,7 @@ package com.sena.goldenbooking.services;
 
 import java.util.List;
 import com.sena.goldenbooking.dtos.HabitacionDto;
+import com.sena.goldenbooking.models.EstadoHabitacion;
 
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -15,7 +16,7 @@ public interface HabitacionService {
     List<HabitacionDto> listarTodas();
     
     /* Método para listar habitaciones por estado, devolviendo una lista de DTOs */
-    List<HabitacionDto> listarPorEstado(String estado);
+    List<HabitacionDto> listarPorEstado(EstadoHabitacion estado);
     
     // Usamos el método que corregimos en el repositorio
     List<HabitacionDto> listarPorTipo(String idTipoHabitacion);
@@ -27,7 +28,7 @@ public interface HabitacionService {
     HabitacionDto actualizar(String id, HabitacionDto dto);
     
     /* Método para cambiar el estado de una habitación, devolviendo el DTO actualizado */
-    HabitacionDto cambiarEstado(String id, String nuevoEstado);
+    HabitacionDto cambiarEstado(String id, EstadoHabitacion nuevoEstado);
     
     /* Método para eliminar una habitación por su ID */
     void eliminar(String id);

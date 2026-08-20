@@ -134,4 +134,15 @@ public class ReservaDeporteController {
         service.cancelar(id, docUsuario, esAdmin);
         return ResponseEntity.noContent().build();
     }
+
+    // PATCH /api/reservas/deporte/{id}/confirmar — SOLO ADMIN
+    @PatchMapping("/{id}/confirmar")
+    public ResponseEntity<Void> confirmar(@PathVariable String id, Authentication authentication) {
+        if (!AutenticacionUtils.esAdmin(authentication)) {
+            throw new com.sena.goldenbooking.exception.AccesoDenegadoException(
+                    "Solo un administrador puede confirmar reservas.");
+        }
+        service.confirmar(id);
+        return ResponseEntity.noContent().build();
+    }
 }

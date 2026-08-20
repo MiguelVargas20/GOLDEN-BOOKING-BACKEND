@@ -8,6 +8,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import com.sena.goldenbooking.dtos.HabitacionDto;
+import com.sena.goldenbooking.models.EstadoHabitacion;
 import com.sena.goldenbooking.services.HabitacionService;
 
 import org.springframework.data.domain.Pageable;
@@ -52,12 +53,12 @@ public class HabitacionController {
     // GET /api/habitaciones/disponibles
     @GetMapping("/disponibles")
     public ResponseEntity<List<HabitacionDto>> listarDisponibles() {
-        return ResponseEntity.ok(service.listarPorEstado("disponible"));
+        return ResponseEntity.ok(service.listarPorEstado(EstadoHabitacion.DISPONIBLE));
     }
 
     // GET /api/habitaciones/estado/{estado}
     @GetMapping("/estado/{estado}")
-    public ResponseEntity<List<HabitacionDto>> listarPorEstado(@PathVariable String estado) {
+    public ResponseEntity<List<HabitacionDto>> listarPorEstado(@PathVariable EstadoHabitacion estado) {
         return ResponseEntity.ok(service.listarPorEstado(estado));
     }
 
@@ -85,7 +86,7 @@ public class HabitacionController {
     @PatchMapping("/{id}/estado")
     public ResponseEntity<HabitacionDto> cambiarEstado(
             @PathVariable String id,
-            @RequestParam String nuevoEstado) {
+            @RequestParam EstadoHabitacion nuevoEstado) {
         return ResponseEntity.ok(service.cambiarEstado(id, nuevoEstado));
     }
 

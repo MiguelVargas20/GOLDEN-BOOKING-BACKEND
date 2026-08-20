@@ -30,4 +30,7 @@ public interface ReservaHotelRepository extends MongoRepository<ReservaHotel, St
             EstadoReserva estado, LocalDateTime desde, LocalDateTime hasta);
     List<ReservaHotel> findByEstadoNotAndRecordatorio2hEnviadoFalseAndFechaCheckInBetween(
             EstadoReserva estado, LocalDateTime desde, LocalDateTime hasta);
+
+    // Reservas CONFIRMADAS cuyo check-out ya pasó — usadas por el job que las cierra como FINALIZADA
+    List<ReservaHotel> findByEstadoAndFechaCheckOutBefore(EstadoReserva estado, LocalDateTime fecha);
 }

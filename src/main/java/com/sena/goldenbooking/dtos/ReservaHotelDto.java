@@ -2,6 +2,7 @@ package com.sena.goldenbooking.dtos;
 
 import java.time.LocalDateTime;
 
+import com.sena.goldenbooking.models.EstadoHabitacion;
 import com.sena.goldenbooking.models.EstadoReserva;
 
 import lombok.AllArgsConstructor;
@@ -34,7 +35,7 @@ public class ReservaHotelDto {
 
     private Double pNoche;             // back llena
 
-    private String estHabitacion;      // ← corregido: String no Double
+    private EstadoHabitacion estHabitacion;    // ← corregido: EstadoHabitacion, no String
 
     @NotNull(message = "Las fechas de check-in y check-out son obligatorias.")
     private LocalDateTime fCheckIn;
