@@ -121,12 +121,15 @@ public class SecurityConfig {
 
             return http.build();
         }
-    // Configura CORS para permitir solicitudes desde el frontend (ej. localhost:5173)
+    // Configura CORS para permitir solicitudes desde el frontend.
+    // Los orígenes permitidos se leen de app.cors.allowed-origins (variable
+    // de entorno CORS_ALLOWED_ORIGINS), separados por coma. Antes este bean
+    // ignoraba esa variable y usaba una lista fija — funcionaba en local
+    // pero iba a fallar en producción con un dominio distinto.
     @Bean
-    
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration config = new CorsConfiguration();
-        config.setAllowedOrigins(List.of("http://localhost:5173", "http://localhost:56155"));
+        config.setAllowedOrigins(Arrays.asList(allowedOrigins.split(",")));
         config.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"));
         config.setAllowedHeaders(List.of("*"));
         config.setAllowCredentials(true);

@@ -106,9 +106,12 @@ public class ReservaDeporteController {
     }
 
     // GET /api/reservas/deporte/reserva/{idReserva}
+    // Fix IDOR menor: mismo criterio que ReservaHotelController.obtenerPorReserva()
     @GetMapping("/reserva/{idReserva}")
-    public ResponseEntity<List<ReservaDeporteDto>> obtenerPorReserva(@PathVariable String idReserva) {
-        return ResponseEntity.ok(service.obtenerPorReserva(idReserva));
+    public ResponseEntity<List<ReservaDeporteDto>> obtenerPorReserva(@PathVariable String idReserva, Authentication authentication) {
+        boolean esAdmin = AutenticacionUtils.esAdmin(authentication);
+        String docUsuario = usuarioService.obtenerDocumentoPorUsername(authentication.getName());
+        return ResponseEntity.ok(service.obtenerPorReserva(idReserva, docUsuario, esAdmin));
     }
 
     // PUT /api/reservas/deporte/{id}

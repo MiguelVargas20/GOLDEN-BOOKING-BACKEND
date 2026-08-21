@@ -32,6 +32,7 @@ import com.sena.goldenbooking.repositories.UsuarioRepository;
 import com.sena.goldenbooking.security.JwtService;
 import com.sena.goldenbooking.services.AuthService;
 import com.sena.goldenbooking.services.EmailService;
+import com.sena.goldenbooking.services.RateLimitService;
 import com.sena.goldenbooking.services.RefreshTokenService;
 import com.sena.goldenbooking.services.RefreshTokenService.RefreshTokenPair;
 import com.sena.goldenbooking.services.TokenService;
@@ -55,8 +56,15 @@ public class AuthController {
     private final AuthService authService;             // ← NUEVO campo
     private final RefreshTokenService refreshTokenService;
     private final TokenService tokenService;
+    private final RateLimitService rateLimitService;    // ← NUEVO campo (Hallazgo 6)
 
     private static final String COOKIE_REFRESH = "refreshToken";
+
+    // Rate limiting: máximo de intentos antes de bloquear, y minutos que dura el bloqueo.
+    private static final int MAX_INTENTOS_LOGIN = 5;
+    private static final int VENTANA_LOGIN_MINUTOS = 15;
+    private static final int MAX_INTENTOS_RECUPERACION = 3;
+    private static final int VENTANA_RECUPERACION_MINUTOS = 15;
 
     public AuthController(
             JwtService jwtService,
@@ -66,7 +74,8 @@ public class AuthController {
             PasswordEncoder passwordEncoder,
             AuthService authService,                   // ← NUEVO parámetro
             TokenService tokenService,   
-            RefreshTokenService refreshTokenService, EmailService emailService) {
+            RefreshTokenService refreshTokenService, EmailService emailService,
+            RateLimitService rateLimitService) {
         this.jwtService = jwtService;
         this.authManager = authManager;
         this.authRepo = authRepo;
@@ -76,14 +85,29 @@ public class AuthController {
         this.tokenService = tokenService;        // ← NUEVO
         this.refreshTokenService = refreshTokenService;
         this.emailService = emailService;
+        this.rateLimitService = rateLimitService;
     }
 
     @PostMapping("/login")
     public ResponseEntity<Map<String, Object>> login(@Valid @RequestBody LoginDto dto,
                                                        HttpServletResponse response) {
 
-        authManager.authenticate(
-                new UsernamePasswordAuthenticationToken(dto.getUsername(), dto.getPassword()));
+        // Rate limiting (Hallazgo 6): antes de gastar un intento contra el
+        // AuthenticationManager, revisamos si esta cuenta ya se pasó del
+        // límite de intentos fallidos en la ventana vigente.
+        String claveLimite = "login:" + dto.getUsername().toLowerCase();
+        rateLimitService.verificarNoBloqueado(claveLimite, MAX_INTENTOS_LOGIN);
+
+        try {
+            authManager.authenticate(
+                    new UsernamePasswordAuthenticationToken(dto.getUsername(), dto.getPassword()));
+        } catch (org.springframework.security.core.AuthenticationException ex) {
+            // Usuario/contraseña incorrectos: contamos el intento fallido y
+            // dejamos que la excepción original siga su curso normal
+            // (el GlobalExceptionHandler ya sabe manejarla).
+            rateLimitService.registrarIntento(claveLimite, VENTANA_LOGIN_MINUTOS);
+            throw ex;
+        }
 
         UsuarioAuth auth = authRepo.findByUser(dto.getUsername())
                 .orElseThrow(() -> new RecursoNoEncontradoException("Usuario no encontrado"));
@@ -97,6 +121,9 @@ public class AuthController {
                 "error", "Debes verificar tu cuenta antes de iniciar sesión. Revisa tu correo."
             ));
         }
+
+        // Login exitoso: reseteamos el contador de intentos fallidos.
+        rateLimitService.limpiar(claveLimite);
 
         List<String> roles = auth.getRls().stream()
                 .map(Enum::name)
@@ -270,6 +297,17 @@ public class AuthController {
     @PostMapping("/solicitar-recuperacion")
     public ResponseEntity<Map<String, Object>> solicitarRecuperacion(@RequestBody Map<String, String> body) {
         String correo = body.get("correo");
+
+        // Rate limiting (Hallazgo 6): sin esto, cualquiera podía golpear este
+        // endpoint sin límite y bombardear de correos a una víctima. Contamos
+        // POR CORREO y SIEMPRE (exista o no la cuenta) — si solo contáramos
+        // cuando el correo existe, alguien podría usar el tiempo de respuesta
+        // o la ausencia de bloqueo para detectar qué correos SÍ están
+        // registrados, rompiendo la protección anti-enumeración que ya
+        // tenías (la respuesta es igual exista o no el correo).
+        String claveLimite = "recuperacion:" + (correo != null ? correo.toLowerCase() : "desconocido");
+        rateLimitService.verificarNoBloqueado(claveLimite, MAX_INTENTOS_RECUPERACION);
+        rateLimitService.registrarIntento(claveLimite, VENTANA_RECUPERACION_MINUTOS);
 
         Usuario usuario = usuarioRepo.findByCorreo(correo).orElse(null);
 

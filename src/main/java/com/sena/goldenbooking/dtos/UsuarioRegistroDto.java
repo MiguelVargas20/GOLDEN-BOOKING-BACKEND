@@ -7,6 +7,7 @@ import com.sena.goldenbooking.models.Direccion;
 import com.sena.goldenbooking.models.Documento;
 import com.sena.goldenbooking.models.EstadoUsuario;
 
+import jakarta.validation.Valid;
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
@@ -29,7 +30,8 @@ public class UsuarioRegistroDto {
     @NotBlank(message = "El apellido es obligatorio.")
     private String apellido;
     @NotNull(message = "El documento es obligatorio.")
-    private Documento documento; // Asegúrate que incluya tipo y numero
+    @Valid
+    private Documento documento; // Asegúrate que incluya tipo y numeroD
     private String telefono;
 
     @NotBlank(message = "El email es obligatorio.")
@@ -42,7 +44,12 @@ public class UsuarioRegistroDto {
     // DATOS PARA AUTH (Colección UsuarioAuth)
     // Eliminamos 'username' si vamos a usar el 'email' como login
     // O lo dejamos si quieres que el usuario elija un apodo (ej: "juanito123")
-    private String username; 
+    // username sin @NotBlank permitía que dos registros con username=null
+    // chocaran entre sí en authRepo.existsByUser(null), igual que pasó con
+    // documento.numeroD. Lo obligamos aquí, antes de que llegue al service.
+    @NotBlank(message = "El nombre de usuario es obligatorio.")
+    @Size(min = 4, message = "El nombre de usuario debe tener al menos 4 caracteres.")
+    private String username;
 
     @NotBlank(message = "La contraseña es obligatoria.")
     @Size(min = 8, message = "La contraseña debe tener al menos 8 caracteres.")

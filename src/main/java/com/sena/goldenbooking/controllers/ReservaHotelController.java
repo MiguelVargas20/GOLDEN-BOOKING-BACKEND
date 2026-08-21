@@ -94,9 +94,13 @@ public class ReservaHotelController {
     }
 
     // GET /api/reservas/hotel/reserva/{idReserva}
+    // Fix IDOR menor: antes cualquiera autenticado podía consultar por el id
+    // de la Reserva padre y ver los datos sin filtrar por dueño.
     @GetMapping("/reserva/{idReserva}")
-    public ResponseEntity<List<ReservaHotelDto>> obtenerPorReserva(@PathVariable String idReserva) {
-        return ResponseEntity.ok(service.obtenerPorReserva(idReserva));
+    public ResponseEntity<List<ReservaHotelDto>> obtenerPorReserva(@PathVariable String idReserva, Authentication authentication) {
+        boolean esAdmin = AutenticacionUtils.esAdmin(authentication);
+        String docUsuario = usuarioService.obtenerDocumentoPorUsername(authentication.getName());
+        return ResponseEntity.ok(service.obtenerPorReserva(idReserva, docUsuario, esAdmin));
     }
 
     // GET /api/reservas/hotel/habitacion/{idHabitacion}/ocupadas

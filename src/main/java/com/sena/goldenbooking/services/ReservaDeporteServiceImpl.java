@@ -232,8 +232,17 @@ public class ReservaDeporteServiceImpl implements ReservaDeporteService {
     }
 
     @Override
-    public List<ReservaDeporteDto> obtenerPorReserva(String idReserva) {
-        return mapper.toDtoList(reservaDeporteRepo.findByIdReserva(idReserva));
+    public List<ReservaDeporteDto> obtenerPorReserva(String idReserva, String docUsuarioSolicitante, boolean esAdmin) {
+        List<ReservaDeporte> resultado = reservaDeporteRepo.findByIdReserva(idReserva);
+
+        // fix IDOR: un CLIENTE solo debe ver los resultados que le pertenecen a él.
+        if (!esAdmin) {
+            resultado = resultado.stream()
+                    .filter(rd -> rd.getDocUsuario() != null && rd.getDocUsuario().equals(docUsuarioSolicitante))
+                    .toList();
+        }
+
+        return mapper.toDtoList(resultado);
     }
 
     @Override

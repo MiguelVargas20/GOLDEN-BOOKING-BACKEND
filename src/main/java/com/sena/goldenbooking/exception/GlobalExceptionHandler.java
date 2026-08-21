@@ -106,6 +106,19 @@ public class GlobalExceptionHandler {
         ));
     }
 
+    // 6.1 Rate limiting: demasiados intentos de login o recuperación en poco tiempo
+    @ExceptionHandler(com.sena.goldenbooking.exception.DemasiadosIntentosException.class)
+    public ResponseEntity<Map<String, Object>> handleDemasiadosIntentos(
+            com.sena.goldenbooking.exception.DemasiadosIntentosException ex) {
+        log.warn("Rate limit alcanzado: {}", ex.getMessage());
+
+        return ResponseEntity.status(HttpStatus.TOO_MANY_REQUESTS).body(Map.of(
+                "timestamp", LocalDateTime.now(),
+                "status", HttpStatus.TOO_MANY_REQUESTS.value(),
+                "error", ex.getMessage()
+        ));
+    }
+
     // 7. Otros errores de negocio o tiempo de ejecución (RuntimeException genérica, ya no debería usarse en Reserva Deporte)
     @ExceptionHandler(RuntimeException.class)
     public ResponseEntity<Map<String, Object>> handleRuntime(RuntimeException ex) {

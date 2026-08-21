@@ -19,7 +19,7 @@ public interface ReservaHotelService {
     ReservaHotelDto obtenerPorId(String id, String docUsuarioSolicitante, boolean esAdmin);
 
     // Devuelve una lista de DTOs de reserva de hotel correspondientes al ID de reserva proporcionado
-    List<ReservaHotelDto> obtenerPorReserva(String idReserva);
+    List<ReservaHotelDto> obtenerPorReserva(String idReserva, String docUsuarioSolicitante, boolean esAdmin);
 
     // Actualiza una reserva de hotel existente con el ID proporcionado utilizando los datos del DTO y devuelve el DTO actualizado.
     // docUsuarioSolicitante y esAdmin se usan para validar que quien actualiza

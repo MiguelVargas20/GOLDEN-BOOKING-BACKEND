@@ -5,7 +5,14 @@ import java.util.List;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
-import org.springframework.web.bind.annotation.*;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PatchMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RestController;
 
 import com.sena.goldenbooking.dtos.ReservaDto;
 import com.sena.goldenbooking.exception.AccesoDenegadoException;
@@ -14,6 +21,7 @@ import com.sena.goldenbooking.models.TipoReserva;
 import com.sena.goldenbooking.security.AutenticacionUtils;
 import com.sena.goldenbooking.services.ReservaService;
 import com.sena.goldenbooking.services.UsuarioService;
+
 import io.swagger.v3.oas.annotations.tags.Tag;
 
 @Tag(name = "Reservas", description = "Operaciones generales sobre reservas.")
@@ -32,8 +40,16 @@ public class ReservaController {
     }
 
     // POST /api/reservas
+    // Mismo criterio que ReservaHotelController.crear(): si quien reserva es
+    // CLIENTE, se ignora cualquier docUsuario que venga en el body y se fuerza
+    // el del usuario autenticado — evita crear una reserva "a nombre de" otro
+    // documento con solo cambiar el JSON. Un ADMIN sí puede reservar por otro.
     @PostMapping
-    public ResponseEntity<ReservaDto> crear(@RequestBody ReservaDto dto) {
+    public ResponseEntity<ReservaDto> crear(@RequestBody ReservaDto dto, Authentication authentication) {
+        boolean esAdmin = AutenticacionUtils.esAdmin(authentication);
+        if (!esAdmin) {
+            dto.setDocUsuario(usuarioService.obtenerDocumentoPorUsername(authentication.getName()));
+        }
         return ResponseEntity.status(HttpStatus.CREATED).body(reservaService.crearReserva(dto));
     }
 

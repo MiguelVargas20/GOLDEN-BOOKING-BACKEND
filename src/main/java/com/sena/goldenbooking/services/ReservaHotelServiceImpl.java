@@ -230,8 +230,19 @@ public ReservaHotelServiceImpl(
     }
 
     @Override
-    public List<ReservaHotelDto> obtenerPorReserva(String idReserva) {
-        return mapper.toDtoList(reservaHotelRepo.findByIdReserva(idReserva));
+    public List<ReservaHotelDto> obtenerPorReserva(String idReserva, String docUsuarioSolicitante, boolean esAdmin) {
+        List<ReservaHotel> resultado = reservaHotelRepo.findByIdReserva(idReserva);
+
+        // fix IDOR: un CLIENTE solo debe ver los resultados que le pertenecen a él.
+        // Si no es admin, filtramos cualquier registro que no sea suyo en vez de
+        // devolver la lista completa tal cual venía de Mongo.
+        if (!esAdmin) {
+            resultado = resultado.stream()
+                    .filter(rh -> rh.getDocUsuario() != null && rh.getDocUsuario().equals(docUsuarioSolicitante))
+                    .toList();
+        }
+
+        return mapper.toDtoList(resultado);
     }
 
     @Override

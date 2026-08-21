@@ -1,10 +1,11 @@
 package com.sena.goldenbooking.services;
 
 import java.util.List;
-import com.sena.goldenbooking.dtos.ReservaDeporteDto;
 
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+
+import com.sena.goldenbooking.dtos.ReservaDeporteDto;
 
 public interface ReservaDeporteService {
 
@@ -21,7 +22,7 @@ public interface ReservaDeporteService {
     ReservaDeporteDto obtenerPorId(String id, String docUsuarioSolicitante, boolean esAdmin);
 
     // Devuelve una lista de DTOs de reserva de deporte correspondientes al ID de reserva proporcionado
-    List<ReservaDeporteDto> obtenerPorReserva(String idReserva);
+    List<ReservaDeporteDto> obtenerPorReserva(String idReserva, String docUsuarioSolicitante, boolean esAdmin);
 
     // Actualiza una reserva de deporte existente con el ID proporcionado utilizando los datos del DTO y devuelve el DTO actualizado.
     // docUsuarioSolicitante y esAdmin se usan para validar que quien actualiza
