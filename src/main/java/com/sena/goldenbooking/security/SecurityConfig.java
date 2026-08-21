@@ -70,6 +70,10 @@ public class SecurityConfig {
                     ).permitAll()
 
                     // ── Perfil propio — VA PRIMERO antes que restricciones de ADMIN ──
+                    // Igual que en reservas: esta regla solo exige ADMIN o CLIENTE.
+                    // El chequeo de "es TU perfil" (comparando el id del JWT contra
+                    // el {id} de la URL) vive en UsuarioController/validarPropioPerfil,
+                    // no aquí.
                     .requestMatchers(HttpMethod.GET,   "/api/usuarios/perfil/**").hasAnyAuthority("ROL_ADMIN", "ROL_CLIENTE")
                     .requestMatchers(HttpMethod.PATCH, "/api/usuarios/perfil/**").hasAnyAuthority("ROL_ADMIN", "ROL_CLIENTE")
 
@@ -93,6 +97,16 @@ public class SecurityConfig {
                     .requestMatchers(HttpMethod.DELETE, "/api/reservas/**").hasAuthority("ROL_ADMIN")
 
                     // ── ADMIN o CLIENTE — Reservas ────────────────────────
+                    // OJO al agregar una ruta nueva aquí: esta regla solo exige
+                    // estar autenticado como ADMIN o CLIENTE — NO valida dueño.
+                    // La validación de "solo el dueño o un admin" vive en el
+                    // CONTROLLER de cada recurso (ReservaController,
+                    // ReservaHotelController, ReservaDeporteController), comparando
+                    // el docUsuario del JWT contra el dueño real de la reserva.
+                    // Si agregas un endpoint nuevo bajo /api/reservas/** y se te
+                    // olvida ese chequeo en el controller, cualquier CLIENTE
+                    // autenticado podría ver/editar reservas ajenas (fue justo
+                    // el Hallazgo 2 de la auditoría — ver ReservaController).
                     .requestMatchers(HttpMethod.GET,   "/api/reservas/**").hasAnyAuthority("ROL_ADMIN", "ROL_CLIENTE")
                     .requestMatchers(HttpMethod.POST,  "/api/reservas/**").hasAnyAuthority("ROL_ADMIN", "ROL_CLIENTE")
                     .requestMatchers(HttpMethod.PATCH, "/api/reservas/**").hasAnyAuthority("ROL_ADMIN", "ROL_CLIENTE")
