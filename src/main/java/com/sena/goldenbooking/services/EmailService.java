@@ -4,6 +4,7 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.mail.SimpleMailMessage;
 import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.mail.javamail.MimeMessageHelper;
+import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 import net.fortuna.ical4j.model.Calendar;
 import net.fortuna.ical4j.model.component.VEvent;
@@ -31,6 +32,10 @@ public class EmailService {
         this.mailSender = mailSender;
     }
 
+    // FIX hallazgo #10: @Async saca el envío del hilo de la petición HTTP. El
+    // llamador ya no espera a que Gmail responda para poder devolver su propia
+    // respuesta al frontend.
+    @Async
     public void enviarCorreoSimple(String destinatario, String asunto, String cuerpo) {
         SimpleMailMessage mensaje = new SimpleMailMessage();
         mensaje.setTo(destinatario);
@@ -43,6 +48,7 @@ public class EmailService {
      * Envía un correo con contenido HTML (necesario para botones,
      * colores de marca, etc. — un correo de texto plano no soporta eso).
      */
+    @Async
     public void enviarCorreoHtml(String destinatario, String asunto, String html) {
         try {
             MimeMessage mensaje = mailSender.createMimeMessage();
@@ -56,6 +62,7 @@ public class EmailService {
         }
     }
 
+    @Async
     public void enviarCorreoVerificacion(String destinatario, String token) {
         String urlVerificacion = frontendUrl + "/verificar-cuenta?token=" + token;
         String html = """
@@ -72,6 +79,7 @@ public class EmailService {
         enviarCorreoHtml(destinatario, "Verifica tu cuenta - Golden Booking", html);
     }
 
+    @Async
     public void enviarCorreoRecuperacion(String destinatario, String token) {
         String urlRecuperacion = frontendUrl + "/restablecer-password?token=" + token;
         String html = """
@@ -93,6 +101,7 @@ public class EmailService {
      * que el usuario puede abrir para agregar el evento directo a su
      * Google Calendar, Outlook, etc.
      */
+    @Async
     public void enviarConfirmacionReserva(String destinatario, String tituloEvento,
             String descripcionHtml, LocalDateTime inicio, LocalDateTime fin) {
         try {
@@ -136,6 +145,7 @@ public class EmailService {
         return out.toByteArray();
     }
 
+    @Async
     public void enviarAvisoCancelacion(String destinatario, String tituloEvento, String detalleHtml) {
     String html = """
             <div style="font-family: 'Poppins', sans-serif; max-width: 500px; margin: auto; padding: 30px; border-radius: 12px; border: 1px solid #eee;">

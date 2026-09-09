@@ -64,14 +64,25 @@ public class ReservaHotelMapperImpl implements ReservaHotelMapper {
 
 
     // Actualizar una ReservaHotel existente con datos de un ReservaHotelDto
+    //
+    // FIX SEGURIDAD: este método copiaba fechaCheckIn/fechaCheckOut/noches/
+    // precioTotal directamente desde el DTO que manda el cliente. crear()
+    // sí valida solapamiento de fechas dentro del lock por habitación, pero
+    // actualizar() nunca repetía esa validación ni recalculaba el precio.
+    // Resultado: un cliente autenticado podía hacer PUT sobre SU PROPIA
+    // reserva con {"pTotal": 1, "fCheckIn": "...", "fCheckOut": "..."} y
+    // quedarse con una reserva a precio arbitrario, en fechas que incluso
+    // podían ya estar ocupadas por otra reserva.
+    //
+    // Hasta que exista un endpoint de "reprogramar" dedicado que repita la
+    // validación de solapamiento y recalcule el precio en el servidor (nunca
+    // confiando en lo que mande el cliente), este PUT no debe tocar esos
+    // campos.
     @Override
     public void actualizarReservaHotel(ReservaHotelDto dto, ReservaHotel rh) {
 
         // Validamos que ni el DTO ni la ReservaHotel sean nulos antes de actualizar
         if (dto == null || rh == null) return;
-        rh.setFechaCheckIn(dto.getFCheckIn());
-        rh.setFechaCheckOut(dto.getFCheckOut());
-        rh.setNoches(dto.getNoch());
-        rh.setPrecioTotal(dto.getPTotal());
+        // Sin campos seguros que actualizar por ahora: no se modifica nada.
     }
 }

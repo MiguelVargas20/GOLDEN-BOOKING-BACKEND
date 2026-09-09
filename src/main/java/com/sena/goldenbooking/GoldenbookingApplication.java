@@ -7,12 +7,19 @@ import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileReader;
 
+import org.springframework.scheduling.annotation.EnableAsync;
 import org.springframework.scheduling.annotation.EnableScheduling;
 
 import lombok.extern.slf4j.Slf4j;
 
 @Slf4j
 @EnableScheduling
+// FIX hallazgo #10: sin @EnableAsync, la anotación @Async en EmailService no
+// tenía ningún efecto — Spring la ignora en silencio si el soporte de async no
+// está habilitado. Cada registro, login con verificación pendiente, confirmación
+// de reserva, respuesta de mensaje, etc. bloqueaba el hilo de la petición HTTP
+// esperando la ida y vuelta SMTP con Gmail (puede tardar 1-3s o más).
+@EnableAsync
 @SpringBootApplication
 public class GoldenbookingApplication {
 

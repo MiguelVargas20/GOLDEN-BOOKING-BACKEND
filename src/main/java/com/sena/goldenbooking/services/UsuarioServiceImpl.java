@@ -61,6 +61,16 @@ public class UsuarioServiceImpl implements UsuarioService {
             log.warn("Registro rechazado: username '{}' ya en uso.", dto.getUsername());
             throw new ConflictoDeNegocioException("El nombre de usuario ya está en uso.");
         }
+        // FIX hallazgo #9: faltaba este chequeo. Usuario.correo tiene índice único en
+        // Mongo, así que sin esta validación un segundo registro con el mismo correo
+        // (pero documento/username distintos) pasaba las dos validaciones de arriba y
+        // reventaba recién al guardar con un DuplicateKeyException no mapeado — el
+        // usuario veía "Ocurrió un error interno en el servidor" (500) en vez de un
+        // mensaje claro.
+        if (userRepo.existsByCorreo(dto.getEmail())) {
+            log.warn("Registro rechazado: correo '{}' ya registrado.", dto.getEmail());
+            throw new ConflictoDeNegocioException("Este correo ya está registrado.");
+        }
 
         // 1. Guardar perfil en colección UsuarioPerfil
         Usuario perfil = Usuario.builder()
@@ -227,5 +237,19 @@ public class UsuarioServiceImpl implements UsuarioService {
                     return new RecursoNoEncontradoException("Usuario autenticado no encontrado.");
                 });
         return auth.getId();
+    }
+
+    // FIX hallazgo #11 (N+1 en RecordatorioService): una sola consulta $in en vez
+    // de una por cada docNum. Se descartan usuarios sin docId para no reventar el
+    // toMap con una clave nula si algún registro viejo llegara incompleto.
+    @Override
+    public Map<String, UsuarioDto> obtenerMapaPorDocNums(List<String> docNums) {
+        if (docNums == null || docNums.isEmpty()) return Map.of();
+        return userRepo.findByDocNumIn(docNums).stream()
+                .filter(u -> u.getDocId() != null && u.getDocId().getNumeroD() != null)
+                .collect(Collectors.toMap(
+                        u -> u.getDocId().getNumeroD(),
+                        userMapper::toDto,
+                        (existente, duplicado) -> existente));
     }
 }

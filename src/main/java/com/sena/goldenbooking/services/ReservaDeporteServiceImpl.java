@@ -13,6 +13,7 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.stereotype.Service;
 
+import com.sena.goldenbooking.dtos.RangoOcupadoDeporteDto;
 import com.sena.goldenbooking.dtos.ReservaDeporteDto;
 import com.sena.goldenbooking.dtos.ReservaDeporteEventDto;
 import com.sena.goldenbooking.dtos.UsuarioDto;
@@ -381,5 +382,17 @@ public class ReservaDeporteServiceImpl implements ReservaDeporteService {
     public Page<ReservaDeporteDto> listarTodasPaginadas(Pageable pageable) {
         log.info("Listado paginado de reservas deportivas. Página: {}", pageable.getPageNumber());
         return reservaDeporteRepo.findAll(pageable).map(mapper::toDto);
+    }
+
+    @Override
+    public List<RangoOcupadoDeporteDto> obtenerFechasOcupadas() {
+        return reservaDeporteRepo.findByEstadoNot(EstadoReserva.CANCELADA)
+                .stream()
+                .map(r -> RangoOcupadoDeporteDto.builder()
+                        .tipoCancha(r.getTipoCancha())
+                        .inicio(r.getFechaReserva())
+                        .fin(r.getFechaFinReserva())
+                        .build())
+                .toList();
     }
 }

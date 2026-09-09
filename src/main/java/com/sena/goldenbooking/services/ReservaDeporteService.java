@@ -43,4 +43,6 @@ public interface ReservaDeporteService {
 
     // Devuelve una página de DTOs de reserva de deporte según los parámetros de paginación proporcionados
     Page<ReservaDeporteDto> listarTodasPaginadas(Pageable pageable);
+
+    List<RangoOcupadoDeporteDto> obtenerFechasOcupadas();
 }

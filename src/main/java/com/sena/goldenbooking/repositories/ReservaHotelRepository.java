@@ -25,10 +25,14 @@ public interface ReservaHotelRepository extends MongoRepository<ReservaHotel, St
     // libre para esas fechas (aunque sí lo esté para otras).
     List<ReservaHotel> findByIdHabitacionAndEstadoNot(String idHabitacion, EstadoReserva estado);
 
-        // En ReservaHotelRepository
-    List<ReservaHotel> findByEstadoNotAndRecordatorio24hEnviadoFalseAndFechaCheckInBetween(
+        // FIX hallazgo #12: antes eran findByEstadoNot...(CANCELADA, ...), es decir,
+        // "cualquier estado que no sea CANCELADA" — eso incluía PENDIENTE, así que una
+        // reserva que un admin nunca confirmó igual disparaba el correo "tu reserva es
+        // en 24 horas", lo cual confunde al cliente si al final no fue confirmada.
+        // Ahora se filtra explícitamente por CONFIRMADA.
+    List<ReservaHotel> findByEstadoAndRecordatorio24hEnviadoFalseAndFechaCheckInBetween(
             EstadoReserva estado, LocalDateTime desde, LocalDateTime hasta);
-    List<ReservaHotel> findByEstadoNotAndRecordatorio2hEnviadoFalseAndFechaCheckInBetween(
+    List<ReservaHotel> findByEstadoAndRecordatorio2hEnviadoFalseAndFechaCheckInBetween(
             EstadoReserva estado, LocalDateTime desde, LocalDateTime hasta);
 
     // Reservas CONFIRMADAS cuyo check-out ya pasó — usadas por el job que las cierra como FINALIZADA

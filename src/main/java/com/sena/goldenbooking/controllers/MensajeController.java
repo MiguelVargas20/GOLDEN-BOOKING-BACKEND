@@ -52,8 +52,18 @@ public class MensajeController {
     }
 
     // POST /api/contacto — cualquier usuario autenticado puede enviar un mensaje
+    //
+    // FIX: antes se guardaba dto.getCorreo() tal cual venía del formulario
+    // (Contactos.jsx deja ese campo en blanco para que el usuario lo tipee).
+    // Un cliente autenticado podía poner el correo de un tercero: el mensaje
+    // quedaba "atribuido" a ese correo ajeno y, si el admin respondía, la
+    // respuesta le llegaba a esa persona, no a quien realmente escribió.
+    // Mismo criterio que ya se aplica en ReservaController/ReservaHotelController:
+    // no confiar en un dato de identidad que manda el cliente, se fuerza el
+    // correo real resuelto desde el JWT.
     @PostMapping
-    public ResponseEntity<MensajeDto> enviar(@Valid @RequestBody MensajeDto dto) {
+    public ResponseEntity<MensajeDto> enviar(@Valid @RequestBody MensajeDto dto, Authentication authentication) {
+        dto.setCorreo(correoDe(authentication));
         return ResponseEntity.status(HttpStatus.CREATED).body(service.enviar(dto));
     }
 

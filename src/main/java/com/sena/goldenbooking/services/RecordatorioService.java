@@ -2,6 +2,7 @@ package com.sena.goldenbooking.services;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Map;
 
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
@@ -101,24 +102,43 @@ public class RecordatorioService {
     private void revisarRecordatoriosDeporte() {
         LocalDateTime ahora = LocalDateTime.now();
 
+        // FIX hallazgo #12: se filtra explícitamente por CONFIRMADA en vez de
+        // "estado distinto de CANCELADA" (que antes incluía PENDIENTE).
         // Ventana de 24h: reservas que empiezan entre 23h45 y 24h15 desde ahora
         List<ReservaDeporte> proximas24h = reservaDeporteRepo
-                .findByEstadoNotAndRecordatorio24hEnviadoFalseAndFechaReservaBetween(
-                        EstadoReserva.CANCELADA, ahora.plusHours(23).plusMinutes(45), ahora.plusHours(24).plusMinutes(15));
-        proximas24h.forEach(r -> enviarRecordatorioDeporte(r, "24 horas"));
-        proximas24h.forEach(r -> { r.setRecordatorio24hEnviado(true); reservaDeporteRepo.save(r); });
+                .findByEstadoAndRecordatorio24hEnviadoFalseAndFechaReservaBetween(
+                        EstadoReserva.CONFIRMADA, ahora.plusHours(23).plusMinutes(45), ahora.plusHours(24).plusMinutes(15));
 
         // Ventana de 2h
         List<ReservaDeporte> proximas2h = reservaDeporteRepo
-                .findByEstadoNotAndRecordatorio2hEnviadoFalseAndFechaReservaBetween(
-                        EstadoReserva.CANCELADA, ahora.plusMinutes(105), ahora.plusMinutes(135));
-        proximas2h.forEach(r -> enviarRecordatorioDeporte(r, "2 horas"));
+                .findByEstadoAndRecordatorio2hEnviadoFalseAndFechaReservaBetween(
+                        EstadoReserva.CONFIRMADA, ahora.plusMinutes(105), ahora.plusMinutes(135));
+
+        // FIX hallazgo #11 (N+1): antes cada enviarRecordatorioDeporte() hacía su
+        // propia consulta a Mongo por el usuario dueño de la reserva. Ahora se
+        // arma UN solo mapa docUsuario -> UsuarioDto para todas las reservas de
+        // ambas ventanas, con una sola consulta $in.
+        List<String> docs = java.util.stream.Stream.concat(proximas24h.stream(), proximas2h.stream())
+                .map(ReservaDeporte::getDocUsuario)
+                .distinct()
+                .toList();
+        Map<String, UsuarioDto> usuariosPorDoc = usuarioService.obtenerMapaPorDocNums(docs);
+
+        proximas24h.forEach(r -> enviarRecordatorioDeporte(r, "24 horas", usuariosPorDoc));
+        proximas24h.forEach(r -> { r.setRecordatorio24hEnviado(true); reservaDeporteRepo.save(r); });
+
+        proximas2h.forEach(r -> enviarRecordatorioDeporte(r, "2 horas", usuariosPorDoc));
         proximas2h.forEach(r -> { r.setRecordatorio2hEnviado(true); reservaDeporteRepo.save(r); });
     }
 
-    private void enviarRecordatorioDeporte(ReservaDeporte r, String tiempoAntes) {
+    private void enviarRecordatorioDeporte(ReservaDeporte r, String tiempoAntes, Map<String, UsuarioDto> usuariosPorDoc) {
         try {
-            UsuarioDto usuario = usuarioService.obtenerPorDocNum(r.getDocUsuario());
+            UsuarioDto usuario = usuariosPorDoc.get(r.getDocUsuario());
+            if (usuario == null) {
+                log.warn("No se encontró usuario {} para el recordatorio de la reserva deportiva {}",
+                        r.getDocUsuario(), r.getIdReservaDeporte());
+                return;
+            }
             String html = """
                     <div style="font-family: 'Poppins', sans-serif; max-width: 500px; margin: auto; padding: 30px; border-radius: 12px; border: 1px solid #eee;">
                         <h2 style="color: #1a1a2e;">Recordatorio de tu reserva</h2>
@@ -137,22 +157,38 @@ public class RecordatorioService {
     private void revisarRecordatoriosHotel() {
         LocalDateTime ahora = LocalDateTime.now();
 
+        // FIX hallazgo #12: mismo criterio que en deporte — solo CONFIRMADA.
         List<ReservaHotel> proximas24h = reservaHotelRepo
-                .findByEstadoNotAndRecordatorio24hEnviadoFalseAndFechaCheckInBetween(
-                        EstadoReserva.CANCELADA, ahora.plusHours(23).plusMinutes(45), ahora.plusHours(24).plusMinutes(15));
-        proximas24h.forEach(r -> enviarRecordatorioHotel(r, "24 horas"));
-        proximas24h.forEach(r -> { r.setRecordatorio24hEnviado(true); reservaHotelRepo.save(r); });
+                .findByEstadoAndRecordatorio24hEnviadoFalseAndFechaCheckInBetween(
+                        EstadoReserva.CONFIRMADA, ahora.plusHours(23).plusMinutes(45), ahora.plusHours(24).plusMinutes(15));
 
         List<ReservaHotel> proximas2h = reservaHotelRepo
-                .findByEstadoNotAndRecordatorio2hEnviadoFalseAndFechaCheckInBetween(
-                        EstadoReserva.CANCELADA, ahora.plusMinutes(105), ahora.plusMinutes(135));
-        proximas2h.forEach(r -> enviarRecordatorioHotel(r, "2 horas"));
+                .findByEstadoAndRecordatorio2hEnviadoFalseAndFechaCheckInBetween(
+                        EstadoReserva.CONFIRMADA, ahora.plusMinutes(105), ahora.plusMinutes(135));
+
+        // FIX hallazgo #11 (N+1): un solo mapa docUsuario -> UsuarioDto para
+        // todas las reservas de ambas ventanas, con una sola consulta $in.
+        List<String> docs = java.util.stream.Stream.concat(proximas24h.stream(), proximas2h.stream())
+                .map(ReservaHotel::getDocUsuario)
+                .distinct()
+                .toList();
+        Map<String, UsuarioDto> usuariosPorDoc = usuarioService.obtenerMapaPorDocNums(docs);
+
+        proximas24h.forEach(r -> enviarRecordatorioHotel(r, "24 horas", usuariosPorDoc));
+        proximas24h.forEach(r -> { r.setRecordatorio24hEnviado(true); reservaHotelRepo.save(r); });
+
+        proximas2h.forEach(r -> enviarRecordatorioHotel(r, "2 horas", usuariosPorDoc));
         proximas2h.forEach(r -> { r.setRecordatorio2hEnviado(true); reservaHotelRepo.save(r); });
     }
 
-    private void enviarRecordatorioHotel(ReservaHotel r, String tiempoAntes) {
+    private void enviarRecordatorioHotel(ReservaHotel r, String tiempoAntes, Map<String, UsuarioDto> usuariosPorDoc) {
         try {
-            UsuarioDto usuario = usuarioService.obtenerPorDocNum(r.getDocUsuario());
+            UsuarioDto usuario = usuariosPorDoc.get(r.getDocUsuario());
+            if (usuario == null) {
+                log.warn("No se encontró usuario {} para el recordatorio de la reserva hotel {}",
+                        r.getDocUsuario(), r.getIdHotelReserva());
+                return;
+            }
             String html = """
                     <div style="font-family: 'Poppins', sans-serif; max-width: 500px; margin: auto; padding: 30px; border-radius: 12px; border: 1px solid #eee;">
                         <h2 style="color: #1a1a2e;">Recordatorio de tu reserva</h2>

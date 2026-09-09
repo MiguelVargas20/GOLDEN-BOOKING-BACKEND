@@ -55,14 +55,27 @@ public class ReservaDeporteMapperImpl implements ReservaDeporteMapper {
 
 
     // Actualizar una ReservaDeporte existente con datos de un ReservaDeporteDto
+    //
+    // FIX SEGURIDAD: igual que en ReservaHotelMapperImpl — fechaReserva,
+    // fechaFinReserva y precio venían directo del DTO del cliente sin volver
+    // a validar solapamiento de cancha/horario ni recalcular el precio en
+    // el servidor. Esos campos quedan bloqueados en este PUT hasta que
+    // exista un endpoint de reprogramación que repita esa validación.
+    //
+    // CORRECCIÓN sobre la primera versión de este fix: tipoCancha también
+    // se sacó de aquí. Cambiar de cancha en el mismo horario es exactamente
+    // el mismo tipo de cambio que cambiar la fecha — mueve la reserva a un
+    // recurso distinto sin volver a pasar por el lock de solapamiento de
+    // crear(), así que dejarlo editable habría sido la misma vulnerabilidad
+    // con otro nombre.
+    //
+    // implementosAlquilados y requiereEntrenador sí son datos seguros de
+    // dejar editar aquí: son extras que no afectan disponibilidad ni el
+    // precio ya calculado.
     @Override
     public void actualizarReservaDeporte(ReservaDeporteDto dto, ReservaDeporte rd) {
         if (dto == null || rd == null) return;
-        rd.setTipoCancha(dto.getTCancha());
         rd.setImplementosAlquilados(dto.getImplAlquilados());
         rd.setRequiereEntrenador(dto.isRqrEntrenador());
-        rd.setFechaReserva(dto.getFInicioReserva());
-        rd.setFechaFinReserva(dto.getFFinReserva());
-        rd.setPrecio(dto.getPr());
     }
 }

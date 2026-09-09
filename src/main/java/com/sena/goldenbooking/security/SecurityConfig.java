@@ -83,8 +83,14 @@ public class SecurityConfig {
                     .requestMatchers(HttpMethod.DELETE, "/api/usuarios/**").hasAuthority("ROL_ADMIN")
 
                     // ── Solo ADMIN — Habitaciones ─────────────────────────
+                    // FIX: faltaba PATCH en esta lista. Sin esta línea, un PATCH a
+                    // /api/habitaciones/{id}/estado caía en el "anyRequest().authenticated()"
+                    // de más abajo, que solo exige estar logueado (con cualquier rol) —
+                    // así que cualquier CLIENTE podía cambiar el estado de una habitación
+                    // (ej. ponerla en MANTENIMIENTO) sin ser admin.
                     .requestMatchers(HttpMethod.POST,   "/api/habitaciones/**").hasAuthority("ROL_ADMIN")
                     .requestMatchers(HttpMethod.PUT,    "/api/habitaciones/**").hasAuthority("ROL_ADMIN")
+                    .requestMatchers(HttpMethod.PATCH,  "/api/habitaciones/**").hasAuthority("ROL_ADMIN")
                     .requestMatchers(HttpMethod.DELETE, "/api/habitaciones/**").hasAuthority("ROL_ADMIN")
 
                     // ── Solo ADMIN — Tipos de Habitación ─────────────────

@@ -60,4 +60,12 @@ public interface UsuarioService {
      * perfil en /api/usuarios/perfil/{id} (protección IDOR).
      */
     String obtenerIdPorUsername(String username);
+
+    /**
+     * Resuelve varios usuarios por su número de documento en una sola consulta
+     * a Mongo (fix hallazgo #11 — N+1 en RecordatorioService), devueltos como
+     * mapa docNum -> UsuarioDto para que el llamador haga lookups en memoria
+     * en vez de una consulta por cada reserva dentro de un forEach.
+     */
+    Map<String, UsuarioDto> obtenerMapaPorDocNums(List<String> docNums);
 }

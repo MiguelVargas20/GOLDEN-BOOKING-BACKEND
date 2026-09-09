@@ -59,14 +59,27 @@ public class ReservaMapperImpl implements ReservaMapper {
     }
 
     // Actualizar una Reserva existente con datos de un ReservaDto
+    //
+    // FIX SEGURIDAD: antes este método copiaba estado, fechas y precio
+    // directamente desde lo que mandaba el cliente en el body del PUT.
+    // Eso permitía que CUALQUIER usuario dueño de una reserva (o incluso
+    // un admin sin darse cuenta) cambiara el precio a $1 o pusiera fechas
+    // que ya estén ocupadas, porque crear() sí valida solapamiento con el
+    // lock, pero actualizar() nunca repetía esa validación.
+    //
+    // El estado ya tiene su propio flujo correcto y controlado por el
+    // servidor (PATCH /cancelar en ReservaController), así que no debe
+    // tocarse aquí. Fechas y precio no tienen hoy un endpoint de
+    // "reprogramar" que re-valide solapamiento y recalcule el precio en
+    // el servidor — hasta que exista, no se aceptan cambios de esos
+    // campos vía este PUT.
     @Override
     public void actualizarReserva(ReservaDto dto, Reserva reserva) {
 
         // Validamos que ni el DTO ni la Reserva sean nulos antes de actualizar
         if (dto == null || reserva == null) return;
-        reserva.setEstado(dto.getEst());
-        reserva.setFechaInicio(dto.getFInicio());
-        reserva.setFechaFin(dto.getFFin());
-        reserva.setPrecioTotal(dto.getPTotal());
+        // Sin campos seguros que actualizar por ahora: no se modifica nada.
+        // (Se deja el método y la validación de permisos/IDOR intactas en el
+        // service, por si en el futuro se agrega un campo legítimo editable.)
     }
 }
