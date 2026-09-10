@@ -23,6 +23,7 @@ import com.sena.goldenbooking.services.ReservaService;
 import com.sena.goldenbooking.services.UsuarioService;
 
 import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.validation.Valid;
 
 @Tag(name = "Reservas", description = "Operaciones generales sobre reservas.")
 @RestController
@@ -45,7 +46,7 @@ public class ReservaController {
     // el del usuario autenticado — evita crear una reserva "a nombre de" otro
     // documento con solo cambiar el JSON. Un ADMIN sí puede reservar por otro.
     @PostMapping
-    public ResponseEntity<ReservaDto> crear(@RequestBody ReservaDto dto, Authentication authentication) {
+    public ResponseEntity<ReservaDto> crear(@Valid @RequestBody ReservaDto dto, Authentication authentication) {
         boolean esAdmin = AutenticacionUtils.esAdmin(authentication);
         if (!esAdmin) {
             dto.setDocUsuario(usuarioService.obtenerDocumentoPorUsername(authentication.getName()));
@@ -79,7 +80,7 @@ public class ReservaController {
 
     // PUT /api/reservas/{id} — fix IDOR: solo el dueño de la reserva o un ADMIN
     @PutMapping("/{id}")
-    public ResponseEntity<ReservaDto> actualizar(@PathVariable String id, @RequestBody ReservaDto dto, Authentication authentication) {
+    public ResponseEntity<ReservaDto> actualizar(@PathVariable String id, @Valid @RequestBody ReservaDto dto, Authentication authentication) {
         boolean esAdmin = AutenticacionUtils.esAdmin(authentication);
         String docUsuario = usuarioService.obtenerDocumentoPorUsername(authentication.getName());
         return ResponseEntity.ok(reservaService.actualizarReserva(id, dto, docUsuario, esAdmin));
