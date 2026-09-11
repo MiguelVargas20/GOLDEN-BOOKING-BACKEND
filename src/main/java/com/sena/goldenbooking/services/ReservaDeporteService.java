@@ -5,6 +5,7 @@ import java.util.List;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 
+import com.sena.goldenbooking.dtos.RangoOcupadoDeporteDto;
 import com.sena.goldenbooking.dtos.ReservaDeporteDto;
 
 public interface ReservaDeporteService {

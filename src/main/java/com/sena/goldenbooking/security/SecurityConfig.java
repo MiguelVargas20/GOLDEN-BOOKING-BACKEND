@@ -148,7 +148,7 @@ public class SecurityConfig {
     @Bean
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration config = new CorsConfiguration();
-        config.setAllowedOrigins(List.of("https://localhost:5173", "https://goldenbooking.vercel.app", "https://goldenbooking-frontend.vercel.app", "http://localhost"));
+        config.setAllowedOrigins(List.of("http://localhost:5173", "https://goldenbooking.vercel.app", "https://goldenbooking-frontend.vercel.app", "http://localhost"));
         config.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"));
         config.setAllowedHeaders(List.of("*"));
         config.setAllowCredentials(true);
