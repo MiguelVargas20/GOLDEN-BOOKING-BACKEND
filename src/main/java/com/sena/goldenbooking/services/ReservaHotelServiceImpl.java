@@ -1,5 +1,7 @@
 package com.sena.goldenbooking.services;
 
+import com.sena.goldenbooking.config.ZonaHoraria;
+import org.springframework.web.util.HtmlUtils;
 import java.time.LocalDateTime;
 import java.time.temporal.ChronoUnit;
 import java.util.List;
@@ -173,8 +175,8 @@ public ReservaHotelServiceImpl(
                             <p style="color: #a0aec0; font-size: 0.85rem;">Adjuntamos un archivo de calendario para que agregues este evento directamente a Google Calendar u Outlook.</p>
                         </div>
                         """.formatted(
-                        usuario.getNombre(),
-                        habitacion.getNumHab(),
+                        HtmlUtils.htmlEscape(usuario.getNombre()),
+                        HtmlUtils.htmlEscape(habitacion.getNumHab()),
                         dto.getFCheckIn(),
                         dto.getFCheckOut(),
                         noches,
@@ -311,7 +313,7 @@ public ReservaHotelDto actualizar(String id, ReservaHotelDto dto, String docUsua
         }
 
         //
-        if (rh.getFechaCheckIn().isBefore(LocalDateTime.now().plusHours(24)) && !esAdmin) {
+        if (rh.getFechaCheckIn().isBefore(ZonaHoraria.ahora().plusHours(24)) && !esAdmin) {
            throw new ConflictoDeNegocioException("No se puede cancelar con menos de 24h de anticipación.");
         }
 
@@ -333,7 +335,7 @@ public ReservaHotelDto actualizar(String id, ReservaHotelDto dto, String docUsua
                         <li><strong>Check-out:</strong> %s</li>
                     </ul>
                     """.formatted(
-                    rh.getDatosH().getNumHab(),
+                    HtmlUtils.htmlEscape(rh.getDatosH().getNumHab()),
                     rh.getFechaCheckIn(),
                     rh.getFechaCheckOut()
             );

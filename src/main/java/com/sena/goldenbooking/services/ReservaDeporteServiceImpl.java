@@ -1,5 +1,7 @@
 package com.sena.goldenbooking.services;
 
+import com.sena.goldenbooking.config.ZonaHoraria;
+import org.springframework.web.util.HtmlUtils;
 import java.time.LocalDateTime;
 import java.time.temporal.ChronoUnit;
 import java.util.List;
@@ -181,8 +183,8 @@ public class ReservaDeporteServiceImpl implements ReservaDeporteService {
                             <p style="color: #a0aec0; font-size: 0.85rem;">Adjuntamos un archivo de calendario para que agregues este evento directamente a Google Calendar u Outlook.</p>
                         </div>
                         """.formatted(
-                        usuario.getNombre(),
-                        dto.getTCancha(),
+                        HtmlUtils.htmlEscape(usuario.getNombre()),
+                        HtmlUtils.htmlEscape(dto.getTCancha()),
                         dto.getFInicioReserva(),
                         dto.getFFinReserva(),
                         precioTotal
@@ -296,7 +298,7 @@ public class ReservaDeporteServiceImpl implements ReservaDeporteService {
         }
 
         // ── Ventana mínima de cancelación (mismo patrón que ReservaHotelServiceImpl) ──
-        if (rd.getFechaReserva().isBefore(LocalDateTime.now().plusHours(24)) && !esAdmin) {
+        if (rd.getFechaReserva().isBefore(ZonaHoraria.ahora().plusHours(24)) && !esAdmin) {
             throw new ConflictoDeNegocioException("No se puede cancelar con menos de 24h de anticipación.");
         }
 
@@ -315,7 +317,7 @@ public class ReservaDeporteServiceImpl implements ReservaDeporteService {
                             <li><strong>Espacio:</strong> %s</li>
                             <li><strong>Fecha:</strong> %s</li>
                         </ul>
-                        """.formatted(rd.getTipoCancha(), rd.getFechaReserva());
+                        """.formatted(HtmlUtils.htmlEscape(rd.getTipoCancha()), rd.getFechaReserva());
 
                 emailService.enviarAvisoCancelacion(
                         usuario.getEmail(),

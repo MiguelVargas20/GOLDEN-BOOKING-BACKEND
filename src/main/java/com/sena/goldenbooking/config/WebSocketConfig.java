@@ -33,7 +33,10 @@ public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
         // Endpoint al que el front se conecta para iniciar WebSocket
         // SockJS es un fallback para navegadores que no soportan WebSocket nativo
         registry.addEndpoint("/ws")
-                .setAllowedOrigins(allowedOrigins.split(","))
+                .setAllowedOrigins(java.util.Arrays.stream(allowedOrigins.split(","))
+                        .map(String::trim)
+                        .filter(origen -> !origen.isEmpty())
+                        .toArray(String[]::new))
                 .withSockJS();
     }
 }

@@ -26,7 +26,11 @@ public interface ReservaDeporteRepository extends MongoRepository<ReservaDeporte
 // ── NUEVO: detecta solapamiento de horarios para una cancha ──
     // Busca reservas que se solapen con el rango (inicio, fin) pedido
     // Una reserva solapa si: su inicio < finNueva Y su fin > inicioNueva
+    // Las CANCELADAS no cuentan: antes se incluían y el horario de una
+    // reserva cancelada quedaba bloqueado para siempre (el calendario, que
+    // usa /ocupadas y sí las excluye, lo mostraba libre pero crear() lo rechazaba).
     @Query("{ 'tipoCancha': ?0, " +
+           "  'estado':          { $ne: 'CANCELADA' }, " +
            "  'fechaReserva':    { $lt: ?2 }, " +
            "  'fechaFinReserva': { $gt: ?1 } }")
     List<ReservaDeporte> findSolapadas(

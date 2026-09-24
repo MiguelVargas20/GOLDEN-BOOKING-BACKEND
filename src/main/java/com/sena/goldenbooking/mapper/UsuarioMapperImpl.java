@@ -66,15 +66,20 @@ public class UsuarioMapperImpl implements UsuarioMapper {
             throw new IllegalArgumentException("El usuario o el DTO no pueden ser nulos");
         }
 
-        // Actualización de campos siguiendo los nombres del modelo Usuario
-        usuario.setNomUsr(usuarioDto.getNombre());
-        usuario.setApellUsr(usuarioDto.getApellido());
-        usuario.setCorreo(usuarioDto.getEmail());
-        usuario.setTel(usuarioDto.getTelefono());
-        usuario.setDir(usuarioDto.getDireccion());
-        usuario.setDocId(usuarioDto.getDocumento());
-        usuario.setFNac(usuarioDto.getFechaNacimiento());
-        usuario.setEstado(usuarioDto.getEstado());
+        // Actualización PARCIAL: solo se copian los campos que vienen en el DTO.
+        // Antes se copiaban todos, y el formulario de edición del admin
+        // (UsuariosE.jsx) solo manda nombre, apellido, email y estado — así que
+        // cada edición dejaba en null el documento, teléfono, dirección y fecha
+        // de nacimiento. Sin documento el usuario ya no podía reservar y perdía
+        // el vínculo con sus reservas (que se buscan por número de documento).
+        if (usuarioDto.getNombre() != null)          usuario.setNomUsr(usuarioDto.getNombre());
+        if (usuarioDto.getApellido() != null)        usuario.setApellUsr(usuarioDto.getApellido());
+        if (usuarioDto.getEmail() != null)           usuario.setCorreo(usuarioDto.getEmail());
+        if (usuarioDto.getTelefono() != null)        usuario.setTel(usuarioDto.getTelefono());
+        if (usuarioDto.getDireccion() != null)       usuario.setDir(usuarioDto.getDireccion());
+        if (usuarioDto.getDocumento() != null)       usuario.setDocId(usuarioDto.getDocumento());
+        if (usuarioDto.getFechaNacimiento() != null) usuario.setFNac(usuarioDto.getFechaNacimiento());
+        if (usuarioDto.getEstado() != null)          usuario.setEstado(usuarioDto.getEstado());
         
         // El ID y la fecha de registro (fReg) normalmente no se actualizan
     }

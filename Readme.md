@@ -9,6 +9,9 @@
 El archivo `application.properties` ya tiene la configuración por defecto.
 Para producción configura estas variables de entorno:
 - `JWT_SECRET` — clave secreta para JWT (mínimo 32 caracteres)
+- `CORS_ALLOWED_ORIGINS` — orígenes del frontend separados por coma (ej: `https://goldenbooking.vercel.app`). Se usa para CORS y para el WebSocket.
+- `COOKIE_SAME_SITE` — SameSite de la cookie del refresh token (por defecto `None`, necesario con front y back en dominios distintos). **Requiere que el backend se sirva por HTTPS.**
+- `APP_ZONA_HORARIA` — zona horaria del negocio (por defecto `America/Bogota`). El servidor puede correr en UTC; esta zona se usa para las reglas de cancelación, recordatorios y el `.ics`.
 
 ## Correr el proyecto
 ```bash

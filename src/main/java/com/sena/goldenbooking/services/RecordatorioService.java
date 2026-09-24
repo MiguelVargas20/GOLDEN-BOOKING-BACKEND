@@ -1,5 +1,7 @@
 package com.sena.goldenbooking.services;
 
+import com.sena.goldenbooking.config.ZonaHoraria;
+import org.springframework.web.util.HtmlUtils;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Map;
@@ -62,7 +64,7 @@ public class RecordatorioService {
     }
 
     private void finalizarReservasHotelVencidas() {
-        LocalDateTime ahora = LocalDateTime.now();
+        LocalDateTime ahora = ZonaHoraria.ahora();
         List<ReservaHotel> vencidas = reservaHotelRepo
                 .findByEstadoAndFechaCheckOutBefore(EstadoReserva.CONFIRMADA, ahora);
 
@@ -81,7 +83,7 @@ public class RecordatorioService {
     }
 
     private void finalizarReservasDeporteVencidas() {
-        LocalDateTime ahora = LocalDateTime.now();
+        LocalDateTime ahora = ZonaHoraria.ahora();
         List<ReservaDeporte> vencidas = reservaDeporteRepo
                 .findByEstadoAndFechaFinReservaBefore(EstadoReserva.CONFIRMADA, ahora);
 
@@ -100,7 +102,7 @@ public class RecordatorioService {
     }
 
     private void revisarRecordatoriosDeporte() {
-        LocalDateTime ahora = LocalDateTime.now();
+        LocalDateTime ahora = ZonaHoraria.ahora();
 
         // FIX hallazgo #12: se filtra explícitamente por CONFIRMADA en vez de
         // "estado distinto de CANCELADA" (que antes incluía PENDIENTE).
@@ -145,7 +147,7 @@ public class RecordatorioService {
                         <p style="color: #4a5568;">Tu reserva de <strong>%s</strong> es en aproximadamente <strong>%s</strong>.</p>
                         <p style="color: #4a5568;">Fecha: %s</p>
                     </div>
-                    """.formatted(r.getTipoCancha(), tiempoAntes, r.getFechaReserva());
+                    """.formatted(HtmlUtils.htmlEscape(r.getTipoCancha()), tiempoAntes, r.getFechaReserva());
 
             emailService.enviarCorreoHtml(usuario.getEmail(), "Recordatorio: " + r.getTipoCancha(), html);
             log.info("Recordatorio ({}) enviado para reserva deportiva {}", tiempoAntes, r.getIdReservaDeporte());
@@ -155,7 +157,7 @@ public class RecordatorioService {
     }
 
     private void revisarRecordatoriosHotel() {
-        LocalDateTime ahora = LocalDateTime.now();
+        LocalDateTime ahora = ZonaHoraria.ahora();
 
         // FIX hallazgo #12: mismo criterio que en deporte — solo CONFIRMADA.
         List<ReservaHotel> proximas24h = reservaHotelRepo
@@ -195,7 +197,7 @@ public class RecordatorioService {
                         <p style="color: #4a5568;">Tu check-in en la habitación <strong>%s</strong> es en aproximadamente <strong>%s</strong>.</p>
                         <p style="color: #4a5568;">Check-in: %s</p>
                     </div>
-                """.formatted(r.getDatosH().getNumHab(), tiempoAntes, r.getFechaCheckIn());
+                """.formatted(HtmlUtils.htmlEscape(r.getDatosH().getNumHab()), tiempoAntes, r.getFechaCheckIn());
 
             emailService.enviarCorreoHtml(usuario.getEmail(), "Recordatorio: Habitación " + r.getDatosH().getNumHab(), html);
             log.info("Recordatorio ({}) enviado para reserva hotel {}", tiempoAntes, r.getIdHotelReserva());

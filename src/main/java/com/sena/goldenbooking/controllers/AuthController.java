@@ -6,6 +6,7 @@ import java.util.Date;
 import java.util.List;
 import java.util.Map;
 
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.ResponseCookie;
 import org.springframework.http.ResponseEntity;
@@ -59,6 +60,14 @@ public class AuthController {
     private final RateLimitService rateLimitService;    // ← NUEVO campo (Hallazgo 6)
 
     private static final String COOKIE_REFRESH = "refreshToken";
+
+    // SameSite de la cookie de refresh (app.cookie.same-site / COOKIE_SAME_SITE).
+    // Con "Lax" el navegador NO envía la cookie en peticiones fetch entre
+    // sitios distintos (vercel.app -> backend en AWS), así que /auth/refresh
+    // nunca recibía el refresh token. "None" exige Secure, es decir, que el
+    // backend se sirva por HTTPS (localhost se considera seguro en desarrollo).
+    @Value("${app.cookie.same-site:None}")
+    private String cookieSameSite;
 
     // Rate limiting: máximo de intentos antes de bloquear, y minutos que dura el bloqueo.
     private static final int MAX_INTENTOS_LOGIN = 5;
@@ -204,7 +213,7 @@ public class AuthController {
         ResponseCookie cookie = ResponseCookie.from(COOKIE_REFRESH, rawToken)
                 .httpOnly(true)
                 .secure(true)              // requiere HTTPS en producción (en dev con localhost los navegadores lo permiten igual)
-                .sameSite("Lax")           // mismo "site" (localhost:5173 -> localhost:8080) viaja igual; en prod cross-domain usar "None"+secure
+                .sameSite(cookieSameSite)  // "None" en prod: el front (Vercel) y el back (AWS) son sitios distintos y con "Lax" la cookie no viaja
                 .path("/auth")             // solo se envía a endpoints de auth, reduce superficie de exposición
                 .maxAge(maxAgeSegundos)
                 .build();
@@ -216,7 +225,7 @@ public class AuthController {
         ResponseCookie cookie = ResponseCookie.from(COOKIE_REFRESH, "")
                 .httpOnly(true)
                 .secure(true)
-                .sameSite("Lax")
+                .sameSite(cookieSameSite)
                 .path("/auth")
                 .maxAge(0)
                 .build();
