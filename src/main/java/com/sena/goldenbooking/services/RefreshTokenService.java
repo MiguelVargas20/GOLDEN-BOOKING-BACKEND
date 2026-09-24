@@ -28,4 +28,11 @@ public interface RefreshTokenService {
      * No lanza error si el token ya no existe.
      */
     void revocarPorToken(String rawToken);
+
+    /**
+     * Revoca TODOS los refresh tokens vigentes del usuario (todas sus
+     * sesiones/dispositivos). Se usa al cambiar o restablecer la contraseña:
+     * si alguien había robado una sesión, deja de poder renovarla.
+     */
+    void revocarTodosDelUsuario(String userId);
 }

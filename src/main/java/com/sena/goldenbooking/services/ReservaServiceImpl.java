@@ -13,7 +13,10 @@ import com.sena.goldenbooking.mapper.ReservaMapper;
 import com.sena.goldenbooking.models.EstadoReserva;
 import com.sena.goldenbooking.models.Reserva;
 import com.sena.goldenbooking.models.TipoReserva;
+import com.sena.goldenbooking.repositories.ReservaDeporteRepository;
+import com.sena.goldenbooking.repositories.ReservaHotelRepository;
 import com.sena.goldenbooking.repositories.ReservaRepository;
+import com.sena.goldenbooking.config.ZonaHoraria;
 
 // Implementación de la interfaz ReservaService que maneja la lógica de negocio relacionada con las reservas
 @Service
@@ -23,11 +26,24 @@ public class ReservaServiceImpl implements ReservaService {
     private final ReservaRepository reservaRepo;
     private final ReservaMapper reservaMapper;
 
+    // Para cancelar en cascada la reserva "hija" (hotel o deporte) cuando se
+    // cancela la reserva padre desde /api/reservas/{id}/cancelar.
+    private final ReservaHotelRepository reservaHotelRepo;
+    private final ReservaDeporteRepository reservaDeporteRepo;
+    private final ReservaHotelService reservaHotelService;
+    private final ReservaDeporteService reservaDeporteService;
+
 
     // Constructor que inyecta las dependencias necesarias para el servicio
-    public ReservaServiceImpl(ReservaRepository reservaRepo, ReservaMapper reservaMapper) {
+    public ReservaServiceImpl(ReservaRepository reservaRepo, ReservaMapper reservaMapper,
+            ReservaHotelRepository reservaHotelRepo, ReservaDeporteRepository reservaDeporteRepo,
+            ReservaHotelService reservaHotelService, ReservaDeporteService reservaDeporteService) {
         this.reservaRepo = reservaRepo;
         this.reservaMapper = reservaMapper;
+        this.reservaHotelRepo = reservaHotelRepo;
+        this.reservaDeporteRepo = reservaDeporteRepo;
+        this.reservaHotelService = reservaHotelService;
+        this.reservaDeporteService = reservaDeporteService;
     }
 
 
@@ -41,6 +57,23 @@ public class ReservaServiceImpl implements ReservaService {
         // Validación adicional para el tipo de reserva
         if (dto.getTp() == null) {
             throw new IllegalArgumentException("El tipo de reserva es obligatorio.");
+        }
+
+        // Antes solo se validaban documento y tipo: fechas y precio se
+        // guardaban tal cual venían del cliente (fechas en el pasado, fin
+        // antes que inicio, precio negativo...). Este endpoint ahora es solo
+        // para ADMIN (ver ReservaController.crear), pero igual se valida.
+        if (dto.getFInicio() == null || dto.getFFin() == null) {
+            throw new IllegalArgumentException("Las fechas de inicio y fin son obligatorias.");
+        }
+        if (!dto.getFFin().isAfter(dto.getFInicio())) {
+            throw new IllegalArgumentException("La fecha de fin debe ser posterior al inicio.");
+        }
+        if (dto.getFInicio().toLocalDate().isBefore(ZonaHoraria.ahora().toLocalDate())) {
+            throw new IllegalArgumentException("La fecha de inicio no puede estar en el pasado.");
+        }
+        if (dto.getPTotal() != null && dto.getPTotal() < 0) {
+            throw new IllegalArgumentException("El precio no puede ser negativo.");
         }
 
 
@@ -115,6 +148,25 @@ public class ReservaServiceImpl implements ReservaService {
         if (reserva.getEstado() == EstadoReserva.CANCELADA) {
             throw new ConflictoDeNegocioException("La reserva ya está cancelada.");
         }
+
+        // Antes solo se cancelaba la reserva padre: la ReservaHotel /
+        // ReservaDeporte seguía activa, así que la habitación o cancha seguía
+        // bloqueada y el usuario la veía como vigente. Ahora, si existe la
+        // reserva hija, se delega en su servicio, que aplica las mismas reglas
+        // que al cancelar desde su propio endpoint (24h de anticipación, correo,
+        // aviso por WebSocket) y además actualiza el estado de la padre.
+        var hotel = reservaHotelRepo.findByIdReserva(id);
+        if (!hotel.isEmpty()) {
+            reservaHotelService.cancelar(hotel.get(0).getIdHotelReserva(), docUsuarioSolicitante, esAdmin);
+            return;
+        }
+        var deporte = reservaDeporteRepo.findByIdReserva(id);
+        if (!deporte.isEmpty()) {
+            reservaDeporteService.cancelar(deporte.get(0).getIdReservaDeporte(), docUsuarioSolicitante, esAdmin);
+            return;
+        }
+
+        // Reserva sin hija (creada directo por /api/reservas): solo la padre.
         reserva.setEstado(EstadoReserva.CANCELADA);
         reservaRepo.save(reserva);
     }

@@ -14,4 +14,6 @@ public interface RefreshTokenRepository extends MongoRepository<RefreshToken, St
     Optional<RefreshToken> findByTokenHash(String tokenHash);
 
     List<RefreshToken> findByFamilyId(String familyId);
+
+    List<RefreshToken> findByUserIdAndRevocadoFalse(String userId);
 }

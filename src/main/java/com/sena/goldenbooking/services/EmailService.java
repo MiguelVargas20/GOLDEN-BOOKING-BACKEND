@@ -1,5 +1,6 @@
 package com.sena.goldenbooking.services;
 
+import com.sena.goldenbooking.config.ZonaHoraria;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.mail.SimpleMailMessage;
 import org.springframework.mail.javamail.JavaMailSender;
@@ -12,7 +13,6 @@ import net.fortuna.ical4j.model.property.*;
 import net.fortuna.ical4j.data.CalendarOutputter;
 import java.io.ByteArrayOutputStream;
 import java.time.LocalDateTime;
-import java.time.ZoneId;
 import java.util.Date;
 
 
@@ -128,14 +128,18 @@ public class EmailService {
         calendario.getProperties().add(Version.VERSION_2_0);
         calendario.getProperties().add(CalScale.GREGORIAN);
 
-        Date fechaInicio = Date.from(inicio.atZone(ZoneId.systemDefault()).toInstant());
-        Date fechaFin = Date.from(fin.atZone(ZoneId.systemDefault()).toInstant());
+        Date fechaInicio = Date.from(inicio.atZone(ZonaHoraria.ZONA).toInstant());
+        Date fechaFin = Date.from(fin.atZone(ZonaHoraria.ZONA).toInstant());
 
-        VEvent evento = new VEvent(
-                new net.fortuna.ical4j.model.DateTime(fechaInicio),
-                new net.fortuna.ical4j.model.DateTime(fechaFin),
-                titulo
-        );
+        // En UTC ("...Z"): sin esto ical4j escribe una hora "flotante" formateada
+        // con la zona del servidor (UTC en AWS) y el calendario del usuario la
+        // interpreta como hora local de Colombia, corriendo el evento 5h.
+        net.fortuna.ical4j.model.DateTime dtInicio = new net.fortuna.ical4j.model.DateTime(fechaInicio);
+        net.fortuna.ical4j.model.DateTime dtFin = new net.fortuna.ical4j.model.DateTime(fechaFin);
+        dtInicio.setUtc(true);
+        dtFin.setUtc(true);
+
+        VEvent evento = new VEvent(dtInicio, dtFin, titulo);
         evento.getProperties().add(new Uid(java.util.UUID.randomUUID().toString()));
 
         calendario.getComponents().add(evento);

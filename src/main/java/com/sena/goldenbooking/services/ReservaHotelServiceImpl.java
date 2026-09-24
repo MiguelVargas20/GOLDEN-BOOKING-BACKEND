@@ -1,5 +1,7 @@
 package com.sena.goldenbooking.services;
 
+import com.sena.goldenbooking.config.ZonaHoraria;
+import org.springframework.web.util.HtmlUtils;
 import java.time.LocalDateTime;
 import java.time.temporal.ChronoUnit;
 import java.util.List;
@@ -96,6 +98,16 @@ public ReservaHotelServiceImpl(
         long noches = ChronoUnit.DAYS.between(dto.getFCheckIn().toLocalDate(), dto.getFCheckOut().toLocalDate());
         if (noches <= 0) throw new IllegalArgumentException("Fechas inválidas.");
 
+        // 2.2.1 No se puede reservar hacia atrás. Antes no había ninguna
+        //       validación: vía API se podían crear reservas con check-in en
+        //       el pasado. Se compara por FECHA (no por hora) porque el front
+        //       manda el check-in como medianoche convertida a UTC, y un
+        //       check-in para hoy mismo debe seguir siendo válido.
+        if (dto.getFCheckIn().toLocalDate().isBefore(ZonaHoraria.ahora().toLocalDate())) {
+            log.warn("Intento de reserva hotel con check-in en el pasado: {}", dto.getFCheckIn());
+            throw new IllegalArgumentException("La fecha de check-in no puede estar en el pasado.");
+        }
+
         double precioTotal = noches * habitacion.getPrecNoche();
 
         // ── SECCIÓN CRÍTICA (fix race condition) ──────────────────────
@@ -173,8 +185,8 @@ public ReservaHotelServiceImpl(
                             <p style="color: #a0aec0; font-size: 0.85rem;">Adjuntamos un archivo de calendario para que agregues este evento directamente a Google Calendar u Outlook.</p>
                         </div>
                         """.formatted(
-                        usuario.getNombre(),
-                        habitacion.getNumHab(),
+                        HtmlUtils.htmlEscape(usuario.getNombre()),
+                        HtmlUtils.htmlEscape(habitacion.getNumHab()),
                         dto.getFCheckIn(),
                         dto.getFCheckOut(),
                         noches,
@@ -311,7 +323,7 @@ public ReservaHotelDto actualizar(String id, ReservaHotelDto dto, String docUsua
         }
 
         //
-        if (rh.getFechaCheckIn().isBefore(LocalDateTime.now().plusHours(24)) && !esAdmin) {
+        if (rh.getFechaCheckIn().isBefore(ZonaHoraria.ahora().plusHours(24)) && !esAdmin) {
            throw new ConflictoDeNegocioException("No se puede cancelar con menos de 24h de anticipación.");
         }
 
@@ -333,7 +345,7 @@ public ReservaHotelDto actualizar(String id, ReservaHotelDto dto, String docUsua
                         <li><strong>Check-out:</strong> %s</li>
                     </ul>
                     """.formatted(
-                    rh.getDatosH().getNumHab(),
+                    HtmlUtils.htmlEscape(rh.getDatosH().getNumHab()),
                     rh.getFechaCheckIn(),
                     rh.getFechaCheckOut()
             );

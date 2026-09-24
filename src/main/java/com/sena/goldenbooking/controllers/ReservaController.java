@@ -47,10 +47,12 @@ public class ReservaController {
     // documento con solo cambiar el JSON. Un ADMIN sí puede reservar por otro.
     @PostMapping
     public ResponseEntity<ReservaDto> crear(@Valid @RequestBody ReservaDto dto, Authentication authentication) {
-        boolean esAdmin = AutenticacionUtils.esAdmin(authentication);
-        if (!esAdmin) {
-            dto.setDocUsuario(usuarioService.obtenerDocumentoPorUsername(authentication.getName()));
-        }
+        // SOLO ADMIN: este endpoint crea una reserva "padre" suelta, sin pasar
+        // por la validación de disponibilidad de hotel/deporte y con el precio
+        // que manda el cliente. Un CLIENTE podía crear reservas a su nombre
+        // con cualquier fecha y precio. Los clientes reservan por
+        // /api/reservas/hotel y /api/reservas/deporte (el front no usa este).
+        exigirAdmin(authentication);
         return ResponseEntity.status(HttpStatus.CREATED).body(reservaService.crearReserva(dto));
     }
 
