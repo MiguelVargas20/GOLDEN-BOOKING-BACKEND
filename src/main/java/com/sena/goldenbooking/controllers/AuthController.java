@@ -75,6 +75,10 @@ public class AuthController {
     private static final int MAX_INTENTOS_RECUPERACION = 3;
     private static final int VENTANA_RECUPERACION_MINUTOS = 15;
 
+    // Misma longitud mínima que exige el registro (UsuarioRegistroDto). Antes
+    // cambiar/restablecer aceptaba 6, así que se podía bajar a una más débil.
+    private static final int LONGITUD_MINIMA_PASSWORD = 8;
+
     public AuthController(
             JwtService jwtService,
             AuthenticationManager authManager,
@@ -239,29 +243,45 @@ public class AuthController {
         String passwordAntigua = body.get("passwordAntigua");
         String nuevaPassword = body.get("nuevaPassword");
 
-        if (username == null || passwordAntigua == null || nuevaPassword == null || nuevaPassword.isBlank()) {
+        if (username == null || username.isBlank() || passwordAntigua == null
+                || nuevaPassword == null || nuevaPassword.isBlank()) {
             return ResponseEntity.badRequest().body(Map.of(
                 "error", "Todos los campos son obligatorios"
             ));
         }
 
-        UsuarioAuth auth = authRepo.findByUser(username)
-                .orElseThrow(() -> new RecursoNoEncontradoException("Usuario no encontrado"));
+        // Rate limiting: este endpoint es público y valida la contraseña
+        // actual, así que sin límite servía para adivinar contraseñas
+        // saltándose el bloqueo del login. Usa el MISMO contador que el login
+        // ("login:<usuario>"): los intentos fallidos en cualquiera de los dos
+        // suman contra el mismo límite de 5 cada 15 minutos.
+        String claveLimite = "login:" + username.toLowerCase();
+        rateLimitService.verificarNoBloqueado(claveLimite, MAX_INTENTOS_LOGIN);
 
-        if (!passwordEncoder.matches(passwordAntigua, auth.getPwd())) {
+        // Mismo mensaje exista o no el usuario: antes respondía 404 "Usuario
+        // no encontrado" vs 400 "contraseña incorrecta", lo que permitía
+        // averiguar qué nombres de usuario están registrados.
+        UsuarioAuth auth = authRepo.findByUser(username).orElse(null);
+        if (auth == null || !passwordEncoder.matches(passwordAntigua, auth.getPwd())) {
+            rateLimitService.registrarIntento(claveLimite, VENTANA_LOGIN_MINUTOS);
             return ResponseEntity.badRequest().body(Map.of(
-                "error", "La contraseña actual es incorrecta"
+                "error", "Usuario o contraseña actual incorrectos"
             ));
         }
 
-        if (nuevaPassword.length() < 6) {
+        if (nuevaPassword.length() < LONGITUD_MINIMA_PASSWORD) {
             return ResponseEntity.badRequest().body(Map.of(
-                "error", "La nueva contraseña debe tener mínimo 6 caracteres"
+                "error", "La nueva contraseña debe tener mínimo " + LONGITUD_MINIMA_PASSWORD + " caracteres"
             ));
         }
 
+        rateLimitService.limpiar(claveLimite);
         auth.setPwd(passwordEncoder.encode(nuevaPassword));
         authRepo.save(auth);
+
+        // Cambió la contraseña: se cierran las sesiones abiertas en otros
+        // dispositivos (si alguien tenía una sesión robada, deja de servirle).
+        refreshTokenService.revocarTodosDelUsuario(auth.getId());
 
         return ResponseEntity.ok(Map.of(
             "mensaje", "Contraseña actualizada correctamente"
@@ -337,8 +357,9 @@ public class AuthController {
         String token = body.get("token");
         String nuevaPassword = body.get("nuevaPassword");
 
-        if (nuevaPassword == null || nuevaPassword.length() < 6) {
-            return ResponseEntity.badRequest().body(Map.of("error", "La contraseña debe tener mínimo 6 caracteres"));
+        if (nuevaPassword == null || nuevaPassword.length() < LONGITUD_MINIMA_PASSWORD) {
+            return ResponseEntity.badRequest().body(Map.of(
+                "error", "La contraseña debe tener mínimo " + LONGITUD_MINIMA_PASSWORD + " caracteres"));
         }
 
         String correo = tokenService.validarYObtenerCorreo(token, TipoToken.RECUPERACION_PASSWORD);
@@ -352,6 +373,9 @@ public class AuthController {
         auth.setPwd(passwordEncoder.encode(nuevaPassword));
         authRepo.save(auth);
         tokenService.invalidarToken(token);
+
+        // Contraseña restablecida: se cierran todas las sesiones abiertas.
+        refreshTokenService.revocarTodosDelUsuario(auth.getId());
 
         return ResponseEntity.ok(Map.of(
             "mensaje", "Contraseña restablecida correctamente. Ya puedes iniciar sesión."

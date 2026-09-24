@@ -48,6 +48,10 @@ public class ReservaDeporteServiceImpl implements ReservaDeporteService {
     @Value("${app.reservas.deporte.tarifa-hora}")
     private double tarifaHora;
 
+    // Duración mínima de una reserva deportiva (se mantiene el mínimo de 1h
+    // que antes existía de forma implícita por el truncado a horas).
+    private static final long DURACION_MINIMA_MINUTOS = 60;
+
     // ── FIX RACE CONDITION (mismo patrón que ReservaHotelServiceImpl) ──
     // Un lock por tipo de cancha: entre "consultar solapamientos" y
     // "guardar", ningún otro hilo puede colarse a reservar la MISMA cancha.
@@ -94,13 +98,27 @@ public class ReservaDeporteServiceImpl implements ReservaDeporteService {
             throw new IllegalArgumentException("Las fechas de inicio y fin son obligatorias.");
         }
 
-        long horas = ChronoUnit.HOURS.between(dto.getFInicioReserva(), dto.getFFinReserva());
-        if (horas <= 0) {
+        // No se puede reservar un horario que ya empezó (antes no se validaba).
+        if (dto.getFInicioReserva().isBefore(ZonaHoraria.ahora())) {
+            log.warn("Reserva rechazada: inicio en el pasado ({}). Usuario {}.", dto.getFInicioReserva(), dto.getDocUsuario());
+            throw new IllegalArgumentException("La fecha de inicio no puede estar en el pasado.");
+        }
+
+        // Duración en MINUTOS: antes se usaba ChronoUnit.HOURS, que trunca
+        // (1h30 se cobraba como 1h) y rechazaba con un mensaje confuso
+        // ("fin debe ser posterior") cualquier reserva de menos de una hora.
+        long minutos = ChronoUnit.MINUTES.between(dto.getFInicioReserva(), dto.getFFinReserva());
+        if (minutos <= 0) {
             log.warn("Reserva rechazada: Fecha de fin no es posterior a inicio. Usuario {}.", dto.getDocUsuario());
             throw new IllegalArgumentException("La fecha de fin debe ser posterior al inicio.");
         }
+        if (minutos < DURACION_MINIMA_MINUTOS) {
+            log.warn("Reserva rechazada: duración de {} minutos, menor al mínimo. Usuario {}.", minutos, dto.getDocUsuario());
+            throw new IllegalArgumentException("La reserva debe durar al menos una hora.");
+        }
 
-        double precioTotal = horas * tarifaHora;
+        // Precio proporcional al tiempo reservado (tarifa por hora).
+        double precioTotal = minutos / 60.0 * tarifaHora;
 
         // ── SECCIÓN CRÍTICA (fix race condition) ────────────────────────
         // Igual que en ReservaHotelServiceImpl: sin este lock, dos requests

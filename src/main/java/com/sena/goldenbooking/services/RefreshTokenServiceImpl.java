@@ -78,6 +78,18 @@ public class RefreshTokenServiceImpl implements RefreshTokenService {
         });
     }
 
+    @Override
+    public void revocarTodosDelUsuario(String userId) {
+        List<RefreshToken> vigentes = repo.findByUserIdAndRevocadoFalse(userId);
+        Date ahora = new Date();
+        vigentes.forEach(t -> {
+            t.setRevocado(true);
+            t.setRevocadoEn(ahora);
+        });
+        repo.saveAll(vigentes);
+        log.info("Revocados {} refresh tokens del usuario {}", vigentes.size(), userId);
+    }
+
     private void revocarFamilia(String familyId) {
         List<RefreshToken> familia = repo.findByFamilyId(familyId);
         Date ahora = new Date();
