@@ -3,7 +3,6 @@ package com.sena.goldenbooking.controllers;
 import java.util.List;
 import java.util.Map;
 
-import org.springframework.data.domain.PageRequest;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -39,7 +38,7 @@ public class HabitacionController {
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "10") int size) {
 
-        Pageable pageable = PageRequest.of(page, size);
+        Pageable pageable = Paginacion.de(page, size);
         var pagina = service.listarTodasPaginadas(pageable);
 
         return ResponseEntity.ok(Map.of(

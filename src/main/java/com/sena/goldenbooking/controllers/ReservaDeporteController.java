@@ -3,7 +3,6 @@
     import java.util.List;
     import java.util.Map;
 
-    import org.springframework.data.domain.PageRequest;
     import org.springframework.data.domain.Pageable;
     import org.springframework.http.HttpStatus;
     import org.springframework.http.ResponseEntity;
@@ -76,7 +75,7 @@
                         "Solo un administrador puede listar todas las reservas.");
             }
 
-            Pageable pageable = PageRequest.of(page, size);
+            Pageable pageable = Paginacion.de(page, size);
             var pagina = service.listarTodasPaginadas(pageable);
 
             return ResponseEntity.ok(Map.of(

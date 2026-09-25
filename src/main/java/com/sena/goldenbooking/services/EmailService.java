@@ -7,6 +7,8 @@ import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.mail.javamail.MimeMessageHelper;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
+
+import lombok.extern.slf4j.Slf4j;
 import net.fortuna.ical4j.model.Calendar;
 import net.fortuna.ical4j.model.component.VEvent;
 import net.fortuna.ical4j.model.property.*;
@@ -18,6 +20,7 @@ import java.util.Date;
 
 import jakarta.mail.internet.MimeMessage;
 
+@Slf4j
 @Service
 public class EmailService {
 
@@ -37,11 +40,18 @@ public class EmailService {
     // respuesta al frontend.
     @Async
     public void enviarCorreoSimple(String destinatario, String asunto, String cuerpo) {
-        SimpleMailMessage mensaje = new SimpleMailMessage();
-        mensaje.setTo(destinatario);
-        mensaje.setSubject(asunto);
-        mensaje.setText(cuerpo);
-        mailSender.send(mensaje);
+        // Al ser @Async, un error aquí ya no le llega a quien llamó: se
+        // registra en el log para que no se pierda en silencio.
+        try {
+            SimpleMailMessage mensaje = new SimpleMailMessage();
+            mensaje.setTo(destinatario);
+            mensaje.setSubject(asunto);
+            mensaje.setText(cuerpo);
+            mailSender.send(mensaje);
+            log.info("Correo enviado a {} ({})", destinatario, asunto);
+        } catch (Exception e) {
+            log.error("No se pudo enviar el correo a {} ({}): {}", destinatario, asunto, e.getMessage());
+        }
     }
 
     /**

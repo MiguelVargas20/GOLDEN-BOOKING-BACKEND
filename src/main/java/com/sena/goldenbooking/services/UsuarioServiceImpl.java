@@ -87,14 +87,6 @@ public class UsuarioServiceImpl implements UsuarioService {
 
         Usuario perfilGuardado = userRepo.save(perfil);
 
-        // Dispara el correo de verificación (no bloquea el registro si falla el envío)
-        try {
-            String token = tokenService.generarToken(perfilGuardado.getCorreo(), TipoToken.VERIFICACION_CUENTA);
-            emailService.enviarCorreoVerificacion(perfilGuardado.getCorreo(), token);
-        } catch (Exception e) {
-            log.warn("No se pudo enviar el correo de verificación a {}: {}", perfilGuardado.getCorreo(), e.getMessage());
-        }
-
         // 2. Guardar credenciales en colección UsuarioAuth con el mismo ID
         UsuarioAuth auth = new UsuarioAuth();
         auth.setId(perfilGuardado.getId());
@@ -106,7 +98,29 @@ public class UsuarioServiceImpl implements UsuarioService {
         // body del registro. El DTO ya no tiene ese campo; esto es la segunda barrera.
         auth.setRls(List.of(Rol.ROL_CLIENTE));
 
-        authRepo.save(auth);
+        // @Transactional no tiene efecto aquí (no hay MongoTransactionManager y
+        // Mongo sin replica set no admite transacciones), así que si falla el
+        // guardado de credenciales se deshace a mano el perfil: antes quedaba un
+        // perfil huérfano con ese correo/documento que bloqueaba volver a
+        // registrarse ("El documento ya está registrado").
+        try {
+            authRepo.save(auth);
+        } catch (RuntimeException e) {
+            log.error("Falló el guardado de credenciales de '{}'; se elimina el perfil creado.", dto.getUsername(), e);
+            userRepo.deleteById(perfilGuardado.getId());
+            throw e;
+        }
+
+        // 3. Correo de verificación AL FINAL, cuando el usuario ya existe completo.
+        //    Antes se enviaba antes de guardar las credenciales: si ese guardado
+        //    fallaba, el usuario recibía un enlace para una cuenta que no existía.
+        //    No bloquea el registro si falla el envío (EmailService es @Async).
+        try {
+            String token = tokenService.generarToken(perfilGuardado.getCorreo(), TipoToken.VERIFICACION_CUENTA);
+            emailService.enviarCorreoVerificacion(perfilGuardado.getCorreo(), token);
+        } catch (Exception e) {
+            log.warn("No se pudo generar/enviar el correo de verificación a {}: {}", perfilGuardado.getCorreo(), e.getMessage());
+        }
 
         log.info("Usuario '{}' registrado correctamente con ID: {}", dto.getUsername(), perfilGuardado.getId());
         return dto;

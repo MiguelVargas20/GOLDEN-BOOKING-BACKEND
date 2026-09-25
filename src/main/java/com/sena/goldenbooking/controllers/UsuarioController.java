@@ -13,7 +13,6 @@ import com.sena.goldenbooking.exception.AccesoDenegadoException;
 import com.sena.goldenbooking.security.AutenticacionUtils;
 import com.sena.goldenbooking.services.UsuarioService;
 
-import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 
 
@@ -43,7 +42,7 @@ public class UsuarioController {
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "10") int size) {
 
-        Pageable pageable = PageRequest.of(page, size);
+        Pageable pageable = Paginacion.de(page, size);
         var paginaUsuarios = usuarioService.listarUsuariosPaginados(pageable);
 
         Map<String, Object> respuesta = Map.of(

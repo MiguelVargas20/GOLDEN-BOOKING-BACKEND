@@ -2,7 +2,6 @@ package com.sena.goldenbooking.controllers;
 
 import java.util.Map;
 
-import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -75,7 +74,7 @@ public class MensajeController {
             @RequestParam(defaultValue = "10") int size,
             @RequestParam(required = false) String nombre) {
 
-        Pageable pageable = PageRequest.of(page, size);
+        Pageable pageable = Paginacion.de(page, size);
         var pagina = (nombre == null || nombre.isBlank())
                 ? service.listarPaginados(pageable)
                 : service.buscarPorNombre(nombre.trim(), pageable);
@@ -116,7 +115,7 @@ public class MensajeController {
             @RequestParam(defaultValue = "10") int size,
             Authentication authentication) {
 
-        Pageable pageable = PageRequest.of(page, size);
+        Pageable pageable = Paginacion.de(page, size);
         var pagina = service.misMensajes(correoDe(authentication), pageable);
 
         return ResponseEntity.ok(Map.of(

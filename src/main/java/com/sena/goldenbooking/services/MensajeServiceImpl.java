@@ -5,8 +5,6 @@ import java.time.LocalDateTime;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
-import org.springframework.mail.SimpleMailMessage;
-import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.stereotype.Service;
 
 import com.sena.goldenbooking.dtos.MensajeDto;
@@ -22,17 +20,19 @@ import lombok.extern.slf4j.Slf4j;
 public class MensajeServiceImpl implements MensajeService {
 
     private final MensajeRepository repo;
-    private final JavaMailSender mailSender; // 1. Agregamos el enviador de correos como dependencia final
+    // Los correos se envían con EmailService (@Async): antes se usaba
+    // JavaMailSender directo y la petición HTTP esperaba la ida y vuelta
+    // con Gmail (1-3 s) antes de responder al usuario.
+    private final EmailService emailService;
 
     // Correo que recibe las notificaciones de contacto — configurable vía
     // app.admin.correo-notificaciones (application.properties / variable de entorno)
     @Value("${app.admin.correo-notificaciones}")
     private String correoAdminNotificaciones;
 
-    // 2. Lo inyectamos a través del constructor (Mejor práctica que @Autowired)
-    public MensajeServiceImpl(MensajeRepository repo, JavaMailSender mailSender) {
+    public MensajeServiceImpl(MensajeRepository repo, EmailService emailService) {
         this.repo = repo;
-        this.mailSender = mailSender;
+        this.emailService = emailService;
     }
 
     private MensajeDto toDto(Mensaje m) {
@@ -63,23 +63,16 @@ public class MensajeServiceImpl implements MensajeService {
         Mensaje guardado = repo.save(mensaje);
         log.info("Mensaje de contacto recibido de: {}", dto.getCorreo());
 
-        // 3. Implementación segura del envío de correo
-        try {
-            SimpleMailMessage email = new SimpleMailMessage();
-            email.setTo(correoAdminNotificaciones);
-            email.setSubject("Golden Booking - Nuevo mensaje de: " + guardado.getNombre());
-            email.setText("Has recibido un nuevo mensaje de contacto:\n\n" +
-                          "Nombre: " + guardado.getNombre() + "\n" +
-                          "Correo: " + guardado.getCorreo() + "\n\n" +
-                          "Mensaje:\n" + guardado.getContenido() + "\n\n" +
-                          "Gestiona este mensaje desde el panel de administración.");
-            
-            mailSender.send(email);
-            log.info("Correo de notificación enviado correctamente.");
-        } catch (Exception e) {
-            // Usamos log.error en lugar de System.err.println aprovechando @Slf4j
-            log.error("Error al enviar el correo de notificación: {}", e.getMessage());
-        }
+        // Aviso al admin en segundo plano (@Async): la respuesta al usuario no
+        // espera al servidor de correo. Si el envío falla, EmailService lo registra.
+        emailService.enviarCorreoSimple(
+                correoAdminNotificaciones,
+                "Golden Booking - Nuevo mensaje de: " + guardado.getNombre(),
+                "Has recibido un nuevo mensaje de contacto:\n\n" +
+                "Nombre: " + guardado.getNombre() + "\n" +
+                "Correo: " + guardado.getCorreo() + "\n\n" +
+                "Mensaje:\n" + guardado.getContenido() + "\n\n" +
+                "Gestiona este mensaje desde el panel de administración.");
 
         return toDto(guardado);
     }
@@ -113,20 +106,14 @@ public class MensajeServiceImpl implements MensajeService {
         mensaje.setLeido(true); // responder implica que ya fue atendido
         Mensaje guardado = repo.save(mensaje);
 
-        try {
-            SimpleMailMessage email = new SimpleMailMessage();
-            email.setTo(guardado.getCorreo());
-            email.setSubject("Golden Booking - Respuesta a tu mensaje");
-            email.setText("Hola " + guardado.getNombre() + ",\n\n" +
-                          "Recibimos tu mensaje:\n\"" + guardado.getContenido() + "\"\n\n" +
-                          "Nuestra respuesta:\n" + textoRespuesta + "\n\n" +
-                          "— Equipo Golden Booking");
-
-            mailSender.send(email);
-            log.info("Correo de respuesta enviado a: {}", guardado.getCorreo());
-        } catch (Exception e) {
-            log.error("Error al enviar el correo de respuesta: {}", e.getMessage());
-        }
+        // Respuesta al usuario en segundo plano (@Async), igual que arriba.
+        emailService.enviarCorreoSimple(
+                guardado.getCorreo(),
+                "Golden Booking - Respuesta a tu mensaje",
+                "Hola " + guardado.getNombre() + ",\n\n" +
+                "Recibimos tu mensaje:\n\"" + guardado.getContenido() + "\"\n\n" +
+                "Nuestra respuesta:\n" + textoRespuesta + "\n\n" +
+                "— Equipo Golden Booking");
 
         return toDto(guardado);
     }
