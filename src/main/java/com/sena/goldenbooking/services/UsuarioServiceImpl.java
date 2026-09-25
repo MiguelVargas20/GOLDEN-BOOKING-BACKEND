@@ -16,6 +16,7 @@ import com.sena.goldenbooking.dtos.UsuarioRegistroDto;
 import com.sena.goldenbooking.exception.ConflictoDeNegocioException;
 import com.sena.goldenbooking.exception.RecursoNoEncontradoException;
 import com.sena.goldenbooking.mapper.UsuarioMapper;
+import com.sena.goldenbooking.models.EstadoUsuario;
 import com.sena.goldenbooking.models.Rol;
 import com.sena.goldenbooking.models.TipoToken;
 import com.sena.goldenbooking.models.Usuario;
@@ -35,16 +36,23 @@ public class UsuarioServiceImpl implements UsuarioService {
     private final PasswordEncoder passwordEncoder;
     private final EmailService emailService;
     private final TokenService tokenService;
+    private final RefreshTokenService refreshTokenService;
+
+    private static final String MENSAJE_REGISTRO_NO_POSIBLE =
+            "No fue posible completar el registro con los datos ingresados. "
+            + "Si ya tienes una cuenta, inicia sesión o recupera tu contraseña.";
 
     public UsuarioServiceImpl(UsuarioRepository userRepo, UsuarioAuthRepository authRepo,
             UsuarioMapper userMapper, PasswordEncoder passwordEncoder,
-            EmailService emailService, TokenService tokenService) {   // ← 2 parámetros nuevos
+            EmailService emailService, TokenService tokenService,
+            RefreshTokenService refreshTokenService) {
         this.userRepo = userRepo;
         this.authRepo = authRepo;
         this.userMapper = userMapper;
         this.passwordEncoder = passwordEncoder;
         this.emailService = emailService;
         this.tokenService = tokenService;
+        this.refreshTokenService = refreshTokenService;
     }
 
     @Override
@@ -52,14 +60,21 @@ public class UsuarioServiceImpl implements UsuarioService {
     public UsuarioRegistroDto registrarUsuario(UsuarioRegistroDto dto) {
         log.info("Iniciando registro de usuario: {}", dto.getUsername());
 
-        // Validaciones previas
+        // Validaciones previas.
+        //
+        // Documento y correo responden el MISMO mensaje genérico: antes decían
+        // "El documento ya está registrado" / "Este correo ya está registrado",
+        // lo que permitía a cualquiera averiguar si una persona (por su cédula
+        // o su correo) tiene cuenta en el sistema. El detalle queda solo en el log.
+        // El nombre de usuario sí se indica, porque lo elige la persona y
+        // necesita saber que debe escoger otro.
         if (userRepo.existsByDocNum(dto.getDocumento().getNumeroD())) {
             log.warn("Registro rechazado: documento {} ya registrado.", dto.getDocumento().getNumeroD());
-            throw new ConflictoDeNegocioException("El documento ya está registrado.");
+            throw new ConflictoDeNegocioException(MENSAJE_REGISTRO_NO_POSIBLE);
         }
         if (authRepo.existsByUser(dto.getUsername())) {
             log.warn("Registro rechazado: username '{}' ya en uso.", dto.getUsername());
-            throw new ConflictoDeNegocioException("El nombre de usuario ya está en uso.");
+            throw new ConflictoDeNegocioException("Ese nombre de usuario no está disponible. Por favor elige otro.");
         }
         // FIX hallazgo #9: faltaba este chequeo. Usuario.correo tiene índice único en
         // Mongo, así que sin esta validación un segundo registro con el mismo correo
@@ -69,7 +84,7 @@ public class UsuarioServiceImpl implements UsuarioService {
         // mensaje claro.
         if (userRepo.existsByCorreo(dto.getEmail())) {
             log.warn("Registro rechazado: correo '{}' ya registrado.", dto.getEmail());
-            throw new ConflictoDeNegocioException("Este correo ya está registrado.");
+            throw new ConflictoDeNegocioException(MENSAJE_REGISTRO_NO_POSIBLE);
         }
 
         // 1. Guardar perfil en colección UsuarioPerfil
@@ -174,6 +189,14 @@ public class UsuarioServiceImpl implements UsuarioService {
 
         userMapper.actualizarUsuario(usuarioDto, usuarioExistente);
         UsuarioDto resultado = userMapper.toDto(userRepo.save(usuarioExistente));
+
+        // Si el admin lo desactivó, se cierran sus sesiones: ya no podrá renovar
+        // el token. (Sus peticiones con el access token actual también se
+        // rechazan de inmediato: JwtFilter verifica el estado en cada petición.)
+        if (usuarioExistente.getEstado() == EstadoUsuario.INACTIVO) {
+            refreshTokenService.revocarTodosDelUsuario(id);
+            log.info("Usuario ID {} desactivado: sesiones revocadas.", id);
+        }
         log.info("Usuario con ID: {} actualizado correctamente.", id);
         return resultado;
     }
@@ -190,6 +213,8 @@ public class UsuarioServiceImpl implements UsuarioService {
         if (authRepo.existsById(id)) {
             authRepo.deleteById(id);
         }
+        // Cierra todas sus sesiones abiertas
+        refreshTokenService.revocarTodosDelUsuario(id);
         log.info("Usuario con ID: {} eliminado correctamente de perfil y credenciales.", id);
     }
 

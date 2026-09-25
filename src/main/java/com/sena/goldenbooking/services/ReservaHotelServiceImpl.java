@@ -1,5 +1,6 @@
 package com.sena.goldenbooking.services;
 
+import com.sena.goldenbooking.exception.SolicitudInvalidaException;
 import com.sena.goldenbooking.config.ZonaHoraria;
 import org.springframework.web.util.HtmlUtils;
 import java.time.LocalDateTime;
@@ -80,7 +81,7 @@ public ReservaHotelServiceImpl(
         // 1. Validaciones
         if (dto.getDocUsuario() == null || dto.getIdHabitacion() == null) {
             log.warn("Intento de creación fallido: Datos incompletos.");
-            throw new IllegalArgumentException("Datos obligatorios faltantes.");
+            throw new SolicitudInvalidaException("Faltan datos obligatorios de la reserva.");
         }
 
         // 2. Búsqueda de la habitación
@@ -96,7 +97,7 @@ public ReservaHotelServiceImpl(
 
         // 2.2 Validación de fechas antes de comparar solapamientos
         long noches = ChronoUnit.DAYS.between(dto.getFCheckIn().toLocalDate(), dto.getFCheckOut().toLocalDate());
-        if (noches <= 0) throw new IllegalArgumentException("Fechas inválidas.");
+        if (noches <= 0) throw new SolicitudInvalidaException("La fecha de check-out debe ser posterior a la de check-in.");
 
         // 2.2.1 No se puede reservar hacia atrás. Antes no había ninguna
         //       validación: vía API se podían crear reservas con check-in en
@@ -105,7 +106,7 @@ public ReservaHotelServiceImpl(
         //       check-in para hoy mismo debe seguir siendo válido.
         if (dto.getFCheckIn().toLocalDate().isBefore(ZonaHoraria.ahora().toLocalDate())) {
             log.warn("Intento de reserva hotel con check-in en el pasado: {}", dto.getFCheckIn());
-            throw new IllegalArgumentException("La fecha de check-in no puede estar en el pasado.");
+            throw new SolicitudInvalidaException("La fecha de check-in no puede estar en el pasado.");
         }
 
         double precioTotal = noches * habitacion.getPrecNoche();

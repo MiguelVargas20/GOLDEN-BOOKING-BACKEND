@@ -5,6 +5,7 @@ import java.util.UUID;
 
 import org.springframework.stereotype.Service;
 
+import com.sena.goldenbooking.exception.SolicitudInvalidaException;
 import com.sena.goldenbooking.exception.RecursoNoEncontradoException;
 import com.sena.goldenbooking.models.TipoToken;
 import com.sena.goldenbooking.models.TokenVerificacion;
@@ -49,7 +50,7 @@ public class TokenService {
                 .orElseThrow(() -> new RecursoNoEncontradoException("El enlace no es válido o ya expiró."));
 
         if (tokenEncontrado.getTipo() != tipoEsperado) {
-            throw new IllegalArgumentException("Este enlace no corresponde a esta acción.");
+            throw new SolicitudInvalidaException("Este enlace no corresponde a esta acción.");
         }
 
         return tokenEncontrado.getCorreo();

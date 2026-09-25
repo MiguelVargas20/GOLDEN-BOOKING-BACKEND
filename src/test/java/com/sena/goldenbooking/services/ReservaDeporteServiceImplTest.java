@@ -20,6 +20,7 @@ import org.springframework.test.util.ReflectionTestUtils;
 
 import com.sena.goldenbooking.config.ZonaHoraria;
 import com.sena.goldenbooking.dtos.ReservaDeporteDto;
+import com.sena.goldenbooking.exception.SolicitudInvalidaException;
 import com.sena.goldenbooking.mapper.ReservaDeporteMapperImpl;
 import com.sena.goldenbooking.models.Reserva;
 import com.sena.goldenbooking.models.ReservaDeporte;
@@ -67,7 +68,7 @@ class ReservaDeporteServiceImplTest {
     void rechazaReservaConInicioEnElPasado() {
         LocalDateTime ayer = ZonaHoraria.ahora().minusDays(1);
 
-        IllegalArgumentException ex = assertThrows(IllegalArgumentException.class,
+        SolicitudInvalidaException ex = assertThrows(SolicitudInvalidaException.class,
                 () -> service.crear(dto(ayer, ayer.plusHours(2))));
 
         assertEquals("La fecha de inicio no puede estar en el pasado.", ex.getMessage());
@@ -78,7 +79,7 @@ class ReservaDeporteServiceImplTest {
     void rechazaReservaDeMenosDeUnaHora() {
         LocalDateTime manana = ZonaHoraria.ahora().plusDays(1);
 
-        IllegalArgumentException ex = assertThrows(IllegalArgumentException.class,
+        SolicitudInvalidaException ex = assertThrows(SolicitudInvalidaException.class,
                 () -> service.crear(dto(manana, manana.plusMinutes(30))));
 
         assertEquals("La reserva debe durar al menos una hora.", ex.getMessage());

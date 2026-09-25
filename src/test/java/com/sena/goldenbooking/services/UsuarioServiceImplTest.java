@@ -41,7 +41,7 @@ class UsuarioServiceImplTest {
         PasswordEncoder encoder = mock(PasswordEncoder.class);
         when(encoder.encode(anyString())).thenReturn("hash");
         service = new UsuarioServiceImpl(userRepo, authRepo, mock(UsuarioMapper.class),
-                encoder, emailService, tokenService);
+                encoder, emailService, tokenService, mock(RefreshTokenService.class));
 
         when(userRepo.save(any(Usuario.class))).thenAnswer(inv -> {
             Usuario u = inv.getArgument(0);

@@ -7,12 +7,15 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.HttpMethod;
+import org.springframework.http.HttpStatus;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.config.annotation.authentication.configuration.AuthenticationConfiguration;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 import org.springframework.web.cors.CorsConfiguration;
+
+import com.sena.goldenbooking.exception.RespuestaError;
 import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 
@@ -51,6 +54,10 @@ public class SecurityConfig {
                         // ── Públicas ─────────────────────────────────────────
                     .requestMatchers(
                         "/auth/login",
+                        // Público: debe poder cerrarse sesión aunque el access token
+                        // ya haya expirado (si no, el refresh token nunca se revocaba).
+                        // AuthController.logout valida el token por su cuenta.
+                        "/auth/logout",
                         "/auth/refresh",
                         "/auth/recuperar-password",
                         "/auth/verificar-cuenta",        // ← nuevo
@@ -136,6 +143,26 @@ public class SecurityConfig {
 
                     // ── Todo lo demás requiere JWT ────────────────────────
                     .anyRequest().authenticated()
+                )
+                // Respuestas JSON (mismo formato que GlobalExceptionHandler) cuando
+                // falla la autenticación o faltan permisos ANTES de llegar al
+                // controller. Antes: 403 sin cuerpo para peticiones sin sesión y
+                // 401 sin cuerpo desde el JwtFilter.
+                .exceptionHandling(ex -> ex
+                    .authenticationEntryPoint((request, response, authException) -> {
+                        Object motivo = request.getAttribute(JwtFilter.ATRIBUTO_MOTIVO);
+                        String codigo = motivo != null ? motivo.toString() : "NO_AUTENTICADO";
+                        String mensaje = switch (codigo) {
+                            case JwtFilter.MOTIVO_SESION_EXPIRADA -> "Tu sesión expiró. Inicia sesión de nuevo.";
+                            case JwtFilter.MOTIVO_CUENTA_INACTIVA -> "Tu cuenta está inactiva. Contacta al administrador.";
+                            case JwtFilter.MOTIVO_TOKEN_INVALIDO -> "Tu sesión no es válida. Inicia sesión de nuevo.";
+                            default -> "Debes iniciar sesión para continuar.";
+                        };
+                        RespuestaError.escribir(response, HttpStatus.UNAUTHORIZED, codigo, mensaje, request.getRequestURI());
+                    })
+                    .accessDeniedHandler((request, response, accessDeniedException) ->
+                        RespuestaError.escribir(response, HttpStatus.FORBIDDEN, "ACCESO_DENEGADO",
+                                "No tienes permiso para realizar esta acción.", request.getRequestURI()))
                 )
                 .addFilterBefore(jwtFilter, UsernamePasswordAuthenticationFilter.class);
 

@@ -8,6 +8,7 @@ import java.util.Map;
 
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpHeaders;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseCookie;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.authentication.AuthenticationManager;
@@ -25,6 +26,9 @@ import org.springframework.web.bind.annotation.RestController;
 import com.sena.goldenbooking.dtos.LoginDto;
 import com.sena.goldenbooking.exception.RecursoNoEncontradoException;
 import com.sena.goldenbooking.exception.RefreshTokenInvalidoException;
+import com.sena.goldenbooking.exception.RespuestaError;
+import com.sena.goldenbooking.exception.SolicitudInvalidaException;
+import com.sena.goldenbooking.models.EstadoUsuario;
 import com.sena.goldenbooking.models.TipoToken;
 import com.sena.goldenbooking.models.Usuario;
 import com.sena.goldenbooking.models.UsuarioAuth;
@@ -130,9 +134,9 @@ public class AuthController {
 
         // ── NUEVO: bloquear login si la cuenta no está verificada ──
         if (!perfil.isVerificado()) {
-            return ResponseEntity.status(403).body(Map.of(
-                "error", "Debes verificar tu cuenta antes de iniciar sesión. Revisa tu correo."
-            ));
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).body(RespuestaError.cuerpo(
+                HttpStatus.FORBIDDEN, "CUENTA_NO_VERIFICADA",
+                "Debes verificar tu cuenta antes de iniciar sesión. Revisa tu correo.", "/auth/login"));
         }
 
         // Login exitoso: reseteamos el contador de intentos fallidos.
@@ -186,6 +190,14 @@ public class AuthController {
                 .orElseThrow(() -> new RecursoNoEncontradoException("Usuario no encontrado"));
         Usuario perfil = usuarioRepo.findById(nuevoRefresh.userId())
                 .orElseThrow(() -> new RecursoNoEncontradoException("Perfil no encontrado"));
+
+        // Cuenta desactivada por el admin: no se emite un access token nuevo
+        // (antes el refresh seguía renovando la sesión indefinidamente).
+        if (perfil.getEstado() == EstadoUsuario.INACTIVO) {
+            refreshTokenService.revocarTodosDelUsuario(perfil.getId());
+            clearRefreshCookie(response);
+            throw new RefreshTokenInvalidoException("Tu cuenta está inactiva. Contacta al administrador.");
+        }
 
         List<String> roles = auth.getRls().stream()
                 .map(Enum::name)
@@ -245,9 +257,7 @@ public class AuthController {
 
         if (username == null || username.isBlank() || passwordAntigua == null
                 || nuevaPassword == null || nuevaPassword.isBlank()) {
-            return ResponseEntity.badRequest().body(Map.of(
-                "error", "Todos los campos son obligatorios"
-            ));
+            throw new SolicitudInvalidaException("Todos los campos son obligatorios.");
         }
 
         // Rate limiting: este endpoint es público y valida la contraseña
@@ -264,15 +274,12 @@ public class AuthController {
         UsuarioAuth auth = authRepo.findByUser(username).orElse(null);
         if (auth == null || !passwordEncoder.matches(passwordAntigua, auth.getPwd())) {
             rateLimitService.registrarIntento(claveLimite, VENTANA_LOGIN_MINUTOS);
-            return ResponseEntity.badRequest().body(Map.of(
-                "error", "Usuario o contraseña actual incorrectos"
-            ));
+            throw new SolicitudInvalidaException("Usuario o contraseña actual incorrectos.");
         }
 
         if (nuevaPassword.length() < LONGITUD_MINIMA_PASSWORD) {
-            return ResponseEntity.badRequest().body(Map.of(
-                "error", "La nueva contraseña debe tener mínimo " + LONGITUD_MINIMA_PASSWORD + " caracteres"
-            ));
+            throw new SolicitudInvalidaException(
+                "La nueva contraseña debe tener mínimo " + LONGITUD_MINIMA_PASSWORD + " caracteres.");
         }
 
         rateLimitService.limpiar(claveLimite);
@@ -291,12 +298,21 @@ public class AuthController {
     // ── LOGOUT ───────────────────────────────────────────────────
     @PostMapping("/logout")
     public ResponseEntity<Void> logout(
-            @RequestHeader("Authorization") String authHeader,
+            @RequestHeader(value = "Authorization", required = false) String authHeader,
             @CookieValue(name = COOKIE_REFRESH, required = false) String refreshCookie,
             HttpServletResponse response) {
 
-        String token = authHeader.substring(7); // quita el "Bearer "
-        authService.logout(token);
+        // La cabecera es opcional y el endpoint es público: antes, sin cabecera
+        // respondía 500, y con el access token ya expirado respondía 401, así que
+        // el refresh token (cookie) nunca se revocaba. Ahora el access token se
+        // manda a la lista negra solo si sigue vigente (si ya expiró no sirve
+        // de nada), y la cookie de refresh se revoca y se borra SIEMPRE.
+        if (authHeader != null && authHeader.startsWith("Bearer ")) {
+            String token = authHeader.substring(7);
+            if (jwtService.tokenValido(token)) {
+                authService.logout(token);
+            }
+        }
 
         if (refreshCookie != null && !refreshCookie.isBlank()) {
             refreshTokenService.revocarPorToken(refreshCookie);
@@ -358,8 +374,8 @@ public class AuthController {
         String nuevaPassword = body.get("nuevaPassword");
 
         if (nuevaPassword == null || nuevaPassword.length() < LONGITUD_MINIMA_PASSWORD) {
-            return ResponseEntity.badRequest().body(Map.of(
-                "error", "La contraseña debe tener mínimo " + LONGITUD_MINIMA_PASSWORD + " caracteres"));
+            throw new SolicitudInvalidaException(
+                "La contraseña debe tener mínimo " + LONGITUD_MINIMA_PASSWORD + " caracteres.");
         }
 
         String correo = tokenService.validarYObtenerCorreo(token, TipoToken.RECUPERACION_PASSWORD);

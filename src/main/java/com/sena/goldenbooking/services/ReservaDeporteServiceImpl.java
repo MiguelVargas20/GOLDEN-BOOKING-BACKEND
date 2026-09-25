@@ -1,5 +1,6 @@
 package com.sena.goldenbooking.services;
 
+import com.sena.goldenbooking.exception.SolicitudInvalidaException;
 import com.sena.goldenbooking.config.ZonaHoraria;
 import org.springframework.web.util.HtmlUtils;
 import java.time.LocalDateTime;
@@ -85,23 +86,23 @@ public class ReservaDeporteServiceImpl implements ReservaDeporteService {
 
         if (dto.getDocUsuario() == null || dto.getDocUsuario().isBlank()) {
             log.warn("Reserva rechazada: Documento de usuario nulo o vacío.");
-            throw new IllegalArgumentException("El documento del usuario es obligatorio.");
+            throw new SolicitudInvalidaException("El documento del usuario es obligatorio.");
         }
 
         if (dto.getTCancha() == null || dto.getTCancha().isBlank()) {
             log.warn("Reserva rechazada: Tipo de cancha nulo o vacío para usuario {}.", dto.getDocUsuario());
-            throw new IllegalArgumentException("El tipo de cancha es obligatorio.");
+            throw new SolicitudInvalidaException("El tipo de cancha es obligatorio.");
         }
 
         if (dto.getFInicioReserva() == null || dto.getFFinReserva() == null) {
             log.warn("Reserva rechazada: Fechas incompletas para usuario {}.", dto.getDocUsuario());
-            throw new IllegalArgumentException("Las fechas de inicio y fin son obligatorias.");
+            throw new SolicitudInvalidaException("Las fechas de inicio y fin son obligatorias.");
         }
 
         // No se puede reservar un horario que ya empezó (antes no se validaba).
         if (dto.getFInicioReserva().isBefore(ZonaHoraria.ahora())) {
             log.warn("Reserva rechazada: inicio en el pasado ({}). Usuario {}.", dto.getFInicioReserva(), dto.getDocUsuario());
-            throw new IllegalArgumentException("La fecha de inicio no puede estar en el pasado.");
+            throw new SolicitudInvalidaException("La fecha de inicio no puede estar en el pasado.");
         }
 
         // Duración en MINUTOS: antes se usaba ChronoUnit.HOURS, que trunca
@@ -110,11 +111,11 @@ public class ReservaDeporteServiceImpl implements ReservaDeporteService {
         long minutos = ChronoUnit.MINUTES.between(dto.getFInicioReserva(), dto.getFFinReserva());
         if (minutos <= 0) {
             log.warn("Reserva rechazada: Fecha de fin no es posterior a inicio. Usuario {}.", dto.getDocUsuario());
-            throw new IllegalArgumentException("La fecha de fin debe ser posterior al inicio.");
+            throw new SolicitudInvalidaException("La fecha de fin debe ser posterior al inicio.");
         }
         if (minutos < DURACION_MINIMA_MINUTOS) {
             log.warn("Reserva rechazada: duración de {} minutos, menor al mínimo. Usuario {}.", minutos, dto.getDocUsuario());
-            throw new IllegalArgumentException("La reserva debe durar al menos una hora.");
+            throw new SolicitudInvalidaException("La reserva debe durar al menos una hora.");
         }
 
         // Precio proporcional al tiempo reservado (tarifa por hora).

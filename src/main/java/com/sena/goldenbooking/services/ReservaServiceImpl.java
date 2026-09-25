@@ -5,6 +5,7 @@ import java.util.List;
 
 import org.springframework.stereotype.Service;
 
+import com.sena.goldenbooking.exception.SolicitudInvalidaException;
 import com.sena.goldenbooking.dtos.ReservaDto;
 import com.sena.goldenbooking.exception.AccesoDenegadoException;
 import com.sena.goldenbooking.exception.ConflictoDeNegocioException;
@@ -52,11 +53,11 @@ public class ReservaServiceImpl implements ReservaService {
     public ReservaDto crearReserva(ReservaDto dto) {
         // Validación de campos obligatorios en el DTO
         if (dto.getDocUsuario() == null || dto.getDocUsuario().isBlank()) {
-            throw new IllegalArgumentException("El documento del usuario es obligatorio.");
+            throw new SolicitudInvalidaException("El documento del usuario es obligatorio.");
         }
         // Validación adicional para el tipo de reserva
         if (dto.getTp() == null) {
-            throw new IllegalArgumentException("El tipo de reserva es obligatorio.");
+            throw new SolicitudInvalidaException("El tipo de reserva es obligatorio.");
         }
 
         // Antes solo se validaban documento y tipo: fechas y precio se
@@ -64,16 +65,16 @@ public class ReservaServiceImpl implements ReservaService {
         // antes que inicio, precio negativo...). Este endpoint ahora es solo
         // para ADMIN (ver ReservaController.crear), pero igual se valida.
         if (dto.getFInicio() == null || dto.getFFin() == null) {
-            throw new IllegalArgumentException("Las fechas de inicio y fin son obligatorias.");
+            throw new SolicitudInvalidaException("Las fechas de inicio y fin son obligatorias.");
         }
         if (!dto.getFFin().isAfter(dto.getFInicio())) {
-            throw new IllegalArgumentException("La fecha de fin debe ser posterior al inicio.");
+            throw new SolicitudInvalidaException("La fecha de fin debe ser posterior al inicio.");
         }
         if (dto.getFInicio().toLocalDate().isBefore(ZonaHoraria.ahora().toLocalDate())) {
-            throw new IllegalArgumentException("La fecha de inicio no puede estar en el pasado.");
+            throw new SolicitudInvalidaException("La fecha de inicio no puede estar en el pasado.");
         }
         if (dto.getPTotal() != null && dto.getPTotal() < 0) {
-            throw new IllegalArgumentException("El precio no puede ser negativo.");
+            throw new SolicitudInvalidaException("El precio no puede ser negativo.");
         }
 
 
