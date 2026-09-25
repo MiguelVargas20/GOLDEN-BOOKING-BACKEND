@@ -51,7 +51,7 @@
         <appender-ref ref="ERROR_FILE" /> <appender-ref ref="CONSOLE" />
     </logger>
     
-    <logger name="com.sena.goldenbooking.controllers.AuthController" level="INFO" additivity="false">
+    <logger name="com.sena.goldenbooking.auth.controller.AuthController" level="INFO" additivity="false">
         <appender-ref ref="SECURITY_FILE" />
         <appender-ref ref="ERROR_FILE" />
         <appender-ref ref="CONSOLE" />

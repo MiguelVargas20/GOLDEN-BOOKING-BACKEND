@@ -18,13 +18,13 @@ import org.springframework.mock.web.MockHttpServletResponse;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.test.util.ReflectionTestUtils;
 
-import com.sena.goldenbooking.models.EstadoUsuario;
-import com.sena.goldenbooking.models.Rol;
-import com.sena.goldenbooking.models.Usuario;
-import com.sena.goldenbooking.models.UsuarioAuth;
-import com.sena.goldenbooking.repositories.TokenInvalidadoRepository;
-import com.sena.goldenbooking.repositories.UsuarioAuthRepository;
-import com.sena.goldenbooking.repositories.UsuarioRepository;
+import com.sena.goldenbooking.auth.repository.TokenInvalidadoRepository;
+import com.sena.goldenbooking.usuarios.model.EstadoUsuario;
+import com.sena.goldenbooking.usuarios.model.Rol;
+import com.sena.goldenbooking.usuarios.model.Usuario;
+import com.sena.goldenbooking.usuarios.model.UsuarioAuth;
+import com.sena.goldenbooking.usuarios.repository.UsuarioAuthRepository;
+import com.sena.goldenbooking.usuarios.repository.UsuarioRepository;
 
 /** Pérdida de acceso inmediata: el estado y los roles se leen de la BD en cada petición. */
 class JwtFilterTest {

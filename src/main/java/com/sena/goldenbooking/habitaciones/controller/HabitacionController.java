@@ -1,0 +1,99 @@
+package com.sena.goldenbooking.habitaciones.controller;
+
+import java.util.List;
+import java.util.Map;
+
+import org.springframework.data.domain.Pageable;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.*;
+
+import com.sena.goldenbooking.compartido.web.Paginacion;
+import com.sena.goldenbooking.habitaciones.dto.HabitacionDto;
+import com.sena.goldenbooking.habitaciones.model.EstadoHabitacion;
+import com.sena.goldenbooking.habitaciones.service.HabitacionService;
+import io.swagger.v3.oas.annotations.tags.Tag;
+
+@Tag(name = "Habitaciones", description = "Gestión de habitaciones del hotel.")
+@RestController
+@RequestMapping("/api/habitaciones")
+
+public class HabitacionController {
+
+    private final HabitacionService service;
+
+    public HabitacionController(HabitacionService service) {
+        this.service = service;
+    }
+
+    // POST /api/habitaciones
+    @PostMapping
+    public ResponseEntity<HabitacionDto> crear(@RequestBody HabitacionDto dto) {
+        return ResponseEntity.status(HttpStatus.CREATED).body(service.crear(dto));
+    }
+
+    // GET /api/habitaciones
+    // Listar todas las habitaciones con paginación
+    @GetMapping
+    public ResponseEntity<Map<String, Object>> listarTodas(
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "10") int size) {
+
+        Pageable pageable = Paginacion.de(page, size);
+        var pagina = service.listarTodasPaginadas(pageable);
+
+        return ResponseEntity.ok(Map.of(
+            "contenido",      pagina.getContent(),
+            "paginaActual",   pagina.getNumber(),
+            "totalPaginas",   pagina.getTotalPages(),
+            "totalElementos", pagina.getTotalElements()
+        ));
+    }
+
+    // GET /api/habitaciones/disponibles
+    @GetMapping("/disponibles")
+    public ResponseEntity<List<HabitacionDto>> listarDisponibles() {
+        return ResponseEntity.ok(service.listarPorEstado(EstadoHabitacion.DISPONIBLE));
+    }
+
+    // GET /api/habitaciones/estado/{estado}
+    @GetMapping("/estado/{estado}")
+    public ResponseEntity<List<HabitacionDto>> listarPorEstado(@PathVariable EstadoHabitacion estado) {
+        return ResponseEntity.ok(service.listarPorEstado(estado));
+    }
+
+    // GET /api/habitaciones/tipo/{idTipo}
+    @GetMapping("/tipo/{idTipo}")
+    public ResponseEntity<List<HabitacionDto>> listarPorTipo(@PathVariable String idTipo) {
+        return ResponseEntity.ok(service.listarPorTipo(idTipo));
+    }
+
+    // GET /api/habitaciones/{id}
+    @GetMapping("/{id}")
+    public ResponseEntity<HabitacionDto> obtenerPorId(@PathVariable String id) {
+        return ResponseEntity.ok(service.obtenerPorId(id));
+    }
+
+    // PUT /api/habitaciones/{id}
+    @PutMapping("/{id}")
+    public ResponseEntity<HabitacionDto> actualizar(
+            @PathVariable String id,
+            @RequestBody HabitacionDto dto) {
+        return ResponseEntity.ok(service.actualizar(id, dto));
+    }
+
+    // PATCH /api/habitaciones/{id}/estado
+    @PatchMapping("/{id}/estado")
+    public ResponseEntity<HabitacionDto> cambiarEstado(
+            @PathVariable String id,
+            @RequestParam EstadoHabitacion nuevoEstado) {
+        return ResponseEntity.ok(service.cambiarEstado(id, nuevoEstado));
+    }
+
+    // DELETE /api/habitaciones/{id}
+    @DeleteMapping("/{id}")
+    public ResponseEntity<Void> eliminar(@PathVariable String id) {
+        service.eliminar(id);
+        return ResponseEntity.noContent().build();
+    }
+}

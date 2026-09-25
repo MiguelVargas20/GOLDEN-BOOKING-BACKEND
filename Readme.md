@@ -1,9 +1,9 @@
 # Golden Booking — Backend
 
 ## Requisitos
-- Java 17+
+- Java 25 (lo exige el pom.xml)
 - Maven
-- MongoDB corriendo en localhost:27017
+- MongoDB (por defecto localhost:27017; configurable con `MONGODB_URI`). La base `goldenbooking` se crea sola.
 
 ## Configuración
 El archivo `application.properties` ya tiene la configuración por defecto.
@@ -40,3 +40,33 @@ Crear manualmente vía POST /api/usuarios/registro:
 }
 
 ```
+
+## Estructura del proyecto
+El código está organizado **por módulo** (igual que el frontend). Cada módulo
+tiene sus capas: `controller`, `dto`, `model`, `repository`, `service` y `mapper`.
+
+```
+com.sena.goldenbooking
+├── GoldenbookingApplication
+├── auth/                 Login, refresh token, logout, verificación y recuperación de contraseña, rate limit
+├── usuarios/             Registro, perfil y administración de usuarios
+├── habitaciones/         Habitaciones y tipos de habitación
+├── reservas/             Lo común a todas las reservas: Reserva "padre", estados, reglas de
+│                         aprobación/cancelación, plantillas de correo y recordatorios
+├── reservasdeportivas/   Espacios deportivos (con imágenes en GridFS) y sus reservas
+├── reservashoteleras/    Reservas de habitaciones
+├── mensajes/             Formulario de contacto y respuestas del admin
+├── security/             JWT, filtro de autenticación y reglas de acceso (SecurityConfig)
+└── compartido/           Lo que usan varios módulos:
+    ├── config/           MongoDB, Swagger, WebSocket, zona horaria
+    ├── email/            Envío de correos (asíncrono)
+    ├── exception/        Excepciones de negocio y GlobalExceptionHandler (formato único de errores)
+    └── web/              Paginación segura
+```
+
+Las pruebas unitarias están en `src/test` con la misma estructura. Para correrlas
+sin necesitar MongoDB:
+```bash
+./mvnw test -Dtest='*Test,!GoldenbookingApplicationTests'
+```
+
