@@ -38,6 +38,11 @@ public class ReservaDeporte {
     @Indexed
     private String docUsuario;  // ← agregar
 
+    /** Espacio deportivo reservado (referencia a EspacioDeportivo). */
+    @Indexed
+    private String espacioId;
+
+    /** Nombre del espacio al momento de reservar (copia para mostrar el historial). */
     private String tipoCancha;
 
     private String implementosAlquilados;

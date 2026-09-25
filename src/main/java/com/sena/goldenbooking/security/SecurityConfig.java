@@ -68,6 +68,10 @@ public class SecurityConfig {
                         
                     ).permitAll()
 
+                    // ── Imagen de un espacio deportivo: pública porque el navegador
+                    //    la carga con <img src>, que no envía el token ────────
+                    .requestMatchers(HttpMethod.GET, "/api/espacios-deportivos/*/imagen").permitAll()
+
                     // ── Documentación Swagger / OpenAPI ───────────────────
                     .requestMatchers(
                         "/swagger-ui.html",
@@ -105,6 +109,13 @@ public class SecurityConfig {
                     .requestMatchers(HttpMethod.POST,   "/api/tipohabitaciones/**").hasAuthority("ROL_ADMIN")
                     .requestMatchers(HttpMethod.PUT,    "/api/tipohabitaciones/**").hasAuthority("ROL_ADMIN")
                     .requestMatchers(HttpMethod.DELETE, "/api/tipohabitaciones/**").hasAuthority("ROL_ADMIN")
+
+                    // ── Espacios deportivos: lectura ADMIN o CLIENTE, escritura solo ADMIN ──
+                    .requestMatchers(HttpMethod.GET,    "/api/espacios-deportivos/**").hasAnyAuthority("ROL_ADMIN", "ROL_CLIENTE")
+                    .requestMatchers(HttpMethod.POST,   "/api/espacios-deportivos/**").hasAuthority("ROL_ADMIN")
+                    .requestMatchers(HttpMethod.PUT,    "/api/espacios-deportivos/**").hasAuthority("ROL_ADMIN")
+                    .requestMatchers(HttpMethod.PATCH,  "/api/espacios-deportivos/**").hasAuthority("ROL_ADMIN")
+                    .requestMatchers(HttpMethod.DELETE, "/api/espacios-deportivos/**").hasAuthority("ROL_ADMIN")
 
                     // ── Solo ADMIN — Eliminar reservas ────────────────────
                     .requestMatchers(HttpMethod.DELETE, "/api/reservas/**").hasAuthority("ROL_ADMIN")

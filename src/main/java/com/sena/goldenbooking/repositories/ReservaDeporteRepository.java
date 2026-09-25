@@ -57,5 +57,11 @@ public interface ReservaDeporteRepository extends MongoRepository<ReservaDeporte
     // qué horarios ya están ocupados antes de intentar reservar (fix hallazgo #5).
     List<ReservaDeporte> findByEstadoNot(EstadoReserva estado);
 
+    /** ¿El espacio tiene reservas vigentes (no canceladas y que aún no terminan)? Se usa antes de eliminarlo. */
+    boolean existsByEspacioIdAndEstadoNotAndFechaFinReservaAfter(String espacioId, EstadoReserva estado, LocalDateTime fecha);
+
+    /** ¿El espacio tiene alguna reserva en su historial? */
+    boolean existsByEspacioId(String espacioId);
+
 }
 

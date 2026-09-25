@@ -4,6 +4,7 @@ import com.mongodb.client.MongoClient;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.CommandLineRunner;
+import org.springframework.core.annotation.Order;
 import org.springframework.stereotype.Component;
 
 import java.util.ArrayList;
@@ -13,6 +14,7 @@ import java.util.List;
 
 @Slf4j
 @Component
+@Order(1) // antes que los inicializadores de datos (EspaciosDeportivosSeeder)
 public class MongoValidatorConfig implements CommandLineRunner {
 
     private final MongoClient mongoClient;

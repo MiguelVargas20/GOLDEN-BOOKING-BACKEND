@@ -17,6 +17,7 @@ import org.springframework.web.bind.ServletRequestBindingException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
+import org.springframework.web.multipart.MaxUploadSizeExceededException;
 import org.springframework.web.servlet.resource.NoResourceFoundException;
 
 import jakarta.servlet.http.HttpServletRequest;
@@ -190,6 +191,14 @@ public class GlobalExceptionHandler {
         log.warn("Registro duplicado en {}: {}", request.getRequestURI(), ex.getMostSpecificCause().getMessage());
         return respuesta(HttpStatus.CONFLICT, "DATO_DUPLICADO",
                 "No fue posible guardar la información porque algunos datos ya están en uso. Verifica e intenta de nuevo.", request);
+    }
+
+    /** Archivo más grande que spring.servlet.multipart.max-file-size (imágenes de espacios). */
+    @ExceptionHandler(MaxUploadSizeExceededException.class)
+    public ResponseEntity<Map<String, Object>> archivoMuyGrande(MaxUploadSizeExceededException ex, HttpServletRequest request) {
+        log.warn("Archivo demasiado grande en {}", request.getRequestURI());
+        return respuesta(HttpStatus.CONTENT_TOO_LARGE, "ARCHIVO_MUY_GRANDE",
+                "El archivo es demasiado grande. El tamaño máximo es 5 MB.", request);
     }
 
     // ── 5xx: fallos internos ───────────────────────────────────────────────
