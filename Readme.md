@@ -12,6 +12,7 @@ Para producción configura estas variables de entorno:
 - `CORS_ALLOWED_ORIGINS` — orígenes del frontend separados por coma (ej: `https://goldenbooking.vercel.app`). Se usa para CORS y para el WebSocket.
 - `COOKIE_SAME_SITE` — SameSite de la cookie del refresh token (por defecto `None`, necesario con front y back en dominios distintos). **Requiere que el backend se sirva por HTTPS.**
 - `APP_ZONA_HORARIA` — zona horaria del negocio (por defecto `America/Bogota`). El servidor puede correr en UTC; esta zona se usa para las reglas de cancelación, recordatorios y el `.ics`.
+- `APP_RESERVAS_CIERRE_MS` — cada cuánto corre el cierre automático de reservas (por defecto `1800000` = 30 min): finaliza las confirmadas que ya terminaron y vence las pendientes que nadie aprobó a tiempo (el cliente recibe un correo).
 
 ## Correr el proyecto
 ```bash

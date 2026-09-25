@@ -39,6 +39,9 @@ public interface ReservaDeporteRepository extends MongoRepository<ReservaDeporte
     // Reservas CONFIRMADAS cuyo horario ya terminó — usadas por el job que las cierra como FINALIZADA
     List<ReservaDeporte> findByEstadoAndFechaFinReservaBefore(EstadoReserva estado, LocalDateTime fecha);
 
+    // PENDIENTES cuyo horario ya empezó sin que nadie las aprobara — el job las vence
+    List<ReservaDeporte> findByEstadoAndFechaReservaBefore(EstadoReserva estado, LocalDateTime fecha);
+
     // Todas las reservas activas (no canceladas), sin importar la cancha — usada por
     // GET /ocupadas para que CUALQUIER cliente autenticado (no solo el admin) sepa
     // qué horarios ya están ocupados antes de intentar reservar (fix hallazgo #5).

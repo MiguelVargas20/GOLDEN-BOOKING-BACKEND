@@ -41,6 +41,9 @@ public interface ReservaHotelRepository extends MongoRepository<ReservaHotel, St
     // Reservas CONFIRMADAS cuyo check-out ya pasó — usadas por el job que las cierra como FINALIZADA
     List<ReservaHotel> findByEstadoAndFechaCheckOutBefore(EstadoReserva estado, LocalDateTime fecha);
 
+    // PENDIENTES cuyo día de check-in ya pasó sin aprobación — el job las vence
+    List<ReservaHotel> findByEstadoAndFechaCheckInBefore(EstadoReserva estado, LocalDateTime fecha);
+
     /** Listado del admin filtrado por estado. */
     Page<ReservaHotel> findByEstado(EstadoReserva estado, Pageable pageable);
 

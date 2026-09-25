@@ -55,6 +55,15 @@ public final class PlantillasCorreoReserva {
         return tarjeta("#e53e3e", "Reserva cancelada", intro, detalles, motivo);
     }
 
+    /** La reserva seguía pendiente cuando llegó su fecha y se canceló sola. */
+    public static String reservaVencida(String nombreCliente, Map<String, String> detalles, String motivo) {
+        return tarjeta("#718096", "Tu solicitud de reserva venció",
+                "Hola " + escapar(nombreCliente) + ", tu solicitud no alcanzó a ser aprobada antes de la fecha reservada, "
+                        + "así que la cerramos automáticamente. No se realizó ningún cobro. Si aún te interesa, "
+                        + "puedes hacer una nueva reserva desde la app.",
+                detalles, motivo);
+    }
+
     private static String tarjeta(String color, String titulo, String intro, Map<String, String> detalles, String motivo) {
         StringBuilder filas = new StringBuilder();
         detalles.forEach((etiqueta, valor) -> filas.append("""
