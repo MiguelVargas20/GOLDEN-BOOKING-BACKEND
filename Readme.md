@@ -71,3 +71,6 @@ sin necesitar MongoDB:
 ./mvnw test -Dtest='*Test,!GoldenbookingApplicationTests'
 ```
 
+## Respaldos de la base de datos
+
+Ver [`scripts/README-respaldos.md`](scripts/README-respaldos.md): script de respaldo diario (`scripts/backup-mongo.sh`), cómo programarlo con cron y cómo restaurar.
