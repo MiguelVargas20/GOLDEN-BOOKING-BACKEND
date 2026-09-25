@@ -45,3 +45,6 @@ build/
 *.jar
 application-local.properties
 
+
+# Paquetes descargados por error en la raíz
+*.whl
