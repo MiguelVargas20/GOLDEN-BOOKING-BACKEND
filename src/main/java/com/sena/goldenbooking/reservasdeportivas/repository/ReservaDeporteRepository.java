@@ -70,5 +70,12 @@ public interface ReservaDeporteRepository extends MongoRepository<ReservaDeporte
     /** ¿El espacio tiene alguna reserva en su historial? */
     boolean existsByEspacioId(String espacioId);
 
-}
+    // ── Dashboard del administrador ──────────────────────────────────────
 
+    /** Reservas no canceladas que empiezan en [desde, hasta) (agenda del día / espacios más reservados). */
+    List<ReservaDeporte> findByFechaReservaGreaterThanEqualAndFechaReservaLessThanAndEstadoNot(
+            LocalDateTime desde, LocalDateTime hasta, EstadoReserva estado);
+
+    /** Pendientes de aprobación, la más próxima primero. */
+    List<ReservaDeporte> findByEstadoOrderByFechaReservaAsc(EstadoReserva estado, Pageable pageable);
+}

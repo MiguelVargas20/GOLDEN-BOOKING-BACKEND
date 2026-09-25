@@ -1,6 +1,7 @@
 package com.sena.goldenbooking.reservashoteleras.repository;
 
 import java.time.LocalDateTime;
+import java.util.Collection;
 import java.util.List;
 
 import org.springframework.data.domain.Page;
@@ -45,4 +46,13 @@ public interface ReservaHotelRepository extends MongoRepository<ReservaHotel, St
 
     /** Para el resumen del panel (cuántas pendientes, confirmadas...). */
     long countByEstado(EstadoReserva estado);
+
+    // ── Dashboard del administrador ──────────────────────────────────────
+
+    /** Reservas en alguno de los estados dados cuya estadía toca el rango [desde, hasta). */
+    List<ReservaHotel> findByFechaCheckInLessThanAndFechaCheckOutGreaterThanEqualAndEstadoIn(
+            LocalDateTime hasta, LocalDateTime desde, Collection<EstadoReserva> estados);
+
+    /** Pendientes de aprobación, la más próxima primero. */
+    List<ReservaHotel> findByEstadoOrderByFechaCheckInAsc(EstadoReserva estado, Pageable pageable);
 }

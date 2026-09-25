@@ -110,6 +110,9 @@ public class SecurityConfig {
                     .requestMatchers(HttpMethod.PUT,    "/api/tipohabitaciones/**").hasAuthority("ROL_ADMIN")
                     .requestMatchers(HttpMethod.DELETE, "/api/tipohabitaciones/**").hasAuthority("ROL_ADMIN")
 
+                    // ── Dashboard del administrador ──────────────────────
+                    .requestMatchers("/api/dashboard/**").hasAuthority("ROL_ADMIN")
+
                     // ── Espacios deportivos: lectura ADMIN o CLIENTE, escritura solo ADMIN ──
                     .requestMatchers(HttpMethod.GET,    "/api/espacios-deportivos/**").hasAnyAuthority("ROL_ADMIN", "ROL_CLIENTE")
                     .requestMatchers(HttpMethod.POST,   "/api/espacios-deportivos/**").hasAuthority("ROL_ADMIN")
