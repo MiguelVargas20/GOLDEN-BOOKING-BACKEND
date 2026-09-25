@@ -1,54 +1,55 @@
 package com.sena.goldenbooking.config;
 
-import com.mongodb.client.MongoClient;
-import lombok.extern.slf4j.Slf4j;
+import org.bson.Document;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.CommandLineRunner;
 import org.springframework.core.annotation.Order;
 import org.springframework.stereotype.Component;
 
-import java.util.ArrayList;
-import java.util.List;
+import com.mongodb.client.MongoClient;
 
-// Esta clase se ejecutará al iniciar la aplicación para verificar que la base de datos MongoDB esté accesible y que la base de datos 'goldenbooking' exista. Si no se encuentra, se lanzará una excepción para evitar que la aplicación continúe con errores posteriores.
+import lombok.extern.slf4j.Slf4j;
 
+/**
+ * Verifica al arrancar que MongoDB responde, antes de que los inicializadores
+ * de datos (EspaciosDeportivosSeeder, AdminInicialSeeder) intenten usarlo.
+ *
+ * Antes el arranque FALLABA si la base 'goldenbooking' aún no existía. En un
+ * Mongo nuevo (local o un servidor recién instalado) eso pasa siempre, aunque
+ * Mongo crea la base automáticamente al guardar el primer dato: obligaba a
+ * crearla a mano en Compass. Ahora solo se exige que el servidor responda; si
+ * la base no existe se avisa y se crea sola.
+ */
 @Slf4j
 @Component
-@Order(1) // antes que los inicializadores de datos (EspaciosDeportivosSeeder)
+@Order(1) // antes que los inicializadores de datos
 public class MongoValidatorConfig implements CommandLineRunner {
 
     private final MongoClient mongoClient;
 
-    // Esto lee el nombre de la DB directamente de tu application.properties o .yml
     @Value("${spring.mongodb.database}")
     private String databaseName;
 
-    // Inyectamos el MongoClient para poder interactuar con el servidor de MongoDB
     public MongoValidatorConfig(MongoClient mongoClient) {
         this.mongoClient = mongoClient;
     }
 
-
-    // Este método se ejecutará al iniciar la aplicación
     @Override
     public void run(String... args) {
-        log.info("--- Iniciando verificación de base de datos ---");
-
-        // 1. Obtenemos la lista de nombres de BD en el servidor
-        List<String> databases = mongoClient
-                .listDatabaseNames()
-                .into(new ArrayList<>());
-
-        // 2. Verificamos si existe nuestra DB 'goldenbooking'
-        if (!databases.contains(databaseName)) {
-            log.error("La base de datos '{}' no fue encontrada. Bases de datos detectadas: {}", databaseName, databases);
-
-            // Frenamos el arranque: sin la base de datos correcta, la app
-            // fallaría de forma impredecible más adelante en cada request.
-            throw new IllegalStateException("Fallo en el arranque: La base de datos '" + databaseName + "' es obligatoria.");
+        log.info("--- Verificando conexión con MongoDB ---");
+        try {
+            mongoClient.getDatabase(databaseName).runCommand(new Document("ping", 1));
+        } catch (Exception e) {
+            log.error("No se pudo conectar a MongoDB. Revisa que el servidor esté encendido y la variable MONGODB_URI. Detalle: {}",
+                    e.getMessage());
+            throw new IllegalStateException("Fallo en el arranque: MongoDB no responde.", e);
         }
 
-        // Si llegamos aquí, la conexión es exitosa y la base de datos existe
-        log.info("Conexión exitosa: base de datos '{}' verificada y lista.", databaseName);
+        boolean existe = mongoClient.listDatabaseNames().into(new java.util.ArrayList<>()).contains(databaseName);
+        if (existe) {
+            log.info("Conexión exitosa: base de datos '{}' lista.", databaseName);
+        } else {
+            log.warn("La base de datos '{}' aún no existe: MongoDB la creará al guardar el primer dato.", databaseName);
+        }
     }
 }
