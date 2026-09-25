@@ -4,7 +4,12 @@ import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.util.Arrays;
 import java.util.EnumSet;
+import java.util.Iterator;
 import java.util.List;
+
+import javax.imageio.ImageIO;
+import javax.imageio.ImageReader;
+import javax.imageio.stream.ImageInputStream;
 
 import org.bson.types.ObjectId;
 import org.springframework.data.domain.Sort;
@@ -36,6 +41,16 @@ public class EspacioDeportivoServiceImpl implements EspacioDeportivoService {
 
     /** Tamaño máximo de imagen (también limitado en spring.servlet.multipart.*). */
     static final long TAMANIO_MAXIMO_IMAGEN = 5L * 1024 * 1024;
+
+    /** Dimensiones mínimas: por debajo la imagen se ve pixelada en las tarjetas del catálogo. */
+    static final int ANCHO_MINIMO = 400;
+    static final int ALTO_MINIMO = 300;
+
+    /**
+     * Dimensiones máximas: una imagen muy comprimida puede pesar poco y ocupar
+     * gigas de memoria al abrirse ("bomba de descompresión").
+     */
+    static final int LADO_MAXIMO = 8000;
 
     private static final Sort ORDEN_CATALOGO = Sort.by("deporte").ascending().and(Sort.by("nombre").ascending());
 
@@ -180,6 +195,7 @@ public class EspacioDeportivoServiceImpl implements EspacioDeportivoService {
         if (tipo == null) {
             throw new SolicitudInvalidaException("Formato no permitido. Sube una imagen JPG, PNG o WEBP.");
         }
+        validarDimensiones(contenido, tipo);
 
         ObjectId nuevoId = gridFs.store(new ByteArrayInputStream(contenido),
                 "espacio-" + id, tipo);
@@ -238,6 +254,80 @@ public class EspacioDeportivoServiceImpl implements EspacioDeportivoService {
 
     private static Query porId(String imagenId) {
         return Query.query(Criteria.where("_id").is(new ObjectId(imagenId)));
+    }
+
+    /**
+     * Valida ancho y alto leyendo SOLO la cabecera del archivo (sin decodificar
+     * la imagen completa en memoria). Si la cabecera no se puede leer, el
+     * archivo está dañado o no es realmente una imagen.
+     */
+    private void validarDimensiones(byte[] contenido, String tipo) {
+        int[] dimensiones = leerDimensiones(contenido, tipo);
+        if (dimensiones == null) {
+            throw new SolicitudInvalidaException("La imagen está dañada o no se pudo leer. Intenta con otro archivo.");
+        }
+        int ancho = dimensiones[0];
+        int alto = dimensiones[1];
+        if (ancho < ANCHO_MINIMO || alto < ALTO_MINIMO) {
+            throw new SolicitudInvalidaException("La imagen es muy pequeña (" + ancho + "×" + alto
+                    + " px). El mínimo es " + ANCHO_MINIMO + "×" + ALTO_MINIMO + " px.");
+        }
+        if (ancho > LADO_MAXIMO || alto > LADO_MAXIMO) {
+            throw new SolicitudInvalidaException("La imagen es demasiado grande (" + ancho + "×" + alto
+                    + " px). El máximo es " + LADO_MAXIMO + " px por lado.");
+        }
+    }
+
+    /** {ancho, alto} de la imagen, o null si la cabecera no es válida. */
+    static int[] leerDimensiones(byte[] b, String tipo) {
+        if ("image/webp".equals(tipo)) {
+            return leerDimensionesWebp(b);
+        }
+        // JPG y PNG: ImageIO lee el tamaño desde la cabecera sin decodificar los píxeles
+        try (ImageInputStream entrada = ImageIO.createImageInputStream(new ByteArrayInputStream(b))) {
+            Iterator<ImageReader> lectores = ImageIO.getImageReaders(entrada);
+            if (!lectores.hasNext()) return null;
+            ImageReader lector = lectores.next();
+            try {
+                lector.setInput(entrada, true, true);
+                return new int[] { lector.getWidth(0), lector.getHeight(0) };
+            } finally {
+                lector.dispose();
+            }
+        } catch (IOException | RuntimeException e) {
+            return null;
+        }
+    }
+
+    /**
+     * Ancho y alto de un WEBP según su primer bloque (el JDK no trae lector de WEBP):
+     * VP8 (con pérdida), VP8L (sin pérdida) o VP8X (extendido, con transparencia/animación).
+     */
+    private static int[] leerDimensionesWebp(byte[] b) {
+        if (b.length < 30) return null;
+        String bloque = new String(b, 12, 4, java.nio.charset.StandardCharsets.US_ASCII);
+        switch (bloque) {
+            case "VP8 " -> {
+                // Firma de fotograma clave 9D 01 2A y luego ancho/alto de 14 bits
+                if ((b[23] & 0xFF) != 0x9D || (b[24] & 0xFF) != 0x01 || (b[25] & 0xFF) != 0x2A) return null;
+                int ancho = ((b[26] & 0xFF) | (b[27] & 0xFF) << 8) & 0x3FFF;
+                int alto = ((b[28] & 0xFF) | (b[29] & 0xFF) << 8) & 0x3FFF;
+                return new int[] { ancho, alto };
+            }
+            case "VP8L" -> {
+                if ((b[20] & 0xFF) != 0x2F) return null;
+                int bits = (b[21] & 0xFF) | (b[22] & 0xFF) << 8 | (b[23] & 0xFF) << 16 | (b[24] & 0xFF) << 24;
+                return new int[] { (bits & 0x3FFF) + 1, ((bits >> 14) & 0x3FFF) + 1 };
+            }
+            case "VP8X" -> {
+                int ancho = ((b[24] & 0xFF) | (b[25] & 0xFF) << 8 | (b[26] & 0xFF) << 16) + 1;
+                int alto = ((b[27] & 0xFF) | (b[28] & 0xFF) << 8 | (b[29] & 0xFF) << 16) + 1;
+                return new int[] { ancho, alto };
+            }
+            default -> {
+                return null;
+            }
+        }
     }
 
     /** Devuelve el MIME type según la "firma" (magic bytes) del archivo, o null si no es JPG/PNG/WEBP. */
