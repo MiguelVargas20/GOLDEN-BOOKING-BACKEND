@@ -29,6 +29,7 @@ import com.sena.goldenbooking.reservas.model.Reserva;
 import com.sena.goldenbooking.reservas.model.TipoReserva;
 import com.sena.goldenbooking.reservas.repository.ReservaRepository;
 import com.sena.goldenbooking.reservas.service.PlantillasCorreoReserva;
+import com.sena.goldenbooking.reservas.service.AvisosAdminService;
 import com.sena.goldenbooking.reservas.service.ReglasEstadoReserva;
 import com.sena.goldenbooking.reservasdeportivas.dto.RangoOcupadoDeporteDto;
 import com.sena.goldenbooking.reservasdeportivas.dto.ReservaDeporteDto;
@@ -61,6 +62,7 @@ public class ReservaDeporteServiceImpl implements ReservaDeporteService {
     private final EmailService emailService;
     private final UsuarioService usuarioService;
     private final EspacioDeportivoService espacioService;
+    private final AvisosAdminService avisosAdmin;
 
     // ── Lock por espacio (evita dos reservas simultáneas del mismo horario) ──
     // Entre "consultar solapamientos" y "guardar", ningún otro hilo puede
@@ -75,7 +77,8 @@ public class ReservaDeporteServiceImpl implements ReservaDeporteService {
             SimpMessagingTemplate messagingTemplate,
             EmailService emailService,
             UsuarioService usuarioService,
-            EspacioDeportivoService espacioService) {
+            EspacioDeportivoService espacioService,
+            AvisosAdminService avisosAdmin) {
         this.reservaDeporteRepo = reservaDeporteRepo;
         this.reservaRepo = reservaRepo;
         this.mapper = mapper;
@@ -83,6 +86,7 @@ public class ReservaDeporteServiceImpl implements ReservaDeporteService {
         this.emailService = emailService;
         this.usuarioService = usuarioService;
         this.espacioService = espacioService;
+        this.avisosAdmin = avisosAdmin;
     }
 
     // ═══════════════════════════════════════════════════════════════════════
@@ -161,6 +165,10 @@ public class ReservaDeporteServiceImpl implements ReservaDeporteService {
 
         notificarWebSocket(guardada, "OCUPADO", "El espacio " + espacio.getNombre() + " acaba de ser reservado.");
         enviarCorreo(guardada, guardada.getEstado() == EstadoReserva.CONFIRMADA ? Correo.CONFIRMADA : Correo.SOLICITUD_RECIBIDA, null);
+        if (!registradaPorAdmin) {
+            avisosAdmin.nuevaReserva("DEPORTE", guardada.getIdReservaDeporte(), guardada.getDocUsuario(),
+                    guardada.getTipoCancha(), guardada.getFechaReserva(), guardada.getFechaFinReserva());
+        }
 
         log.info("Reserva deportiva creada ({}{}). ID: {}", guardada.getEstado(),
                 registradaPorAdmin ? ", registrada por el administrador" : "", guardada.getIdReservaDeporte());
@@ -320,6 +328,10 @@ public class ReservaDeporteServiceImpl implements ReservaDeporteService {
 
         notificarWebSocket(guardada, "DISPONIBLE", "El espacio " + rd.getTipoCancha() + " quedó disponible.");
         enviarCorreo(guardada, Correo.CANCELADA, motivoLimpio);
+        if (!esAdmin) {
+            avisosAdmin.reservaCanceladaPorCliente("DEPORTE", id, guardada.getDocUsuario(),
+                    guardada.getTipoCancha(), guardada.getFechaReserva(), guardada.getFechaFinReserva());
+        }
 
         log.info("Reserva deportiva {} CANCELADA por {}.", id, guardada.getCanceladaPor());
         return mapper.toDto(guardada);

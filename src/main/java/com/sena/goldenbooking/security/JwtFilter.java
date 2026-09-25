@@ -97,8 +97,31 @@ public class JwtFilter extends OncePerRequestFilter {
      * @return null si se autenticó; si no, el motivo (ver constantes MOTIVO_*).
      */
     private String autenticar(String token, HttpServletRequest request) {
-        String ip = request.getRemoteAddr();
-        String uri = request.getRequestURI();
+        ResultadoToken resultado = validarToken(token, request.getRemoteAddr(), request.getRequestURI());
+        if (resultado.autenticacion() != null) {
+            SecurityContextHolder.getContext().setAuthentication(resultado.autenticacion());
+        }
+        return resultado.motivo();
+    }
+
+    /**
+     * Resultado de validar un JWT: la autenticación (si es válido) o el motivo
+     * del rechazo (una de las constantes MOTIVO_*).
+     */
+    public record ResultadoToken(UsernamePasswordAuthenticationToken autenticacion, String motivo) {
+        static ResultadoToken rechazado(String motivo) { return new ResultadoToken(null, motivo); }
+    }
+
+    /**
+     * Valida un JWT con las mismas reglas para HTTP y para el WebSocket:
+     * firma y expiración, lista negra (logout), usuario existente y ACTIVO,
+     * y roles leídos de la base de datos.
+     *
+     * @param ip      solo para el log
+     * @param destino endpoint o destino, solo para el log
+     */
+    public ResultadoToken validarToken(String token, String ip, String destino) {
+        String uri = destino;
         try {
             // 1. Firma y expiración: obtenerClaims lanza ExpiredJwtException si
             //    expiró o JwtException si fue alterado (se manejan abajo, así el
@@ -108,7 +131,7 @@ public class JwtFilter extends OncePerRequestFilter {
             // 2. Lista negra (logout)
             if (tokenInvalidadoRepo.existsById(token)) {
                 log.warn("Token en lista negra (sesión cerrada). IP: {} | Endpoint: {}", ip, uri);
-                return MOTIVO_SESION_EXPIRADA;
+                return ResultadoToken.rechazado(MOTIVO_SESION_EXPIRADA);
             }
 
             // 3. El usuario debe seguir existiendo y estar ACTIVO (consulta a la BD)
@@ -117,7 +140,7 @@ public class JwtFilter extends OncePerRequestFilter {
             Optional<Usuario> perfil = auth.flatMap(a -> usuarioRepo.findById(a.getId()));
             if (auth.isEmpty() || perfil.isEmpty() || perfil.get().getEstado() == EstadoUsuario.INACTIVO) {
                 log.warn("Token de usuario eliminado o inactivo: {}. IP: {} | Endpoint: {}", username, ip, uri);
-                return MOTIVO_CUENTA_INACTIVA;
+                return ResultadoToken.rechazado(MOTIVO_CUENTA_INACTIVA);
             }
 
             // 4. Roles desde la BD, no desde el token
@@ -125,20 +148,18 @@ public class JwtFilter extends OncePerRequestFilter {
                     .map(rol -> new SimpleGrantedAuthority(rol.name()))
                     .toList();
 
-            SecurityContextHolder.getContext().setAuthentication(
-                    new UsernamePasswordAuthenticationToken(username, null, authorities));
             log.debug("Usuario {} autenticado. IP: {} | Endpoint: {}", username, ip, uri);
-            return null;
+            return new ResultadoToken(new UsernamePasswordAuthenticationToken(username, null, authorities), null);
 
         } catch (ExpiredJwtException ex) {
             log.warn("JWT expirado. IP: {} | Endpoint: {}", ip, uri);
-            return MOTIVO_SESION_EXPIRADA;
+            return ResultadoToken.rechazado(MOTIVO_SESION_EXPIRADA);
         } catch (JwtException | IllegalArgumentException ex) {
             log.warn("Token JWT inválido o alterado. IP: {} | Endpoint: {}", ip, uri);
-            return MOTIVO_TOKEN_INVALIDO;
+            return ResultadoToken.rechazado(MOTIVO_TOKEN_INVALIDO);
         } catch (Exception ex) {
             log.error("Error inesperado procesando el JWT. IP: {} | Mensaje: {}", ip, ex.getMessage());
-            return MOTIVO_TOKEN_INVALIDO;
+            return ResultadoToken.rechazado(MOTIVO_TOKEN_INVALIDO);
         }
     }
 }

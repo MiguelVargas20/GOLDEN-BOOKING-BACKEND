@@ -30,6 +30,7 @@ import com.sena.goldenbooking.reservas.model.CanceladaPor;
 import com.sena.goldenbooking.reservas.model.EstadoReserva;
 import com.sena.goldenbooking.reservas.model.Reserva;
 import com.sena.goldenbooking.reservas.repository.ReservaRepository;
+import com.sena.goldenbooking.reservas.service.AvisosAdminService;
 import com.sena.goldenbooking.reservasdeportivas.dto.ReservaDeporteDto;
 import com.sena.goldenbooking.reservasdeportivas.mapper.ReservaDeporteMapperImpl;
 import com.sena.goldenbooking.reservasdeportivas.model.EspacioDeportivo;
@@ -51,6 +52,7 @@ class ReservaDeporteServiceImplTest {
     private EspacioDeportivoService espacioService;
     private UsuarioService usuarioService;
     private ReservaDeporteServiceImpl service;
+    private AvisosAdminService avisosAdmin;
 
     /** Mañana a las 10:00 (dentro del horario 06:00 - 22:00 del espacio). */
     private final LocalDateTime mananaDiez = ZonaHoraria.ahora().plusDays(1).with(LocalTime.of(10, 0));
@@ -61,6 +63,7 @@ class ReservaDeporteServiceImplTest {
         reservaRepo = mock(ReservaRepository.class);
         espacioService = mock(EspacioDeportivoService.class);
         usuarioService = mock(UsuarioService.class);
+        avisosAdmin = mock(AvisosAdminService.class);
         service = new ReservaDeporteServiceImpl(
                 reservaDeporteRepo,
                 reservaRepo,
@@ -68,7 +71,8 @@ class ReservaDeporteServiceImplTest {
                 mock(SimpMessagingTemplate.class),
                 mock(EmailService.class),
                 usuarioService,
-                espacioService);
+                espacioService,
+                avisosAdmin);
 
         when(espacioService.obtenerReservable("e1")).thenReturn(EspacioDeportivo.builder()
                 .id("e1").nombre("Cancha 1").tarifaHora(50000.0)
@@ -107,6 +111,9 @@ class ReservaDeporteServiceImplTest {
         assertEquals("e1", creada.getEspacioId());
         assertEquals(75000.0, creada.getPr()); // 1h30 a 50.000/h
         assertNotNull(creada.getFechaSolicitud());
+        // el admin recibe el aviso en vivo de la nueva solicitud
+        verify(avisosAdmin).nuevaReserva(org.mockito.ArgumentMatchers.eq("DEPORTE"), any(), org.mockito.ArgumentMatchers.eq("123"),
+                org.mockito.ArgumentMatchers.eq("Cancha 1"), any(), any());
     }
 
     @Test
@@ -153,6 +160,8 @@ class ReservaDeporteServiceImplTest {
         assertEquals(EstadoReserva.CONFIRMADA, creada.getEstado());
         assertEquals(true, creada.isRegistradaPorAdministrador());
         assertNotNull(creada.getFechaConfirmacion());
+        // la registró el propio admin: no hace falta avisarle
+        verify(avisosAdmin, never()).nuevaReserva(any(), any(), any(), any(), any(), any());
     }
 
     @Test

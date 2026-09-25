@@ -30,6 +30,7 @@ import com.sena.goldenbooking.reservas.model.EstadoReserva;
 import com.sena.goldenbooking.reservas.model.Reserva;
 import com.sena.goldenbooking.reservas.model.TipoReserva;
 import com.sena.goldenbooking.reservas.repository.ReservaRepository;
+import com.sena.goldenbooking.reservas.service.AvisosAdminService;
 import com.sena.goldenbooking.reservas.service.PlantillasCorreoReserva;
 import com.sena.goldenbooking.reservas.service.ReglasEstadoReserva;
 import com.sena.goldenbooking.reservashoteleras.dto.RangoOcupadoDto;
@@ -52,6 +53,7 @@ public class ReservaHotelServiceImpl implements ReservaHotelService {
     private final ReservaHotelMapper mapper;
     private final EmailService emailService;
     private final UsuarioService usuarioService;
+    private final AvisosAdminService avisosAdmin;
 
     // ── FIX RACE CONDITION ──────────────────────────────────────────
     // Un ReentrantLock por habitación (no uno global, para no bloquear
@@ -77,13 +79,15 @@ public ReservaHotelServiceImpl(
         HabitacionRepository habitacionRepo,
         ReservaHotelMapper mapper,
         EmailService emailService,           // ← nuevo
-        UsuarioService usuarioService) {     // ← nuevo
+        UsuarioService usuarioService,
+        AvisosAdminService avisosAdmin) {
     this.reservaHotelRepo = reservaHotelRepo;
     this.reservaRepo = reservaRepo;
     this.habitacionRepo = habitacionRepo;
     this.mapper = mapper;
     this.emailService = emailService;
     this.usuarioService = usuarioService;
+    this.avisosAdmin = avisosAdmin;
 }
     @Override
     public ReservaHotelDto crear(ReservaHotelDto dto, boolean registradaPorAdmin, boolean confirmarDeInmediato) {
@@ -191,6 +195,10 @@ public ReservaHotelServiceImpl(
         // envía al confirmarla). Si el admin la confirmó de una vez, solo se
         // envía la confirmación.
         enviarCorreo(guardada, guardada.getEstado() == EstadoReserva.CONFIRMADA ? Correo.CONFIRMADA : Correo.SOLICITUD_RECIBIDA, null);
+        if (!registradaPorAdmin) {
+            avisosAdmin.nuevaReserva("HOTEL", guardada.getIdHotelReserva(), guardada.getDocUsuario(),
+                    "Habitación " + numeroHabitacion(guardada), guardada.getFechaCheckIn(), guardada.getFechaCheckOut());
+        }
         log.info("Reserva hotel creada ({}{}). ID: {}, Usuario: {}", guardada.getEstado(),
                 registradaPorAdmin ? ", registrada por el administrador" : "", guardada.getIdHotelReserva(), dto.getDocUsuario());
         return mapper.toDto(guardada);
@@ -321,6 +329,10 @@ public ReservaHotelDto actualizar(String id, ReservaHotelDto dto, String docUsua
         // Al quedar CANCELADA deja de contar en findByIdHabitacionAndEstadoNot:
         // esas fechas quedan libres automáticamente.
         enviarCorreo(guardada, Correo.CANCELADA, motivoLimpio);
+        if (!esAdmin) {
+            avisosAdmin.reservaCanceladaPorCliente("HOTEL", id, guardada.getDocUsuario(),
+                    "Habitación " + numeroHabitacion(guardada), guardada.getFechaCheckIn(), guardada.getFechaCheckOut());
+        }
         log.info("Reserva hotel {} CANCELADA por {}.", id, guardada.getCanceladaPor());
         return mapper.toDto(guardada);
     }
@@ -397,5 +409,10 @@ public ReservaHotelDto actualizar(String id, ReservaHotelDto dto, String docUsua
             // El correo no debe impedir la operación (EmailService además es @Async)
             log.warn("No se pudo enviar el correo ({}) de la reserva hotel {}: {}", tipo, rh.getIdHotelReserva(), e.getMessage());
         }
+    }
+
+    /** Número de la habitación guardado en la reserva ("—" en reservas antiguas sin datos). */
+    private static String numeroHabitacion(ReservaHotel rh) {
+        return rh.getDatosH() != null && rh.getDatosH().getNumHab() != null ? rh.getDatosH().getNumHab() : "—";
     }
 }
