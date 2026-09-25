@@ -1,21 +1,23 @@
 package com.sena.goldenbooking.services;
 
-import com.sena.goldenbooking.exception.SolicitudInvalidaException;
-import com.sena.goldenbooking.config.ZonaHoraria;
-import org.springframework.web.util.HtmlUtils;
 import java.time.LocalDateTime;
 import java.time.temporal.ChronoUnit;
+import java.util.EnumMap;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
 
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.stereotype.Service;
 
+import com.sena.goldenbooking.config.ZonaHoraria;
 import com.sena.goldenbooking.dtos.RangoOcupadoDeporteDto;
 import com.sena.goldenbooking.dtos.ReservaDeporteDto;
 import com.sena.goldenbooking.dtos.ReservaDeporteEventDto;
@@ -23,7 +25,10 @@ import com.sena.goldenbooking.dtos.UsuarioDto;
 import com.sena.goldenbooking.exception.AccesoDenegadoException;
 import com.sena.goldenbooking.exception.ConflictoDeNegocioException;
 import com.sena.goldenbooking.exception.ReservaNoEncontradaException;
+import com.sena.goldenbooking.exception.SolicitudInvalidaException;
 import com.sena.goldenbooking.mapper.ReservaDeporteMapper;
+import com.sena.goldenbooking.models.CanceladaPor;
+import com.sena.goldenbooking.models.EspacioDeportivo;
 import com.sena.goldenbooking.models.EstadoReserva;
 import com.sena.goldenbooking.models.Reserva;
 import com.sena.goldenbooking.models.ReservaDeporte;
@@ -37,33 +42,27 @@ import lombok.extern.slf4j.Slf4j;
 @Service
 public class ReservaDeporteServiceImpl implements ReservaDeporteService {
 
+    // Duración mínima de una reserva deportiva
+    private static final long DURACION_MINIMA_MINUTOS = 60;
+
+    // El cliente puede cancelar hasta 24 h antes del inicio (el admin siempre puede)
+    private static final long HORAS_MINIMAS_CANCELACION = 24;
+
+    private static final String TOPICO_WEBSOCKET = "/topic/reservas-deporte";
+
     private final ReservaDeporteRepository reservaDeporteRepo;
     private final ReservaRepository reservaRepo;
     private final ReservaDeporteMapper mapper;
     private final SimpMessagingTemplate messagingTemplate;
     private final EmailService emailService;
     private final UsuarioService usuarioService;
+    private final EspacioDeportivoService espacioService;
 
-    // Tarifa por hora de reservas deportivas — configurable vía
-    // app.reservas.deporte.tarifa-hora (antes hardcodeada como 50000.0 en este método)
-    @Value("${app.reservas.deporte.tarifa-hora}")
-    private double tarifaHora;
-
-    // Duración mínima de una reserva deportiva (se mantiene el mínimo de 1h
-    // que antes existía de forma implícita por el truncado a horas).
-    private static final long DURACION_MINIMA_MINUTOS = 60;
-
-    // ── FIX RACE CONDITION (mismo patrón que ReservaHotelServiceImpl) ──
-    // Un lock por tipo de cancha: entre "consultar solapamientos" y
-    // "guardar", ningún otro hilo puede colarse a reservar la MISMA cancha.
-    // Limitación honesta: solo sincroniza dentro de esta instancia de la
-    // JVM — con más de una instancia del backend se necesitaría un lock
-    // distribuido (Mongo con índice único + TTL, o Redis/Redisson).
-    private final ConcurrentHashMap<String, Lock> locksPorCancha = new ConcurrentHashMap<>();
-
-    private Lock obtenerLock(String tipoCancha) {
-        return locksPorCancha.computeIfAbsent(tipoCancha, k -> new ReentrantLock());
-    }
+    // ── Lock por espacio (evita dos reservas simultáneas del mismo horario) ──
+    // Entre "consultar solapamientos" y "guardar", ningún otro hilo puede
+    // reservar el MISMO espacio. Sincroniza dentro de esta instancia de la JVM:
+    // con varias instancias del backend haría falta un lock distribuido.
+    private final ConcurrentHashMap<String, Lock> locksPorEspacio = new ConcurrentHashMap<>();
 
     public ReservaDeporteServiceImpl(
             ReservaDeporteRepository reservaDeporteRepo,
@@ -71,349 +70,318 @@ public class ReservaDeporteServiceImpl implements ReservaDeporteService {
             ReservaDeporteMapper mapper,
             SimpMessagingTemplate messagingTemplate,
             EmailService emailService,
-            UsuarioService usuarioService) {
+            UsuarioService usuarioService,
+            EspacioDeportivoService espacioService) {
         this.reservaDeporteRepo = reservaDeporteRepo;
         this.reservaRepo = reservaRepo;
         this.mapper = mapper;
         this.messagingTemplate = messagingTemplate;
         this.emailService = emailService;
         this.usuarioService = usuarioService;
+        this.espacioService = espacioService;
     }
+
+    // ═══════════════════════════════════════════════════════════════════════
+    // Crear
+    // ═══════════════════════════════════════════════════════════════════════
 
     @Override
     public ReservaDeporteDto crear(ReservaDeporteDto dto) {
-        log.info("Iniciando creación de reserva deportiva. Usuario: {}, Cancha: {}", dto.getDocUsuario(), dto.getTCancha());
+        log.info("Solicitud de reserva deportiva. Usuario: {}, Espacio: {}", dto.getDocUsuario(), dto.getEspacioId());
 
         if (dto.getDocUsuario() == null || dto.getDocUsuario().isBlank()) {
-            log.warn("Reserva rechazada: Documento de usuario nulo o vacío.");
             throw new SolicitudInvalidaException("El documento del usuario es obligatorio.");
         }
-
-        if (dto.getTCancha() == null || dto.getTCancha().isBlank()) {
-            log.warn("Reserva rechazada: Tipo de cancha nulo o vacío para usuario {}.", dto.getDocUsuario());
-            throw new SolicitudInvalidaException("El tipo de cancha es obligatorio.");
-        }
-
         if (dto.getFInicioReserva() == null || dto.getFFinReserva() == null) {
-            log.warn("Reserva rechazada: Fechas incompletas para usuario {}.", dto.getDocUsuario());
             throw new SolicitudInvalidaException("Las fechas de inicio y fin son obligatorias.");
         }
 
-        // No se puede reservar un horario que ya empezó (antes no se validaba).
-        if (dto.getFInicioReserva().isBefore(ZonaHoraria.ahora())) {
-            log.warn("Reserva rechazada: inicio en el pasado ({}). Usuario {}.", dto.getFInicioReserva(), dto.getDocUsuario());
-            throw new SolicitudInvalidaException("La fecha de inicio no puede estar en el pasado.");
-        }
+        // El espacio debe existir y estar ACTIVO. Antes se aceptaba cualquier
+        // nombre de cancha como texto libre ("Futbol" y "Fútbol" eran canchas
+        // distintas que se podían reservar a la misma hora).
+        EspacioDeportivo espacio = espacioService.obtenerReservable(dto.getEspacioId());
 
-        // Duración en MINUTOS: antes se usaba ChronoUnit.HOURS, que trunca
-        // (1h30 se cobraba como 1h) y rechazaba con un mensaje confuso
-        // ("fin debe ser posterior") cualquier reserva de menos de una hora.
-        long minutos = ChronoUnit.MINUTES.between(dto.getFInicioReserva(), dto.getFFinReserva());
-        if (minutos <= 0) {
-            log.warn("Reserva rechazada: Fecha de fin no es posterior a inicio. Usuario {}.", dto.getDocUsuario());
-            throw new SolicitudInvalidaException("La fecha de fin debe ser posterior al inicio.");
-        }
-        if (minutos < DURACION_MINIMA_MINUTOS) {
-            log.warn("Reserva rechazada: duración de {} minutos, menor al mínimo. Usuario {}.", minutos, dto.getDocUsuario());
-            throw new SolicitudInvalidaException("La reserva debe durar al menos una hora.");
-        }
+        LocalDateTime inicio = dto.getFInicioReserva();
+        LocalDateTime fin = dto.getFFinReserva();
+        validarFechas(inicio, fin, espacio);
 
-        // Precio proporcional al tiempo reservado (tarifa por hora).
-        double precioTotal = minutos / 60.0 * tarifaHora;
+        // Precio proporcional a los minutos, con la tarifa de ESTE espacio
+        long minutos = ChronoUnit.MINUTES.between(inicio, fin);
+        double precioTotal = Math.round(minutos / 60.0 * espacio.getTarifaHora());
 
-        // ── SECCIÓN CRÍTICA (fix race condition) ────────────────────────
-        // Igual que en ReservaHotelServiceImpl: sin este lock, dos requests
-        // simultáneos para la misma cancha y horario podían pasar ambos la
-        // validación de solapamiento antes de que cualquiera guardara.
-        Lock lock = obtenerLock(dto.getTCancha());
-        ReservaDeporte reservaDeporteGuardada;
+        Lock lock = locksPorEspacio.computeIfAbsent(espacio.getId(), k -> new ReentrantLock());
+        ReservaDeporte guardada;
         lock.lock();
         try {
-            List<ReservaDeporte> solapadas = reservaDeporteRepo.findSolapadas(
-                    dto.getTCancha(),
-                    dto.getFInicioReserva(),
-                    dto.getFFinReserva()
-            );
-            if (!solapadas.isEmpty()) {
-                log.warn("Conflicto de disponibilidad: La cancha {} ya está reservada en el horario solicitado por el usuario {}.", dto.getTCancha(), dto.getDocUsuario());
+            if (!reservaDeporteRepo.findSolapadasEnEspacio(espacio.getId(), inicio, fin).isEmpty()) {
+                log.warn("Horario ocupado en el espacio {} ({} - {})", espacio.getNombre(), inicio, fin);
                 throw new ConflictoDeNegocioException(
-                    "La cancha " + dto.getTCancha() + " ya está reservada en ese horario."
-                );
+                        "El espacio " + espacio.getNombre() + " ya está reservado en ese horario. Elige otro horario.");
             }
 
-            Reserva reserva = Reserva.builder()
+            LocalDateTime ahora = ZonaHoraria.ahora();
+            Reserva reserva = reservaRepo.save(Reserva.builder()
                     .documentoUsuario(dto.getDocUsuario())
                     .tipo(TipoReserva.DEPORTE)
                     .estado(EstadoReserva.PENDIENTE)
-                    .fechaReserva(LocalDateTime.now())
-                    .fechaInicio(dto.getFInicioReserva())
-                    .fechaFin(dto.getFFinReserva())
+                    .fechaReserva(ahora)
+                    .fechaInicio(inicio)
+                    .fechaFin(fin)
                     .precioTotal(precioTotal)
-                    .build();
-            Reserva reservaGuardada = reservaRepo.save(reserva);
+                    .build());
 
-            ReservaDeporte reservaDeporte = ReservaDeporte.builder()
-                    .idReserva(reservaGuardada.getId())
+            guardada = reservaDeporteRepo.save(ReservaDeporte.builder()
+                    .idReserva(reserva.getId())
                     .docUsuario(dto.getDocUsuario())
-                    .tipoCancha(dto.getTCancha())
+                    .espacioId(espacio.getId())
+                    .tipoCancha(espacio.getNombre())
                     .implementosAlquilados(dto.getImplAlquilados())
                     .requiereEntrenador(dto.isRqrEntrenador())
-                    .fechaReserva(dto.getFInicioReserva())
-                    .fechaFinReserva(dto.getFFinReserva())
+                    .fechaReserva(inicio)
+                    .fechaFinReserva(fin)
                     .precio(precioTotal)
                     .estado(EstadoReserva.PENDIENTE)
-                    .build();
-
-            reservaDeporteGuardada = reservaDeporteRepo.save(reservaDeporte);
+                    .fechaSolicitud(ahora)
+                    .build());
         } finally {
             lock.unlock();
         }
-        // ── FIN SECCIÓN CRÍTICA ──────────────────────────────────────────
 
-        try {
-            ReservaDeporteDto resultado = mapper.toDto(reservaDeporteGuardada);
+        notificarWebSocket(guardada, "OCUPADO", "El espacio " + espacio.getNombre() + " acaba de ser reservado.");
+        enviarCorreo(guardada, Correo.SOLICITUD_RECIBIDA, null);
 
-            // Notificar a todos los clientes conectados (WebSockets)
-            ReservaDeporteEventDto evento = ReservaDeporteEventDto.builder()
-                    .espacioId(dto.getTCancha())
-                    .fecha(dto.getFInicioReserva().toLocalDate().toString())
-                    .horaInicio(dto.getFInicioReserva().toString())
-                    .horaFin(dto.getFFinReserva().toString())
-                    .estado("OCUPADO")
-                    .mensaje("La cancha " + dto.getTCancha() + " acaba de ser reservada.")
-                    .build();
+        log.info("Reserva deportiva creada (PENDIENTE). ID: {}", guardada.getIdReservaDeporte());
+        return mapper.toDto(guardada);
+    }
 
-            messagingTemplate.convertAndSend("/topic/reservas-deporte", evento);
-
-            // Enviar confirmación por correo con archivo .ics
-            try {
-                UsuarioDto usuario = usuarioService.obtenerPorDocNum(dto.getDocUsuario());
-                String tituloEvento = "Reserva: " + dto.getTCancha();
-                String cuerpoHtml = """
-                        <div style="font-family: 'Poppins', sans-serif; max-width: 500px; margin: auto; padding: 30px; border-radius: 12px; border: 1px solid #eee;">
-                            <h2 style="color: #1a1a2e;">Reserva confirmada — <span style="color:#f68b1e;">Golden Booking</span></h2>
-                            <p style="color: #4a5568;">Hola %s, tu reserva quedó registrada con los siguientes detalles:</p>
-                            <ul style="color: #4a5568; line-height: 1.8;">
-                                <li><strong>Espacio:</strong> %s</li>
-                                <li><strong>Inicio:</strong> %s</li>
-                                <li><strong>Fin:</strong> %s</li>
-                                <li><strong>Total:</strong> $%,.0f</li>
-                            </ul>
-                            <p style="color: #a0aec0; font-size: 0.85rem;">Adjuntamos un archivo de calendario para que agregues este evento directamente a Google Calendar u Outlook.</p>
-                        </div>
-                        """.formatted(
-                        HtmlUtils.htmlEscape(usuario.getNombre()),
-                        HtmlUtils.htmlEscape(dto.getTCancha()),
-                        dto.getFInicioReserva(),
-                        dto.getFFinReserva(),
-                        precioTotal
-                );
-
-                emailService.enviarConfirmacionReserva(
-                        usuario.getEmail(),
-                        tituloEvento,
-                        cuerpoHtml,
-                        dto.getFInicioReserva(),
-                        dto.getFFinReserva()
-                );
-            } catch (Exception e) {
-                log.warn("No se pudo enviar la confirmación por correo para la reserva del usuario {}: {}",
-                        dto.getDocUsuario(), e.getMessage());
-            }
-
-            log.info("Reserva deportiva creada y notificada con éxito. ID: {}, Usuario: {}", resultado.getIdD(), dto.getDocUsuario());
-            return resultado;
-
-        } catch (Exception e) {
-            log.error("Error crítico al persistir o notificar la reserva deportiva para el usuario {}: {}", dto.getDocUsuario(), e.getMessage(), e);
-            throw e;
+    /** No en el pasado, mismo día, mínimo 1 hora y dentro del horario del espacio. */
+    private void validarFechas(LocalDateTime inicio, LocalDateTime fin, EspacioDeportivo espacio) {
+        if (inicio.isBefore(ZonaHoraria.ahora())) {
+            throw new SolicitudInvalidaException("La fecha de inicio no puede estar en el pasado.");
+        }
+        long minutos = ChronoUnit.MINUTES.between(inicio, fin);
+        if (minutos <= 0) {
+            throw new SolicitudInvalidaException("La fecha de fin debe ser posterior al inicio.");
+        }
+        if (minutos < DURACION_MINIMA_MINUTOS) {
+            throw new SolicitudInvalidaException("La reserva debe durar al menos una hora.");
+        }
+        if (!inicio.toLocalDate().equals(fin.toLocalDate())) {
+            throw new SolicitudInvalidaException("La reserva debe empezar y terminar el mismo día.");
+        }
+        if (espacio.getHoraApertura() != null && espacio.getHoraCierre() != null
+                && (inicio.toLocalTime().isBefore(espacio.getHoraApertura())
+                    || fin.toLocalTime().isAfter(espacio.getHoraCierre()))) {
+            throw new SolicitudInvalidaException("El horario de " + espacio.getNombre() + " es de "
+                    + espacio.getHoraApertura() + " a " + espacio.getHoraCierre() + ".");
         }
     }
 
+    // ═══════════════════════════════════════════════════════════════════════
+    // Consultas
+    // ═══════════════════════════════════════════════════════════════════════
+
     @Override
-    public List<ReservaDeporteDto> listarTodas() {
-        return mapper.toDtoList(reservaDeporteRepo.findAll());
+    public Page<ReservaDeporteDto> listarAdmin(EstadoReserva estado, Pageable pageable) {
+        // Más recientes primero (por fecha de la reserva)
+        Pageable ordenado = PageRequest.of(pageable.getPageNumber(), pageable.getPageSize(),
+                Sort.by("fechaReserva").descending());
+        Page<ReservaDeporte> pagina = estado == null
+                ? reservaDeporteRepo.findAll(ordenado)
+                : reservaDeporteRepo.findByEstado(estado, ordenado);
+
+        // Nombre y correo del cliente en UNA sola consulta para toda la página
+        Map<String, UsuarioDto> clientes = usuarioService.obtenerMapaPorDocNums(
+                pagina.getContent().stream().map(ReservaDeporte::getDocUsuario).distinct().toList());
+
+        return pagina.map(rd -> {
+            ReservaDeporteDto dto = mapper.toDto(rd);
+            UsuarioDto cliente = clientes.get(rd.getDocUsuario());
+            if (cliente != null) {
+                dto.setNombreCliente(cliente.getNombre() + " " + cliente.getApellido());
+                dto.setCorreoCliente(cliente.getEmail());
+            }
+            return dto;
+        });
+    }
+
+    @Override
+    public Map<EstadoReserva, Long> resumenPorEstado() {
+        Map<EstadoReserva, Long> resumen = new EnumMap<>(EstadoReserva.class);
+        for (EstadoReserva estado : EstadoReserva.values()) {
+            resumen.put(estado, reservaDeporteRepo.countByEstado(estado));
+        }
+        return resumen;
     }
 
     @Override
     public ReservaDeporteDto obtenerPorId(String id, String docUsuarioSolicitante, boolean esAdmin) {
-        ReservaDeporte rd = reservaDeporteRepo.findById(id)
-                .orElseThrow(() -> {
-                    log.warn("Consulta fallida: Reserva deportiva {} no encontrada.", id);
-                    return new ReservaNoEncontradaException("Reserva deporte no encontrada: " + id);
-                });
-
-        // Solo el dueño de la reserva o un ADMIN pueden consultarla (fix IDOR)
-        if (!esAdmin && !rd.getDocUsuario().equals(docUsuarioSolicitante)) {
-            log.warn("Intento de consulta no autorizado. Usuario {} intentó ver la reserva {} del usuario {}.",
-                    docUsuarioSolicitante, id, rd.getDocUsuario());
-            throw new AccesoDenegadoException("No tienes permiso para ver esta reserva.");
-        }
-
+        ReservaDeporte rd = buscar(id);
+        validarDuenoOAdmin(rd, docUsuarioSolicitante, esAdmin, "ver");
         return mapper.toDto(rd);
     }
 
     @Override
     public List<ReservaDeporteDto> obtenerPorReserva(String idReserva, String docUsuarioSolicitante, boolean esAdmin) {
         List<ReservaDeporte> resultado = reservaDeporteRepo.findByIdReserva(idReserva);
-
-        // fix IDOR: un CLIENTE solo debe ver los resultados que le pertenecen a él.
         if (!esAdmin) {
             resultado = resultado.stream()
-                    .filter(rd -> rd.getDocUsuario() != null && rd.getDocUsuario().equals(docUsuarioSolicitante))
+                    .filter(rd -> docUsuarioSolicitante != null && docUsuarioSolicitante.equals(rd.getDocUsuario()))
                     .toList();
         }
-
         return mapper.toDtoList(resultado);
     }
 
     @Override
-    public ReservaDeporteDto actualizar(String id, ReservaDeporteDto dto, String docUsuarioSolicitante, boolean esAdmin) {
-        log.info("Actualizando reserva deportiva ID: {}", id);
-        ReservaDeporte rd = reservaDeporteRepo.findById(id)
-                .orElseThrow(() -> {
-                    log.warn("Actualización fallida: Reserva deportiva {} no encontrada.", id);
-                    return new ReservaNoEncontradaException("Reserva deporte no encontrada: " + id);
-                });
-
-        // Solo el dueño de la reserva o un ADMIN pueden actualizarla (fix IDOR)
-        if (!esAdmin && !rd.getDocUsuario().equals(docUsuarioSolicitante)) {
-            log.warn("Intento de actualización no autorizado. Usuario {} intentó modificar la reserva {} del usuario {}.",
-                    docUsuarioSolicitante, id, rd.getDocUsuario());
-            throw new AccesoDenegadoException("No tienes permiso para modificar esta reserva.");
-        }
-
-        mapper.actualizarReservaDeporte(dto, rd);
-        ReservaDeporteDto resultado = mapper.toDto(reservaDeporteRepo.save(rd));
-        log.info("Reserva deportiva ID: {} actualizada con éxito", id);
-        return resultado;
-    }
-
-    @Override
-    public void cancelar(String id, String docUsuarioSolicitante, boolean esAdmin) {
-        log.info("Iniciando cancelación de reserva deportiva ID: {}", id);
-        ReservaDeporte rd = reservaDeporteRepo.findById(id)
-                .orElseThrow(() -> {
-                    log.warn("Cancelación fallida: Reserva deportiva {} no encontrada.", id);
-                    return new ReservaNoEncontradaException("Reserva deporte no encontrada: " + id);
-                });
-
-        // Solo el dueño de la reserva o un ADMIN pueden cancelarla
-        if (!esAdmin && !rd.getDocUsuario().equals(docUsuarioSolicitante)) {
-            log.warn("Intento de cancelación no autorizado. Usuario {} intentó cancelar la reserva {} del usuario {}.",
-                    docUsuarioSolicitante, id, rd.getDocUsuario());
-            throw new AccesoDenegadoException("No tienes permiso para cancelar esta reserva.");
-        }
-
-        Reserva reserva = reservaRepo.findById(rd.getIdReserva())
-                .orElseThrow(() -> {
-                    log.error("¡Inconsistencia! Reserva padre no encontrada para la reserva deportiva {}", id);
-                    return new ReservaNoEncontradaException("Reserva padre no encontrada.");
-                });
-
-        if (reserva.getEstado() == EstadoReserva.CANCELADA) {
-            log.warn("Intento de cancelar una reserva deportiva ya cancelada. ID: {}", id);
-            throw new ConflictoDeNegocioException("La reserva ya está cancelada.");
-        }
-
-        // ── Ventana mínima de cancelación (mismo patrón que ReservaHotelServiceImpl) ──
-        if (rd.getFechaReserva().isBefore(ZonaHoraria.ahora().plusHours(24)) && !esAdmin) {
-            throw new ConflictoDeNegocioException("No se puede cancelar con menos de 24h de anticipación.");
-        }
-
-        try {
-            reserva.setEstado(EstadoReserva.CANCELADA);
-            reservaRepo.save(reserva);
-
-            rd.setEstado(EstadoReserva.CANCELADA);
-            reservaDeporteRepo.save(rd);
-
-            // Aviso de cancelación por correo
-            try {
-                UsuarioDto usuario = usuarioService.obtenerPorDocNum(rd.getDocUsuario());
-                String detalleHtml = """
-                        <ul style="color: #4a5568; line-height: 1.8;">
-                            <li><strong>Espacio:</strong> %s</li>
-                            <li><strong>Fecha:</strong> %s</li>
-                        </ul>
-                        """.formatted(HtmlUtils.htmlEscape(rd.getTipoCancha()), rd.getFechaReserva());
-
-                emailService.enviarAvisoCancelacion(
-                        usuario.getEmail(),
-                        "Reserva: " + rd.getTipoCancha(),
-                        detalleHtml
-                );
-            } catch (Exception e) {
-                log.warn("No se pudo enviar el aviso de cancelación para la reserva {}: {}", id, e.getMessage());
-            }
-
-            // Notificar cancelación a todos los clientes mediante WebSocket
-            ReservaDeporteEventDto evento = ReservaDeporteEventDto.builder()
-                    .espacioId(rd.getTipoCancha())
-                    .fecha(rd.getFechaReserva().toLocalDate().toString())
-                    .horaInicio(rd.getFechaReserva().toString())
-                    .horaFin(rd.getFechaFinReserva().toString())
-                    .estado("DISPONIBLE")
-                    .mensaje("La cancha " + rd.getTipoCancha() + " quedó disponible.")
-                    .build();
-
-            messagingTemplate.convertAndSend("/topic/reservas-deporte", evento);
-
-            log.info("Cancelación exitosa y notificada para la reserva deportiva ID: {}", id);
-        } catch (Exception e) {
-            log.error("Error crítico al cancelar o notificar la reserva deportiva ID {}: {}", id, e.getMessage(), e);
-            throw e;
-        }
-    }
-
-    @Override
-    public void confirmar(String id) {
-        log.info("Confirmando reserva deportiva ID: {}", id);
-        ReservaDeporte rd = reservaDeporteRepo.findById(id)
-                .orElseThrow(() -> new ReservaNoEncontradaException("Reserva deporte no encontrada: " + id));
-
-        Reserva reserva = reservaRepo.findById(rd.getIdReserva())
-                .orElseThrow(() -> new ReservaNoEncontradaException("Reserva padre no encontrada."));
-
-        if (reserva.getEstado() == EstadoReserva.CANCELADA) {
-            log.warn("Intento de confirmar una reserva deportiva cancelada: {}", id);
-            throw new ConflictoDeNegocioException("No se puede confirmar una reserva cancelada.");
-        }
-        if (reserva.getEstado() == EstadoReserva.CONFIRMADA) {
-            log.warn("Intento de confirmar una reserva deportiva ya confirmada: {}", id);
-            throw new ConflictoDeNegocioException("Ya está confirmada.");
-        }
-
-        reserva.setEstado(EstadoReserva.CONFIRMADA);
-        reservaRepo.save(reserva);
-
-        rd.setEstado(EstadoReserva.CONFIRMADA);
-        reservaDeporteRepo.save(rd);
-
-        log.info("Reserva deportiva ID: {} confirmada correctamente.", id);
-    }
-
-    @Override
     public List<ReservaDeporteDto> obtenerPorUsuario(String docUsuario) {
-        log.info("Listando reservas deportivas del usuario: {}", docUsuario);
-        return mapper.toDtoList(reservaDeporteRepo.findByDocUsuario(docUsuario));
-    }
-
-    @Override
-    public Page<ReservaDeporteDto> listarTodasPaginadas(Pageable pageable) {
-        log.info("Listado paginado de reservas deportivas. Página: {}", pageable.getPageNumber());
-        return reservaDeporteRepo.findAll(pageable).map(mapper::toDto);
+        return reservaDeporteRepo.findByDocUsuario(docUsuario).stream()
+                .sorted((a, b) -> b.getFechaReserva().compareTo(a.getFechaReserva()))
+                .map(mapper::toDto)
+                .toList();
     }
 
     @Override
     public List<RangoOcupadoDeporteDto> obtenerFechasOcupadas() {
-        return reservaDeporteRepo.findByEstadoNot(EstadoReserva.CANCELADA)
+        // Solo las que aún no terminan: antes devolvía TODO el historial, que
+        // crecía sin límite y el calendario del cliente descargaba completo.
+        return reservaDeporteRepo.findByEstadoNotAndFechaFinReservaAfter(EstadoReserva.CANCELADA, ZonaHoraria.ahora())
                 .stream()
                 .map(r -> RangoOcupadoDeporteDto.builder()
+                        .espacioId(r.getEspacioId())
                         .tipoCancha(r.getTipoCancha())
                         .inicio(r.getFechaReserva())
                         .fin(r.getFechaFinReserva())
                         .build())
                 .toList();
+    }
+
+    // ═══════════════════════════════════════════════════════════════════════
+    // Modificar estado
+    // ═══════════════════════════════════════════════════════════════════════
+
+    @Override
+    public ReservaDeporteDto actualizar(String id, ReservaDeporteDto dto, String docUsuarioSolicitante, boolean esAdmin) {
+        ReservaDeporte rd = buscar(id);
+        validarDuenoOAdmin(rd, docUsuarioSolicitante, esAdmin, "modificar");
+        if (rd.getEstado() == EstadoReserva.CANCELADA || rd.getEstado() == EstadoReserva.FINALIZADA) {
+            throw new ConflictoDeNegocioException("No se puede modificar una reserva cancelada o finalizada.");
+        }
+        // Solo extras (implementos, entrenador): fechas, espacio y precio no se
+        // cambian aquí porque no pasarían por la validación de disponibilidad.
+        mapper.actualizarReservaDeporte(dto, rd);
+        return mapper.toDto(reservaDeporteRepo.save(rd));
+    }
+
+    @Override
+    public ReservaDeporteDto confirmar(String id) {
+        ReservaDeporte rd = buscar(id);
+        ReglasEstadoReserva.validarConfirmable(rd.getEstado());
+
+        rd.setEstado(EstadoReserva.CONFIRMADA);
+        rd.setFechaConfirmacion(ZonaHoraria.ahora());
+        ReservaDeporte guardada = reservaDeporteRepo.save(rd);
+        sincronizarPadre(rd.getIdReserva(), EstadoReserva.CONFIRMADA);
+
+        enviarCorreo(guardada, Correo.CONFIRMADA, null);
+        log.info("Reserva deportiva {} CONFIRMADA por el administrador.", id);
+        return mapper.toDto(guardada);
+    }
+
+    @Override
+    public ReservaDeporteDto cancelar(String id, String docUsuarioSolicitante, boolean esAdmin, String motivo) {
+        ReservaDeporte rd = buscar(id);
+        validarDuenoOAdmin(rd, docUsuarioSolicitante, esAdmin, "cancelar");
+        ReglasEstadoReserva.validarCancelable(rd.getEstado());
+        String motivoLimpio = ReglasEstadoReserva.validarMotivo(motivo, esAdmin);
+
+        if (!esAdmin && rd.getFechaReserva().isBefore(ZonaHoraria.ahora().plusHours(HORAS_MINIMAS_CANCELACION))) {
+            throw new ConflictoDeNegocioException("No se puede cancelar con menos de 24 horas de anticipación.");
+        }
+
+        rd.setEstado(EstadoReserva.CANCELADA);
+        rd.setFechaCancelacion(ZonaHoraria.ahora());
+        rd.setCanceladaPor(esAdmin ? CanceladaPor.ADMINISTRADOR : CanceladaPor.CLIENTE);
+        rd.setMotivoCancelacion(motivoLimpio);
+        ReservaDeporte guardada = reservaDeporteRepo.save(rd);
+        sincronizarPadre(rd.getIdReserva(), EstadoReserva.CANCELADA);
+
+        notificarWebSocket(guardada, "DISPONIBLE", "El espacio " + rd.getTipoCancha() + " quedó disponible.");
+        enviarCorreo(guardada, Correo.CANCELADA, motivoLimpio);
+
+        log.info("Reserva deportiva {} CANCELADA por {}.", id, guardada.getCanceladaPor());
+        return mapper.toDto(guardada);
+    }
+
+    // ═══════════════════════════════════════════════════════════════════════
+    // Utilidades
+    // ═══════════════════════════════════════════════════════════════════════
+
+    private ReservaDeporte buscar(String id) {
+        return reservaDeporteRepo.findById(id)
+                .orElseThrow(() -> new ReservaNoEncontradaException("La reserva no existe."));
+    }
+
+    private void validarDuenoOAdmin(ReservaDeporte rd, String docUsuarioSolicitante, boolean esAdmin, String accion) {
+        if (!esAdmin && !rd.getDocUsuario().equals(docUsuarioSolicitante)) {
+            log.warn("Usuario {} intentó {} la reserva {} de otro usuario.", docUsuarioSolicitante, accion, rd.getIdReservaDeporte());
+            throw new AccesoDenegadoException("No tienes permiso para " + accion + " esta reserva.");
+        }
+    }
+
+    /** Mantiene la Reserva "padre" con el mismo estado que la reserva deportiva. */
+    private void sincronizarPadre(String idReserva, EstadoReserva estado) {
+        if (idReserva == null) return;
+        reservaRepo.findById(idReserva).ifPresent(padre -> {
+            padre.setEstado(estado);
+            reservaRepo.save(padre);
+        });
+    }
+
+    private void notificarWebSocket(ReservaDeporte rd, String estado, String mensaje) {
+        try {
+            messagingTemplate.convertAndSend(TOPICO_WEBSOCKET, ReservaDeporteEventDto.builder()
+                    .espacioId(rd.getEspacioId())
+                    .nombreEspacio(rd.getTipoCancha())
+                    .fecha(rd.getFechaReserva().toLocalDate().toString())
+                    .horaInicio(rd.getFechaReserva().toString())
+                    .horaFin(rd.getFechaFinReserva().toString())
+                    .estado(estado)
+                    .mensaje(mensaje)
+                    .build());
+        } catch (Exception e) {
+            // El aviso en vivo es un extra: si falla, la reserva ya quedó guardada
+            log.warn("No se pudo notificar por WebSocket la reserva {}: {}", rd.getIdReservaDeporte(), e.getMessage());
+        }
+    }
+
+    private enum Correo { SOLICITUD_RECIBIDA, CONFIRMADA, CANCELADA }
+
+    private void enviarCorreo(ReservaDeporte rd, Correo tipo, String motivo) {
+        try {
+            UsuarioDto cliente = usuarioService.obtenerPorDocNum(rd.getDocUsuario());
+            Map<String, String> detalles = new LinkedHashMap<>();
+            detalles.put("Espacio", rd.getTipoCancha());
+            detalles.put("Inicio", PlantillasCorreoReserva.fecha(rd.getFechaReserva()));
+            detalles.put("Fin", PlantillasCorreoReserva.fecha(rd.getFechaFinReserva()));
+            detalles.put("Total", PlantillasCorreoReserva.pesos(rd.getPrecio()));
+
+            String titulo = "Reserva: " + rd.getTipoCancha();
+            switch (tipo) {
+                case SOLICITUD_RECIBIDA -> emailService.enviarCorreoHtml(cliente.getEmail(),
+                        "Recibimos tu solicitud de reserva - " + rd.getTipoCancha(),
+                        PlantillasCorreoReserva.solicitudRecibida(cliente.getNombre(), detalles));
+                case CONFIRMADA -> emailService.enviarConfirmacionReserva(cliente.getEmail(), titulo,
+                        PlantillasCorreoReserva.reservaConfirmada(cliente.getNombre(), detalles),
+                        rd.getFechaReserva(), rd.getFechaFinReserva());
+                case CANCELADA -> emailService.enviarCorreoHtml(cliente.getEmail(),
+                        "Reserva cancelada - " + rd.getTipoCancha(),
+                        PlantillasCorreoReserva.reservaCancelada(cliente.getNombre(), detalles, motivo,
+                                rd.getCanceladaPor() == CanceladaPor.ADMINISTRADOR));
+            }
+        } catch (Exception e) {
+            // El correo no debe impedir la operación (EmailService además es @Async)
+            log.warn("No se pudo enviar el correo ({}) de la reserva deportiva {}: {}",
+                    tipo, rd.getIdReservaDeporte(), e.getMessage());
+        }
     }
 }

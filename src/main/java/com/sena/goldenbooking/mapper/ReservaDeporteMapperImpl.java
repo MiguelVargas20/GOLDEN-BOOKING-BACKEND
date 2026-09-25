@@ -19,6 +19,7 @@ public class ReservaDeporteMapperImpl implements ReservaDeporteMapper {
         return ReservaDeporte.builder()
                 .idReservaDeporte(dto.getIdD())
                 .idReserva(dto.getIdD())        // se asigna al guardar en el service
+                .espacioId(dto.getEspacioId())
                 .tipoCancha(dto.getTCancha())
                 .implementosAlquilados(dto.getImplAlquilados())
                 .requiereEntrenador(dto.isRqrEntrenador())
@@ -37,6 +38,7 @@ public class ReservaDeporteMapperImpl implements ReservaDeporteMapper {
         return ReservaDeporteDto.builder()
                 .idD(rd.getIdReservaDeporte())
                 .docUsuario(rd.getDocUsuario())      // ← esta línea faltaba
+                .espacioId(rd.getEspacioId())
                 .tCancha(rd.getTipoCancha())
                 .implAlquilados(rd.getImplementosAlquilados())
                 .rqrEntrenador(rd.isRequiereEntrenador())
@@ -44,6 +46,11 @@ public class ReservaDeporteMapperImpl implements ReservaDeporteMapper {
                 .fFinReserva(rd.getFechaFinReserva())
                 .pr(rd.getPrecio())
                 .estado(rd.getEstado())
+                .fechaSolicitud(rd.getFechaSolicitud())
+                .fechaConfirmacion(rd.getFechaConfirmacion())
+                .fechaCancelacion(rd.getFechaCancelacion())
+                .canceladaPor(rd.getCanceladaPor())
+                .motivoCancelacion(rd.getMotivoCancelacion())
                 .build();
     }
     // Mapeo de lista de ReservaDeporte a lista de ReservaDeporteDto

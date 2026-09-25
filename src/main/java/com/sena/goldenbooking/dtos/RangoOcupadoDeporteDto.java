@@ -17,6 +17,7 @@ import lombok.NoArgsConstructor;
 @Builder
 public class RangoOcupadoDeporteDto {
 
+    private String espacioId;
     private String tipoCancha;
     private LocalDateTime inicio;
     private LocalDateTime fin;

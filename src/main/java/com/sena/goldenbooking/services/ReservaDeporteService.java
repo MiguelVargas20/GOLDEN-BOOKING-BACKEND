@@ -1,49 +1,50 @@
 package com.sena.goldenbooking.services;
 
 import java.util.List;
+import java.util.Map;
 
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 
 import com.sena.goldenbooking.dtos.RangoOcupadoDeporteDto;
 import com.sena.goldenbooking.dtos.ReservaDeporteDto;
+import com.sena.goldenbooking.models.EstadoReserva;
 
 public interface ReservaDeporteService {
 
-    // Crea una nueva reserva de deporte a partir de un DTO y devuelve el DTO resultante
+    /**
+     * Crea la reserva en estado PENDIENTE. Valida que el espacio exista y esté
+     * ACTIVO, que el horario esté dentro de su apertura/cierre y que no se
+     * cruce con otra reserva; el precio sale de la tarifa del espacio.
+     */
     ReservaDeporteDto crear(ReservaDeporteDto dto);
 
-    // Devuelve una lista de todas las reservas de deporte en forma de DTOs
-    List<ReservaDeporteDto> listarTodas();
+    /** Listado del admin (con nombre y correo del cliente), filtrable por estado. */
+    Page<ReservaDeporteDto> listarAdmin(EstadoReserva estado, Pageable pageable);
 
-    // Devuelve un DTO de reserva de deporte correspondiente al ID proporcionado.
-    // docUsuarioSolicitante y esAdmin se usan para validar que quien consulta
-    // sea el dueño de la reserva o un administrador (protección IDOR — mismo
-    // patrón que ya se aplica en cancelar()).
+    /** Cantidad de reservas por estado, para los indicadores del panel del admin. */
+    Map<EstadoReserva, Long> resumenPorEstado();
+
+    /** Solo el dueño de la reserva o un ADMIN (protección IDOR). */
     ReservaDeporteDto obtenerPorId(String id, String docUsuarioSolicitante, boolean esAdmin);
 
-    // Devuelve una lista de DTOs de reserva de deporte correspondientes al ID de reserva proporcionado
     List<ReservaDeporteDto> obtenerPorReserva(String idReserva, String docUsuarioSolicitante, boolean esAdmin);
 
-    // Actualiza una reserva de deporte existente con el ID proporcionado utilizando los datos del DTO y devuelve el DTO actualizado.
-    // docUsuarioSolicitante y esAdmin se usan para validar que quien actualiza
-    // sea el dueño de la reserva o un administrador (protección IDOR).
+    /** Solo permite cambiar los extras (implementos, entrenador). Dueño o ADMIN. */
     ReservaDeporteDto actualizar(String id, ReservaDeporteDto dto, String docUsuarioSolicitante, boolean esAdmin);
 
-    // Elimina una reserva de deporte existente con el ID proporcionado.
-    // docUsuarioSolicitante y esAdmin se usan para validar que quien cancela
-    // sea el dueño de la reserva o un administrador (protección IDOR).
-    void cancelar(String id, String docUsuarioSolicitante, boolean esAdmin);
+    /** ADMIN aprueba una reserva PENDIENTE → CONFIRMADA y se avisa al cliente por correo (con .ics). */
+    ReservaDeporteDto confirmar(String id);
 
-    // Devuelve las reservas de deporte del usuario autenticado (endpoint dedicado, sin filtrar en el frontend)
+    /**
+     * Cancela la reserva. El CLIENTE solo la suya y con 24 h de anticipación;
+     * el ADMIN cualquiera, con motivo obligatorio que se envía al cliente.
+     */
+    ReservaDeporteDto cancelar(String id, String docUsuarioSolicitante, boolean esAdmin, String motivo);
+
+    /** Reservas del usuario autenticado (más recientes primero). */
     List<ReservaDeporteDto> obtenerPorUsuario(String docUsuario);
 
-    // Marca una reserva PENDIENTE como CONFIRMADA. Solo la llama un ADMIN
-    // (el chequeo de rol vive en el controller, igual que en el resto del service).
-    void confirmar(String id);
-
-    // Devuelve una página de DTOs de reserva de deporte según los parámetros de paginación proporcionados
-    Page<ReservaDeporteDto> listarTodasPaginadas(Pageable pageable);
-
+    /** Horarios ocupados que aún no terminan (sin datos del titular), para el calendario del cliente. */
     List<RangoOcupadoDeporteDto> obtenerFechasOcupadas();
 }

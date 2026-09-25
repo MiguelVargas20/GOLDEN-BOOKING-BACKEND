@@ -158,18 +158,4 @@ public class EmailService {
         new CalendarOutputter().output(calendario, out);
         return out.toByteArray();
     }
-
-    @Async
-    public void enviarAvisoCancelacion(String destinatario, String tituloEvento, String detalleHtml) {
-    String html = """
-            <div style="font-family: 'Poppins', sans-serif; max-width: 500px; margin: auto; padding: 30px; border-radius: 12px; border: 1px solid #eee;">
-                <h2 style="color: #1a1a2e;">Reserva cancelada — <span style="color:#e53e3e;">Golden Booking</span></h2>
-                <p style="color: #4a5568;">Tu reserva fue cancelada. Estos son los detalles:</p>
-                %s
-                <p style="color: #a0aec0; font-size: 0.85rem; margin-top: 20px;">Si crees que esto es un error, contáctanos o realiza una nueva reserva desde la app.</p>
-            </div>
-            """.formatted(detalleHtml);
-
-    enviarCorreoHtml(destinatario, "Cancelación de reserva - " + tituloEvento, html);
-}
 }

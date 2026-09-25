@@ -3,6 +3,8 @@ package com.sena.goldenbooking.repositories;
 import java.time.LocalDateTime;
 import java.util.List;
 
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.mongodb.repository.MongoRepository;
 import org.springframework.data.mongodb.repository.Query;
 
@@ -23,21 +25,6 @@ public interface ReservaDeporteRepository extends MongoRepository<ReservaDeporte
     // Reservas que requieren entrenador
     List<ReservaDeporte> findByRequiereEntrenador(boolean requiereEntrenador);
 
-// ── NUEVO: detecta solapamiento de horarios para una cancha ──
-    // Busca reservas que se solapen con el rango (inicio, fin) pedido
-    // Una reserva solapa si: su inicio < finNueva Y su fin > inicioNueva
-    // Las CANCELADAS no cuentan: antes se incluían y el horario de una
-    // reserva cancelada quedaba bloqueado para siempre (el calendario, que
-    // usa /ocupadas y sí las excluye, lo mostraba libre pero crear() lo rechazaba).
-    @Query("{ 'tipoCancha': ?0, " +
-           "  'estado':          { $ne: 'CANCELADA' }, " +
-           "  'fechaReserva':    { $lt: ?2 }, " +
-           "  'fechaFinReserva': { $gt: ?1 } }")
-    List<ReservaDeporte> findSolapadas(
-            String tipoCancha,
-            LocalDateTime inicioNuevo,
-            LocalDateTime finNuevo
-    );
     
     // FIX hallazgo #12: antes eran findByEstadoNot...(CANCELADA, ...), o sea
     // "cualquier estado que no sea CANCELADA" — eso incluía PENDIENTE, así que
@@ -56,6 +43,26 @@ public interface ReservaDeporteRepository extends MongoRepository<ReservaDeporte
     // GET /ocupadas para que CUALQUIER cliente autenticado (no solo el admin) sepa
     // qué horarios ya están ocupados antes de intentar reservar (fix hallazgo #5).
     List<ReservaDeporte> findByEstadoNot(EstadoReserva estado);
+
+    /**
+     * Reservas NO canceladas del espacio que se cruzan con [inicio, fin).
+     * Antes se comparaba por el nombre de la cancha como texto libre; ahora
+     * cada reserva apunta a un espacio real por su id.
+     */
+    @Query("{ 'espacioId': ?0, " +
+           "  'estado':          { $ne: 'CANCELADA' }, " +
+           "  'fechaReserva':    { $lt: ?2 }, " +
+           "  'fechaFinReserva': { $gt: ?1 } }")
+    List<ReservaDeporte> findSolapadasEnEspacio(String espacioId, LocalDateTime inicioNuevo, LocalDateTime finNuevo);
+
+    /** Listado del admin filtrado por estado. */
+    Page<ReservaDeporte> findByEstado(EstadoReserva estado, Pageable pageable);
+
+    /** Para el resumen del panel (cuántas pendientes, confirmadas...). */
+    long countByEstado(EstadoReserva estado);
+
+    /** Horarios ocupados que aún no terminan (para el calendario del cliente). */
+    List<ReservaDeporte> findByEstadoNotAndFechaFinReservaAfter(EstadoReserva estado, LocalDateTime fecha);
 
     /** ¿El espacio tiene reservas vigentes (no canceladas y que aún no terminan)? Se usa antes de eliminarlo. */
     boolean existsByEspacioIdAndEstadoNotAndFechaFinReservaAfter(String espacioId, EstadoReserva estado, LocalDateTime fecha);

@@ -19,13 +19,10 @@ import lombok.NoArgsConstructor;
 @Builder
 // ReservaDeporte.java
 @Document(collection = "ReservaDeporte")
-// Índice compuesto: findSolapadas() filtra por tipoCancha (igualdad) y
-// compara contra fechaReserva/fechaFinReserva (rango). Mongo solo puede
-// usar de forma eficiente UN rango por consulta, así que este índice
-// prioriza el campo de igualdad (tipoCancha) + un campo de fecha; sigue
-// ayudando bastante porque tipoCancha ya reduce el universo de documentos.
+// Índice compuesto para findSolapadasEnEspacio(): igualdad por espacioId y
+// rango por fechaReserva (Mongo solo aprovecha un rango por consulta).
 @CompoundIndexes({
-    @CompoundIndex(name = "tipoCancha_fecha_idx", def = "{'tipoCancha': 1, 'fechaReserva': 1}")
+    @CompoundIndex(name = "espacio_fecha_idx", def = "{'espacioId': 1, 'fechaReserva': 1}")
 })
 public class ReservaDeporte {
     @Id
@@ -56,6 +53,16 @@ public class ReservaDeporte {
     private Double precio;
 
     private EstadoReserva estado;
+
+    // ── Trazabilidad del flujo de aprobación (PENDIENTE → CONFIRMADA / CANCELADA) ──
+    /** Cuándo el cliente hizo la solicitud. */
+    private LocalDateTime fechaSolicitud;
+    /** Cuándo el admin la aprobó. */
+    private LocalDateTime fechaConfirmacion;
+    /** Cuándo se canceló, quién la canceló y por qué (el motivo es obligatorio si cancela el admin). */
+    private LocalDateTime fechaCancelacion;
+    private CanceladaPor canceladaPor;
+    private String motivoCancelacion;
 
     private boolean recordatorio24hEnviado;
 

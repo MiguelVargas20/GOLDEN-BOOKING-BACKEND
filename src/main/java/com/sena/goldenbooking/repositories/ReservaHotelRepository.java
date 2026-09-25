@@ -3,6 +3,8 @@ package com.sena.goldenbooking.repositories;
 import java.time.LocalDateTime;
 import java.util.List;
 
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.mongodb.repository.MongoRepository;
 
 import com.sena.goldenbooking.models.EstadoReserva;
@@ -37,4 +39,10 @@ public interface ReservaHotelRepository extends MongoRepository<ReservaHotel, St
 
     // Reservas CONFIRMADAS cuyo check-out ya pasó — usadas por el job que las cierra como FINALIZADA
     List<ReservaHotel> findByEstadoAndFechaCheckOutBefore(EstadoReserva estado, LocalDateTime fecha);
+
+    /** Listado del admin filtrado por estado. */
+    Page<ReservaHotel> findByEstado(EstadoReserva estado, Pageable pageable);
+
+    /** Para el resumen del panel (cuántas pendientes, confirmadas...). */
+    long countByEstado(EstadoReserva estado);
 }

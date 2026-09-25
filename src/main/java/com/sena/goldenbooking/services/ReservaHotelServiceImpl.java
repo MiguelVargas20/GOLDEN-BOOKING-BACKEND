@@ -1,24 +1,31 @@
 package com.sena.goldenbooking.services;
 
-import com.sena.goldenbooking.exception.SolicitudInvalidaException;
-import com.sena.goldenbooking.config.ZonaHoraria;
-import org.springframework.web.util.HtmlUtils;
 import java.time.LocalDateTime;
 import java.time.temporal.ChronoUnit;
+import java.util.EnumMap;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
 
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 
+import com.sena.goldenbooking.config.ZonaHoraria;
 import com.sena.goldenbooking.dtos.RangoOcupadoDto;
 import com.sena.goldenbooking.dtos.ReservaHotelDto;
 import com.sena.goldenbooking.dtos.UsuarioDto;
 import com.sena.goldenbooking.exception.AccesoDenegadoException;
 import com.sena.goldenbooking.exception.ConflictoDeNegocioException;
 import com.sena.goldenbooking.exception.ReservaNoEncontradaException;
+import com.sena.goldenbooking.exception.SolicitudInvalidaException;
 import com.sena.goldenbooking.mapper.ReservaHotelMapper;
+import com.sena.goldenbooking.models.CanceladaPor;
 import com.sena.goldenbooking.models.EstadoHabitacion;
 import com.sena.goldenbooking.models.EstadoReserva;
 import com.sena.goldenbooking.models.Habitacion;
@@ -158,6 +165,7 @@ public ReservaHotelServiceImpl(
                     .noches((int) noches)
                     .precioTotal(precioTotal)
                     .estado(EstadoReserva.PENDIENTE)
+                    .fechaSolicitud(ZonaHoraria.ahora())
                     .build();
 
             guardada = reservaHotelRepo.save(reservaHotel);
@@ -166,62 +174,44 @@ public ReservaHotelServiceImpl(
         }
         // ── FIN SECCIÓN CRÍTICA ────────────────────────────────────────
 
-        try {
-
-            // ── NUEVO: Enviar confirmación por correo con archivo .ics ──
-            try {
-                UsuarioDto usuario = usuarioService.obtenerPorDocNum(dto.getDocUsuario());
-                String tituloEvento = "Reserva Hotel: Habitación " + habitacion.getNumHab();
-                String cuerpoHtml = """
-                        <div style="font-family: 'Poppins', sans-serif; max-width: 500px; margin: auto; padding: 30px; border-radius: 12px; border: 1px solid #eee;">
-                            <h2 style="color: #1a1a2e;">Reserva confirmada — <span style="color:#f68b1e;">Golden Booking</span></h2>
-                            <p style="color: #4a5568;">Hola %s, tu reserva de hotel quedó registrada con los siguientes detalles:</p>
-                            <ul style="color: #4a5568; line-height: 1.8;">
-                                <li><strong>Habitación:</strong> %s</li>
-                                <li><strong>Check-in:</strong> %s</li>
-                                <li><strong>Check-out:</strong> %s</li>
-                                <li><strong>Noches:</strong> %d</li>
-                                <li><strong>Total:</strong> $%,.0f</li>
-                            </ul>
-                            <p style="color: #a0aec0; font-size: 0.85rem;">Adjuntamos un archivo de calendario para que agregues este evento directamente a Google Calendar u Outlook.</p>
-                        </div>
-                        """.formatted(
-                        HtmlUtils.htmlEscape(usuario.getNombre()),
-                        HtmlUtils.htmlEscape(habitacion.getNumHab()),
-                        dto.getFCheckIn(),
-                        dto.getFCheckOut(),
-                        noches,
-                        precioTotal
-                );
-
-                emailService.enviarConfirmacionReserva(
-                        usuario.getEmail(),
-                        tituloEvento,
-                        cuerpoHtml,
-                        dto.getFCheckIn(),
-                        dto.getFCheckOut()
-                );
-            } catch (Exception e) {
-                log.warn("No se pudo enviar la confirmación por correo para la reserva hotel del usuario {}: {}",
-                        dto.getDocUsuario(), e.getMessage());
-            }
-            // ──────────────────────────────────────────────────────────
-            // Ya NO tocamos habitacion.estado aquí: la disponibilidad ahora se calcula
-            // dinámicamente por fecha (ver findByIdHabitacionAndEstadoNot arriba),
-            // así la misma habitación puede tener reservas distintas en fechas distintas.
-
-            log.info("Reserva hotel creada con éxito. ID: {}, Usuario: {}", guardada.getIdHotelReserva(), dto.getDocUsuario());
-            return mapper.toDto(guardada);
-
-        } catch (Exception e) { 
-            log.error("Error crítico al persistir reserva hotel para usuario {}: {}", dto.getDocUsuario(), e.getMessage(), e);
-            throw e;
-        }
+        // La reserva queda PENDIENTE hasta que el admin la apruebe: el correo
+        // avisa que se recibió la solicitud (el .ics se envía al confirmarla).
+        enviarCorreo(guardada, Correo.SOLICITUD_RECIBIDA, null);
+        log.info("Reserva hotel creada (PENDIENTE). ID: {}, Usuario: {}", guardada.getIdHotelReserva(), dto.getDocUsuario());
+        return mapper.toDto(guardada);
     }
 
     @Override
-    public List<ReservaHotelDto> listarTodas() {
-        return mapper.toDtoList(reservaHotelRepo.findAll());
+    public Page<ReservaHotelDto> listarAdmin(EstadoReserva estado, Pageable pageable) {
+        // Más recientes primero (por fecha de check-in)
+        Pageable ordenado = PageRequest.of(pageable.getPageNumber(), pageable.getPageSize(),
+                Sort.by("fechaCheckIn").descending());
+        Page<ReservaHotel> pagina = estado == null
+                ? reservaHotelRepo.findAll(ordenado)
+                : reservaHotelRepo.findByEstado(estado, ordenado);
+
+        // Nombre y correo del cliente en UNA sola consulta para toda la página
+        Map<String, UsuarioDto> clientes = usuarioService.obtenerMapaPorDocNums(
+                pagina.getContent().stream().map(ReservaHotel::getDocUsuario).distinct().toList());
+
+        return pagina.map(rh -> {
+            ReservaHotelDto dto = mapper.toDto(rh);
+            UsuarioDto cliente = clientes.get(rh.getDocUsuario());
+            if (cliente != null) {
+                dto.setNombreCliente(cliente.getNombre() + " " + cliente.getApellido());
+                dto.setCorreoCliente(cliente.getEmail());
+            }
+            return dto;
+        });
+    }
+
+    @Override
+    public Map<EstadoReserva, Long> resumenPorEstado() {
+        Map<EstadoReserva, Long> resumen = new EnumMap<>(EstadoReserva.class);
+        for (EstadoReserva estado : EstadoReserva.values()) {
+            resumen.put(estado, reservaHotelRepo.countByEstado(estado));
+        }
+        return resumen;
     }
 
     @Override
@@ -274,105 +264,60 @@ public ReservaHotelDto actualizar(String id, ReservaHotelDto dto, String docUsua
     return mapper.toDto(reservaHotelRepo.save(rh));
 }
     @Override
-    public void confirmar(String id) {
-        log.info("Confirmando reserva hotel ID: {}", id);
+    public ReservaHotelDto confirmar(String id) {
         ReservaHotel rh = reservaHotelRepo.findById(id)
-                .orElseThrow(() -> new ReservaNoEncontradaException("No encontrada."));
+                .orElseThrow(() -> new ReservaNoEncontradaException("La reserva no existe."));
+        ReglasEstadoReserva.validarConfirmable(rh.getEstado());
 
-        Reserva reserva = reservaRepo.findById(rh.getIdReserva())
-                .orElseThrow(() -> new ReservaNoEncontradaException("Reserva padre no encontrada."));
-
-        if (reserva.getEstado() == EstadoReserva.CANCELADA) {
-            log.warn("Intento de confirmar una reserva cancelada: {}", id);
-            throw new ConflictoDeNegocioException("No se puede confirmar una reserva cancelada.");
-        }
-        if (reserva.getEstado() == EstadoReserva.CONFIRMADA) {
-            log.warn("Intento de confirmar una reserva ya confirmada: {}", id);
-            throw new ConflictoDeNegocioException("Ya está confirmada.");
-        }
-
-        reserva.setEstado(EstadoReserva.CONFIRMADA);
-        reservaRepo.save(reserva);
-
-        // Sincronizamos el estado también en ReservaHotel, que es la
-        // colección que realmente se lee en las vistas de reservas.
         rh.setEstado(EstadoReserva.CONFIRMADA);
-        reservaHotelRepo.save(rh);
+        rh.setFechaConfirmacion(ZonaHoraria.ahora());
+        ReservaHotel guardada = reservaHotelRepo.save(rh);
+        sincronizarPadre(rh.getIdReserva(), EstadoReserva.CONFIRMADA);
 
-        log.info("Reserva hotel ID: {} confirmada correctamente.", id);
+        enviarCorreo(guardada, Correo.CONFIRMADA, null);
+        log.info("Reserva hotel {} CONFIRMADA por el administrador.", id);
+        return mapper.toDto(guardada);
     }
 
     @Override
-    public void cancelar(String id, String docUsuarioSolicitante, boolean esAdmin) {
-        log.info("Iniciando cancelación de reserva hotel ID: {}", id);
+    public ReservaHotelDto cancelar(String id, String docUsuarioSolicitante, boolean esAdmin, String motivo) {
         ReservaHotel rh = reservaHotelRepo.findById(id)
-                .orElseThrow(() -> new ReservaNoEncontradaException("No encontrada."));
+                .orElseThrow(() -> new ReservaNoEncontradaException("La reserva no existe."));
 
-        // ── FIX IDOR: solo el dueño de la reserva o un ADMIN pueden cancelarla ──
+        // Solo el dueño de la reserva o un ADMIN pueden cancelarla (IDOR)
         if (!esAdmin && !rh.getDocUsuario().equals(docUsuarioSolicitante)) {
-            log.warn("Intento de cancelación no autorizado. Usuario {} intentó cancelar la reserva {} del usuario {}.",
-                    docUsuarioSolicitante, id, rh.getDocUsuario());
+            log.warn("Usuario {} intentó cancelar la reserva {} de otro usuario.", docUsuarioSolicitante, id);
             throw new AccesoDenegadoException("No tienes permiso para cancelar esta reserva.");
         }
+        ReglasEstadoReserva.validarCancelable(rh.getEstado());
+        String motivoLimpio = ReglasEstadoReserva.validarMotivo(motivo, esAdmin);
 
-        Reserva reserva = reservaRepo.findById(rh.getIdReserva())
-                .orElseThrow(() -> new ReservaNoEncontradaException("Reserva padre no encontrada."));
-        
-        if (reserva.getEstado() == EstadoReserva.CANCELADA) {
-            log.warn("Intento de cancelar una reserva ya cancelada: {}", id);
-            throw new ConflictoDeNegocioException("Ya está cancelada.");
+        if (!esAdmin && rh.getFechaCheckIn().isBefore(ZonaHoraria.ahora().plusHours(24))) {
+            throw new ConflictoDeNegocioException("No se puede cancelar con menos de 24 horas de anticipación.");
         }
 
-        //
-        if (rh.getFechaCheckIn().isBefore(ZonaHoraria.ahora().plusHours(24)) && !esAdmin) {
-           throw new ConflictoDeNegocioException("No se puede cancelar con menos de 24h de anticipación.");
-        }
-
-        reserva.setEstado(EstadoReserva.CANCELADA);
-        reservaRepo.save(reserva);
-
-        // Sincronizamos el estado también en ReservaHotel, que es la
-        // colección que realmente se lee en las vistas de reservas.
         rh.setEstado(EstadoReserva.CANCELADA);
-        reservaHotelRepo.save(rh);
+        rh.setFechaCancelacion(ZonaHoraria.ahora());
+        rh.setCanceladaPor(esAdmin ? CanceladaPor.ADMINISTRADOR : CanceladaPor.CLIENTE);
+        rh.setMotivoCancelacion(motivoLimpio);
+        ReservaHotel guardada = reservaHotelRepo.save(rh);
+        sincronizarPadre(rh.getIdReserva(), EstadoReserva.CANCELADA);
 
-        // ── NUEVO: Aviso de cancelación por correo ──
-        try {
-            UsuarioDto usuario = usuarioService.obtenerPorDocNum(rh.getDocUsuario());
-            String detalleHtml = """
-                    <ul style="color: #4a5568; line-height: 1.8;">
-                        <li><strong>Habitación:</strong> %s</li>
-                        <li><strong>Check-in:</strong> %s</li>
-                        <li><strong>Check-out:</strong> %s</li>
-                    </ul>
-                    """.formatted(
-                    HtmlUtils.htmlEscape(rh.getDatosH().getNumHab()),
-                    rh.getFechaCheckIn(),
-                    rh.getFechaCheckOut()
-            );
-
-            emailService.enviarAvisoCancelacion(
-                    usuario.getEmail(),
-                    "Habitación " + rh.getDatosH().getNumHab(),
-                    detalleHtml
-            );
-        } catch (Exception e) {
-            log.warn("No se pudo enviar el aviso de cancelación para la reserva hotel {}: {}", id, e.getMessage());
-        }
-        // ─────────────────────────────────────────────
-
-        // Al cancelar, la reserva pasa a CANCELADA y por eso deja de contar en
-        // findByIdHabitacionAndEstadoNot(...): esas fechas quedan libres
-        // automáticamente, sin necesidad de tocar Habitacion.estado.
-
-        log.info("Cancelación exitosa. Reserva {} liberada.", id);
+        // Al quedar CANCELADA deja de contar en findByIdHabitacionAndEstadoNot:
+        // esas fechas quedan libres automáticamente.
+        enviarCorreo(guardada, Correo.CANCELADA, motivoLimpio);
+        log.info("Reserva hotel {} CANCELADA por {}.", id, guardada.getCanceladaPor());
+        return mapper.toDto(guardada);
     }
 
     // Método adicional para obtener reservas por documento de usuario
     @Override
         public List<ReservaHotelDto> obtenerPorUsuario(String docUsuario) {
             log.info("Listando reservas hotel para usuario: {}", docUsuario);
-            return mapper.toDtoList(reservaHotelRepo.findByDocUsuario(docUsuario));
+            return reservaHotelRepo.findByDocUsuario(docUsuario).stream()
+                    .sorted((a, b) -> b.getFechaCheckIn().compareTo(a.getFechaCheckIn()))
+                    .map(mapper::toDto)
+                    .toList();
         }
 
     @Override
@@ -396,5 +341,46 @@ public ReservaHotelDto actualizar(String id, ReservaHotelDto dto, String docUsua
     private boolean seSolapan(LocalDateTime inicioA, LocalDateTime finA,
                                LocalDateTime inicioB, LocalDateTime finB) {
         return inicioA.isBefore(finB) && finA.isAfter(inicioB);
+    }
+
+    /** Mantiene la Reserva "padre" con el mismo estado que la reserva de hotel. */
+    private void sincronizarPadre(String idReserva, EstadoReserva estado) {
+        if (idReserva == null) return;
+        reservaRepo.findById(idReserva).ifPresent(padre -> {
+            padre.setEstado(estado);
+            reservaRepo.save(padre);
+        });
+    }
+
+    private enum Correo { SOLICITUD_RECIBIDA, CONFIRMADA, CANCELADA }
+
+    private void enviarCorreo(ReservaHotel rh, Correo tipo, String motivo) {
+        try {
+            UsuarioDto cliente = usuarioService.obtenerPorDocNum(rh.getDocUsuario());
+            String habitacion = rh.getDatosH() != null ? rh.getDatosH().getNumHab() : "—";
+            Map<String, String> detalles = new LinkedHashMap<>();
+            detalles.put("Habitación", habitacion);
+            detalles.put("Check-in", PlantillasCorreoReserva.fecha(rh.getFechaCheckIn()));
+            detalles.put("Check-out", PlantillasCorreoReserva.fecha(rh.getFechaCheckOut()));
+            detalles.put("Noches", String.valueOf(rh.getNoches()));
+            detalles.put("Total", PlantillasCorreoReserva.pesos(rh.getPrecioTotal()));
+
+            switch (tipo) {
+                case SOLICITUD_RECIBIDA -> emailService.enviarCorreoHtml(cliente.getEmail(),
+                        "Recibimos tu solicitud de reserva - Habitación " + habitacion,
+                        PlantillasCorreoReserva.solicitudRecibida(cliente.getNombre(), detalles));
+                case CONFIRMADA -> emailService.enviarConfirmacionReserva(cliente.getEmail(),
+                        "Reserva Hotel: Habitación " + habitacion,
+                        PlantillasCorreoReserva.reservaConfirmada(cliente.getNombre(), detalles),
+                        rh.getFechaCheckIn(), rh.getFechaCheckOut());
+                case CANCELADA -> emailService.enviarCorreoHtml(cliente.getEmail(),
+                        "Reserva cancelada - Habitación " + habitacion,
+                        PlantillasCorreoReserva.reservaCancelada(cliente.getNombre(), detalles, motivo,
+                                rh.getCanceladaPor() == CanceladaPor.ADMINISTRADOR));
+            }
+        } catch (Exception e) {
+            // El correo no debe impedir la operación (EmailService además es @Async)
+            log.warn("No se pudo enviar el correo ({}) de la reserva hotel {}: {}", tipo, rh.getIdHotelReserva(), e.getMessage());
+        }
     }
 }

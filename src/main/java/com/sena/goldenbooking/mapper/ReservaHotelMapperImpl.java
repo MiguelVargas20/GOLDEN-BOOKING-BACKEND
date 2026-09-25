@@ -42,6 +42,11 @@ public class ReservaHotelMapperImpl implements ReservaHotelMapper {
                 .noch(rh.getNoches())
                 .pTotal(rh.getPrecioTotal())
                 .estado(rh.getEstado())
+                .fechaSolicitud(rh.getFechaSolicitud())
+                .fechaConfirmacion(rh.getFechaConfirmacion())
+                .fechaCancelacion(rh.getFechaCancelacion())
+                .canceladaPor(rh.getCanceladaPor())
+                .motivoCancelacion(rh.getMotivoCancelacion())
                 .build();
 
         if (rh.getDatosH() != null) {

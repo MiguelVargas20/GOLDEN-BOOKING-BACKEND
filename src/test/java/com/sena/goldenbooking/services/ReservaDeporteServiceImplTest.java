@@ -1,6 +1,7 @@
 package com.sena.goldenbooking.services;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
@@ -10,47 +11,62 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import java.time.LocalDateTime;
+import java.time.LocalTime;
 import java.util.List;
+import java.util.Optional;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
-import org.springframework.test.util.ReflectionTestUtils;
 
 import com.sena.goldenbooking.config.ZonaHoraria;
 import com.sena.goldenbooking.dtos.ReservaDeporteDto;
+import com.sena.goldenbooking.exception.ConflictoDeNegocioException;
 import com.sena.goldenbooking.exception.SolicitudInvalidaException;
 import com.sena.goldenbooking.mapper.ReservaDeporteMapperImpl;
+import com.sena.goldenbooking.models.CanceladaPor;
+import com.sena.goldenbooking.models.EspacioDeportivo;
+import com.sena.goldenbooking.models.EstadoEspacio;
+import com.sena.goldenbooking.models.EstadoReserva;
 import com.sena.goldenbooking.models.Reserva;
 import com.sena.goldenbooking.models.ReservaDeporte;
 import com.sena.goldenbooking.repositories.ReservaDeporteRepository;
 import com.sena.goldenbooking.repositories.ReservaRepository;
 
 /**
- * Pruebas unitarias (sin Spring ni Mongo) de las validaciones de fechas y
- * del cálculo de precio al crear una reserva deportiva.
+ * Pruebas unitarias (sin Spring ni Mongo) de la creación de reservas deportivas
+ * y de su flujo de aprobación (PENDIENTE → CONFIRMADA / CANCELADA).
  */
 class ReservaDeporteServiceImplTest {
 
     private ReservaDeporteRepository reservaDeporteRepo;
     private ReservaRepository reservaRepo;
+    private EspacioDeportivoService espacioService;
     private ReservaDeporteServiceImpl service;
+
+    /** Mañana a las 10:00 (dentro del horario 06:00 - 22:00 del espacio). */
+    private final LocalDateTime mananaDiez = ZonaHoraria.ahora().plusDays(1).with(LocalTime.of(10, 0));
 
     @BeforeEach
     void setUp() {
         reservaDeporteRepo = mock(ReservaDeporteRepository.class);
         reservaRepo = mock(ReservaRepository.class);
+        espacioService = mock(EspacioDeportivoService.class);
         service = new ReservaDeporteServiceImpl(
                 reservaDeporteRepo,
                 reservaRepo,
                 new ReservaDeporteMapperImpl(),
                 mock(SimpMessagingTemplate.class),
                 mock(EmailService.class),
-                mock(UsuarioService.class));
-        ReflectionTestUtils.setField(service, "tarifaHora", 50000.0);
+                mock(UsuarioService.class),
+                espacioService);
 
-        when(reservaDeporteRepo.findSolapadas(anyString(), any(), any())).thenReturn(List.of());
+        when(espacioService.obtenerReservable("e1")).thenReturn(EspacioDeportivo.builder()
+                .id("e1").nombre("Cancha 1").tarifaHora(50000.0)
+                .horaApertura(LocalTime.of(6, 0)).horaCierre(LocalTime.of(22, 0))
+                .estado(EstadoEspacio.ACTIVO).build());
+        when(reservaDeporteRepo.findSolapadasEnEspacio(anyString(), any(), any())).thenReturn(List.of());
         when(reservaRepo.save(any(Reserva.class))).thenAnswer(inv -> inv.getArgument(0));
         when(reservaDeporteRepo.save(any(ReservaDeporte.class))).thenAnswer(inv -> inv.getArgument(0));
     }
@@ -58,15 +74,34 @@ class ReservaDeporteServiceImplTest {
     private ReservaDeporteDto dto(LocalDateTime inicio, LocalDateTime fin) {
         return ReservaDeporteDto.builder()
                 .docUsuario("123")
-                .tCancha("Fútbol")
+                .espacioId("e1")
                 .fInicioReserva(inicio)
                 .fFinReserva(fin)
                 .build();
     }
 
+    private void reservaExistente(EstadoReserva estado, LocalDateTime inicio) {
+        when(reservaDeporteRepo.findById("r1")).thenReturn(Optional.of(ReservaDeporte.builder()
+                .idReservaDeporte("r1").docUsuario("123").espacioId("e1").tipoCancha("Cancha 1")
+                .fechaReserva(inicio).fechaFinReserva(inicio.plusHours(1)).estado(estado).build()));
+    }
+
+    // ── Crear ──────────────────────────────────────────────────────────────
+
+    @Test
+    void creaLaReservaPendienteConElNombreYLaTarifaDelEspacio() {
+        ReservaDeporteDto creada = service.crear(dto(mananaDiez, mananaDiez.plusMinutes(90)));
+
+        assertEquals(EstadoReserva.PENDIENTE, creada.getEstado());
+        assertEquals("Cancha 1", creada.getTCancha());
+        assertEquals("e1", creada.getEspacioId());
+        assertEquals(75000.0, creada.getPr()); // 1h30 a 50.000/h
+        assertNotNull(creada.getFechaSolicitud());
+    }
+
     @Test
     void rechazaReservaConInicioEnElPasado() {
-        LocalDateTime ayer = ZonaHoraria.ahora().minusDays(1);
+        LocalDateTime ayer = mananaDiez.minusDays(2);
 
         SolicitudInvalidaException ex = assertThrows(SolicitudInvalidaException.class,
                 () -> service.crear(dto(ayer, ayer.plusHours(2))));
@@ -77,23 +112,79 @@ class ReservaDeporteServiceImplTest {
 
     @Test
     void rechazaReservaDeMenosDeUnaHora() {
-        LocalDateTime manana = ZonaHoraria.ahora().plusDays(1);
-
         SolicitudInvalidaException ex = assertThrows(SolicitudInvalidaException.class,
-                () -> service.crear(dto(manana, manana.plusMinutes(30))));
+                () -> service.crear(dto(mananaDiez, mananaDiez.plusMinutes(30))));
 
         assertEquals("La reserva debe durar al menos una hora.", ex.getMessage());
     }
 
     @Test
-    void cobraProporcionalAlosMinutosReservados() {
-        LocalDateTime manana = ZonaHoraria.ahora().plusDays(1);
+    void rechazaReservaFueraDelHorarioDelEspacio() {
+        LocalDateTime noche = mananaDiez.with(LocalTime.of(21, 30));
 
-        service.crear(dto(manana, manana.plusMinutes(90)));
+        assertThrows(SolicitudInvalidaException.class, () -> service.crear(dto(noche, noche.plusHours(1))));
+    }
 
-        // 1h30 a 50.000/h = 75.000 (antes se truncaba a 1h = 50.000)
+    @Test
+    void rechazaHorarioOcupado() {
+        when(reservaDeporteRepo.findSolapadasEnEspacio(anyString(), any(), any()))
+                .thenReturn(List.of(new ReservaDeporte()));
+
+        assertThrows(ConflictoDeNegocioException.class,
+                () -> service.crear(dto(mananaDiez, mananaDiez.plusHours(1))));
+    }
+
+    // ── Aprobar / cancelar ─────────────────────────────────────────────────
+
+    @Test
+    void adminApruebaUnaReservaPendiente() {
+        reservaExistente(EstadoReserva.PENDIENTE, mananaDiez);
+
+        ReservaDeporteDto confirmada = service.confirmar("r1");
+
+        assertEquals(EstadoReserva.CONFIRMADA, confirmada.getEstado());
+        assertNotNull(confirmada.getFechaConfirmacion());
+    }
+
+    @Test
+    void noSeConfirmaUnaReservaCancelada() {
+        reservaExistente(EstadoReserva.CANCELADA, mananaDiez);
+        assertThrows(ConflictoDeNegocioException.class, () -> service.confirmar("r1"));
+    }
+
+    @Test
+    void adminDebeIndicarMotivoParaCancelar() {
+        reservaExistente(EstadoReserva.PENDIENTE, mananaDiez);
+
+        assertThrows(SolicitudInvalidaException.class, () -> service.cancelar("r1", "999", true, "  "));
+        verify(reservaDeporteRepo, never()).save(any());
+    }
+
+    @Test
+    void adminCancelaConMotivoYQuedaRegistrado() {
+        reservaExistente(EstadoReserva.CONFIRMADA, mananaDiez);
+
+        ReservaDeporteDto cancelada = service.cancelar("r1", "999", true, " Cancha en mantenimiento ");
+
         ArgumentCaptor<ReservaDeporte> captor = ArgumentCaptor.forClass(ReservaDeporte.class);
         verify(reservaDeporteRepo).save(captor.capture());
-        assertEquals(75000.0, captor.getValue().getPrecio());
+        assertEquals(EstadoReserva.CANCELADA, cancelada.getEstado());
+        assertEquals(CanceladaPor.ADMINISTRADOR, captor.getValue().getCanceladaPor());
+        assertEquals("Cancha en mantenimiento", captor.getValue().getMotivoCancelacion());
+    }
+
+    @Test
+    void clienteNoCancelaConMenosDe24Horas() {
+        reservaExistente(EstadoReserva.PENDIENTE, ZonaHoraria.ahora().plusHours(3));
+
+        assertThrows(ConflictoDeNegocioException.class, () -> service.cancelar("r1", "123", false, null));
+    }
+
+    @Test
+    void clienteNoCancelaReservasAjenas() {
+        reservaExistente(EstadoReserva.PENDIENTE, mananaDiez.plusDays(5));
+
+        assertThrows(com.sena.goldenbooking.exception.AccesoDenegadoException.class,
+                () -> service.cancelar("r1", "otro-documento", false, null));
     }
 }

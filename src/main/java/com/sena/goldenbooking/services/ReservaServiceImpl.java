@@ -156,14 +156,18 @@ public class ReservaServiceImpl implements ReservaService {
         // reserva hija, se delega en su servicio, que aplica las mismas reglas
         // que al cancelar desde su propio endpoint (24h de anticipación, correo,
         // aviso por WebSocket) y además actualiza el estado de la padre.
+        // Este endpoint genérico no recibe motivo: si cancela el admin se usa
+        // uno estándar (los paneles del admin usan los endpoints de hotel y
+        // deporte, que sí piden el motivo).
+        String motivo = esAdmin ? "Cancelada por la administración." : null;
         var hotel = reservaHotelRepo.findByIdReserva(id);
         if (!hotel.isEmpty()) {
-            reservaHotelService.cancelar(hotel.get(0).getIdHotelReserva(), docUsuarioSolicitante, esAdmin);
+            reservaHotelService.cancelar(hotel.get(0).getIdHotelReserva(), docUsuarioSolicitante, esAdmin, motivo);
             return;
         }
         var deporte = reservaDeporteRepo.findByIdReserva(id);
         if (!deporte.isEmpty()) {
-            reservaDeporteService.cancelar(deporte.get(0).getIdReservaDeporte(), docUsuarioSolicitante, esAdmin);
+            reservaDeporteService.cancelar(deporte.get(0).getIdReservaDeporte(), docUsuarioSolicitante, esAdmin, motivo);
             return;
         }
 

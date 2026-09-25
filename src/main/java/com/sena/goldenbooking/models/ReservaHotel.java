@@ -46,6 +46,16 @@ public class ReservaHotel {
 
     private EstadoReserva estado;
 
+    // ── Trazabilidad del flujo de aprobación (PENDIENTE → CONFIRMADA / CANCELADA) ──
+    /** Cuándo el cliente hizo la solicitud. */
+    private LocalDateTime fechaSolicitud;
+    /** Cuándo el admin la aprobó. */
+    private LocalDateTime fechaConfirmacion;
+    /** Cuándo se canceló, quién la canceló y por qué (el motivo es obligatorio si cancela el admin). */
+    private LocalDateTime fechaCancelacion;
+    private CanceladaPor canceladaPor;
+    private String motivoCancelacion;
+
     private boolean recordatorio24hEnviado;
     
     private boolean recordatorio2hEnviado;
