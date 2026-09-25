@@ -86,7 +86,7 @@ public class ReservaDeporteServiceImpl implements ReservaDeporteService {
     // ═══════════════════════════════════════════════════════════════════════
 
     @Override
-    public ReservaDeporteDto crear(ReservaDeporteDto dto) {
+    public ReservaDeporteDto crear(ReservaDeporteDto dto, boolean registradaPorAdmin, boolean confirmarDeInmediato) {
         log.info("Solicitud de reserva deportiva. Usuario: {}, Espacio: {}", dto.getDocUsuario(), dto.getEspacioId());
 
         if (dto.getDocUsuario() == null || dto.getDocUsuario().isBlank()) {
@@ -95,6 +95,10 @@ public class ReservaDeporteServiceImpl implements ReservaDeporteService {
         if (dto.getFInicioReserva() == null || dto.getFFinReserva() == null) {
             throw new SolicitudInvalidaException("Las fechas de inicio y fin son obligatorias.");
         }
+
+        // El titular debe ser un cliente registrado y activo (importa cuando el
+        // ADMIN reserva a nombre de otra persona escribiendo su documento).
+        ReglasEstadoReserva.validarCliente(usuarioService, dto.getDocUsuario());
 
         // El espacio debe existir y estar ACTIVO. Antes se aceptaba cualquier
         // nombre de cancha como texto libre ("Futbol" y "Fútbol" eran canchas
@@ -120,10 +124,12 @@ public class ReservaDeporteServiceImpl implements ReservaDeporteService {
             }
 
             LocalDateTime ahora = ZonaHoraria.ahora();
+            boolean confirmada = registradaPorAdmin && confirmarDeInmediato;
+            EstadoReserva estadoInicial = confirmada ? EstadoReserva.CONFIRMADA : EstadoReserva.PENDIENTE;
             Reserva reserva = reservaRepo.save(Reserva.builder()
                     .documentoUsuario(dto.getDocUsuario())
                     .tipo(TipoReserva.DEPORTE)
-                    .estado(EstadoReserva.PENDIENTE)
+                    .estado(estadoInicial)
                     .fechaReserva(ahora)
                     .fechaInicio(inicio)
                     .fechaFin(fin)
@@ -140,17 +146,20 @@ public class ReservaDeporteServiceImpl implements ReservaDeporteService {
                     .fechaReserva(inicio)
                     .fechaFinReserva(fin)
                     .precio(precioTotal)
-                    .estado(EstadoReserva.PENDIENTE)
+                    .estado(estadoInicial)
+                    .registradaPorAdministrador(registradaPorAdmin)
                     .fechaSolicitud(ahora)
+                    .fechaConfirmacion(confirmada ? ahora : null)
                     .build());
         } finally {
             lock.unlock();
         }
 
         notificarWebSocket(guardada, "OCUPADO", "El espacio " + espacio.getNombre() + " acaba de ser reservado.");
-        enviarCorreo(guardada, Correo.SOLICITUD_RECIBIDA, null);
+        enviarCorreo(guardada, guardada.getEstado() == EstadoReserva.CONFIRMADA ? Correo.CONFIRMADA : Correo.SOLICITUD_RECIBIDA, null);
 
-        log.info("Reserva deportiva creada (PENDIENTE). ID: {}", guardada.getIdReservaDeporte());
+        log.info("Reserva deportiva creada ({}{}). ID: {}", guardada.getEstado(),
+                registradaPorAdmin ? ", registrada por el administrador" : "", guardada.getIdReservaDeporte());
         return mapper.toDto(guardada);
     }
 

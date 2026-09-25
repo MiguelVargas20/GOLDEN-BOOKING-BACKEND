@@ -67,6 +67,8 @@ public class ReservaDeporteDto {
     private EstadoReserva estado;
 
     // ── Trazabilidad (solo lectura) ──────────────────────────────────────
+    @Schema(accessMode = Schema.AccessMode.READ_ONLY, description = "true si la registró un administrador a nombre del cliente.")
+    private boolean registradaPorAdministrador;
     @Schema(accessMode = Schema.AccessMode.READ_ONLY)
     private LocalDateTime fechaSolicitud;
     @Schema(accessMode = Schema.AccessMode.READ_ONLY)

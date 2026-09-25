@@ -54,19 +54,26 @@ public class ReservaDeporteController {
 
     @Operation(summary = "Solicitar una reserva",
             description = "Queda PENDIENTE hasta que el admin la apruebe. Si reserva un CLIENTE se usa su documento "
-                    + "(se ignora docUsuario del body); un ADMIN puede reservar a nombre de otra persona.")
+                    + "(se ignora docUsuario del body); un ADMIN puede reservar a nombre de un cliente registrado "
+                    + "y, con ?confirmar=true, dejarla CONFIRMADA de una vez.")
     @ApiResponses({
         @ApiResponse(responseCode = "201", description = "Reserva creada en estado PENDIENTE"),
         @ApiResponse(responseCode = "400", description = "Fechas inválidas, fuera del horario del espacio o menos de 1 hora"),
-        @ApiResponse(responseCode = "404", description = "El espacio no existe"),
+        @ApiResponse(responseCode = "404", description = "El espacio o el cliente no existen"),
         @ApiResponse(responseCode = "409", description = "Horario ocupado o espacio no disponible")
     })
     @PostMapping
-    public ResponseEntity<ReservaDeporteDto> crear(@Valid @RequestBody ReservaDeporteDto dto, Authentication authentication) {
+    public ResponseEntity<ReservaDeporteDto> crear(
+            @Valid @RequestBody ReservaDeporteDto dto,
+            @Parameter(description = "Solo ADMIN: registrar la reserva ya CONFIRMADA (cliente presente en recepción). "
+                    + "Para un CLIENTE se ignora.")
+            @RequestParam(defaultValue = "false") boolean confirmar,
+            Authentication authentication) {
         if (!AutenticacionUtils.esAdmin(authentication)) {
             dto.setDocUsuario(usuarioService.obtenerDocumentoPorUsername(authentication.getName()));
+            return ResponseEntity.status(HttpStatus.CREATED).body(service.crear(dto));
         }
-        return ResponseEntity.status(HttpStatus.CREATED).body(service.crear(dto));
+        return ResponseEntity.status(HttpStatus.CREATED).body(service.crear(dto, true, confirmar));
     }
 
     @Operation(summary = "Listar todas las reservas (ADMIN)",

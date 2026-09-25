@@ -65,6 +65,8 @@ public class ReservaHotelDto {
     private EstadoReserva estado;
 
     // ── Trazabilidad (solo lectura) ──────────────────────────────────────
+    @Schema(accessMode = Schema.AccessMode.READ_ONLY, description = "true si la registró un administrador a nombre del cliente.")
+    private boolean registradaPorAdministrador;
     @Schema(accessMode = Schema.AccessMode.READ_ONLY, description = "Cuándo se hizo la solicitud.")
     private LocalDateTime fechaSolicitud;
     @Schema(accessMode = Schema.AccessMode.READ_ONLY)

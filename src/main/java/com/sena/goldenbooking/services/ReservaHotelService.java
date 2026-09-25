@@ -12,8 +12,18 @@ import com.sena.goldenbooking.models.EstadoReserva;
 
 public interface ReservaHotelService {
 
-    /** Crea la reserva en estado PENDIENTE (valida fechas, mantenimiento y solapamiento). */
-    ReservaHotelDto crear(ReservaHotelDto dto);
+    /**
+     * Crea la reserva (valida cliente, fechas, mantenimiento y solapamiento).
+     * Queda PENDIENTE, salvo que la registre un ADMIN a nombre del cliente
+     * (recepción) con confirmarDeInmediato: entonces queda CONFIRMADA y el
+     * cliente recibe solo el correo de confirmación.
+     */
+    ReservaHotelDto crear(ReservaHotelDto dto, boolean registradaPorAdmin, boolean confirmarDeInmediato);
+
+    /** Reserva hecha por el propio cliente: queda PENDIENTE. */
+    default ReservaHotelDto crear(ReservaHotelDto dto) {
+        return crear(dto, false, false);
+    }
 
     /** Listado del admin (con nombre y correo del cliente), filtrable por estado. */
     Page<ReservaHotelDto> listarAdmin(EstadoReserva estado, Pageable pageable);

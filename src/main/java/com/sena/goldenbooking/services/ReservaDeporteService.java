@@ -16,8 +16,16 @@ public interface ReservaDeporteService {
      * Crea la reserva en estado PENDIENTE. Valida que el espacio exista y esté
      * ACTIVO, que el horario esté dentro de su apertura/cierre y que no se
      * cruce con otra reserva; el precio sale de la tarifa del espacio.
+     *
+     * Si la registra un ADMIN a nombre de un cliente (recepción), puede quedar
+     * CONFIRMADA de una vez: el cliente recibe solo el correo de confirmación.
      */
-    ReservaDeporteDto crear(ReservaDeporteDto dto);
+    ReservaDeporteDto crear(ReservaDeporteDto dto, boolean registradaPorAdmin, boolean confirmarDeInmediato);
+
+    /** Reserva hecha por el propio cliente: queda PENDIENTE. */
+    default ReservaDeporteDto crear(ReservaDeporteDto dto) {
+        return crear(dto, false, false);
+    }
 
     /** Listado del admin (con nombre y correo del cliente), filtrable por estado. */
     Page<ReservaDeporteDto> listarAdmin(EstadoReserva estado, Pageable pageable);

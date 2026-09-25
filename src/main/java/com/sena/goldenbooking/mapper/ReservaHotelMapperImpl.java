@@ -42,6 +42,7 @@ public class ReservaHotelMapperImpl implements ReservaHotelMapper {
                 .noch(rh.getNoches())
                 .pTotal(rh.getPrecioTotal())
                 .estado(rh.getEstado())
+                .registradaPorAdministrador(rh.isRegistradaPorAdministrador())
                 .fechaSolicitud(rh.getFechaSolicitud())
                 .fechaConfirmacion(rh.getFechaConfirmacion())
                 .fechaCancelacion(rh.getFechaCancelacion())

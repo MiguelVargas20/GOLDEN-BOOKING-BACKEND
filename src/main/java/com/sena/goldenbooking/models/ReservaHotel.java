@@ -47,6 +47,9 @@ public class ReservaHotel {
     private EstadoReserva estado;
 
     // ── Trazabilidad del flujo de aprobación (PENDIENTE → CONFIRMADA / CANCELADA) ──
+    /** true si la registró un ADMIN a nombre del cliente (ej. en recepción). */
+    private boolean registradaPorAdministrador;
+
     /** Cuándo el cliente hizo la solicitud. */
     private LocalDateTime fechaSolicitud;
     /** Cuándo el admin la aprobó. */

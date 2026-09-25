@@ -22,13 +22,16 @@ import org.springframework.messaging.simp.SimpMessagingTemplate;
 
 import com.sena.goldenbooking.config.ZonaHoraria;
 import com.sena.goldenbooking.dtos.ReservaDeporteDto;
+import com.sena.goldenbooking.dtos.UsuarioDto;
 import com.sena.goldenbooking.exception.ConflictoDeNegocioException;
+import com.sena.goldenbooking.exception.RecursoNoEncontradoException;
 import com.sena.goldenbooking.exception.SolicitudInvalidaException;
 import com.sena.goldenbooking.mapper.ReservaDeporteMapperImpl;
 import com.sena.goldenbooking.models.CanceladaPor;
 import com.sena.goldenbooking.models.EspacioDeportivo;
 import com.sena.goldenbooking.models.EstadoEspacio;
 import com.sena.goldenbooking.models.EstadoReserva;
+import com.sena.goldenbooking.models.EstadoUsuario;
 import com.sena.goldenbooking.models.Reserva;
 import com.sena.goldenbooking.models.ReservaDeporte;
 import com.sena.goldenbooking.repositories.ReservaDeporteRepository;
@@ -43,6 +46,7 @@ class ReservaDeporteServiceImplTest {
     private ReservaDeporteRepository reservaDeporteRepo;
     private ReservaRepository reservaRepo;
     private EspacioDeportivoService espacioService;
+    private UsuarioService usuarioService;
     private ReservaDeporteServiceImpl service;
 
     /** Mañana a las 10:00 (dentro del horario 06:00 - 22:00 del espacio). */
@@ -53,13 +57,14 @@ class ReservaDeporteServiceImplTest {
         reservaDeporteRepo = mock(ReservaDeporteRepository.class);
         reservaRepo = mock(ReservaRepository.class);
         espacioService = mock(EspacioDeportivoService.class);
+        usuarioService = mock(UsuarioService.class);
         service = new ReservaDeporteServiceImpl(
                 reservaDeporteRepo,
                 reservaRepo,
                 new ReservaDeporteMapperImpl(),
                 mock(SimpMessagingTemplate.class),
                 mock(EmailService.class),
-                mock(UsuarioService.class),
+                usuarioService,
                 espacioService);
 
         when(espacioService.obtenerReservable("e1")).thenReturn(EspacioDeportivo.builder()
@@ -67,6 +72,8 @@ class ReservaDeporteServiceImplTest {
                 .horaApertura(LocalTime.of(6, 0)).horaCierre(LocalTime.of(22, 0))
                 .estado(EstadoEspacio.ACTIVO).build());
         when(reservaDeporteRepo.findSolapadasEnEspacio(anyString(), any(), any())).thenReturn(List.of());
+        when(usuarioService.obtenerPorDocNum("123")).thenReturn(
+                UsuarioDto.builder().nombre("Ana").email("ana@test.com").estado(EstadoUsuario.ACTIVO).build());
         when(reservaRepo.save(any(Reserva.class))).thenAnswer(inv -> inv.getArgument(0));
         when(reservaDeporteRepo.save(any(ReservaDeporte.class))).thenAnswer(inv -> inv.getArgument(0));
     }
@@ -132,6 +139,42 @@ class ReservaDeporteServiceImplTest {
 
         assertThrows(ConflictoDeNegocioException.class,
                 () -> service.crear(dto(mananaDiez, mananaDiez.plusHours(1))));
+    }
+
+    // ── Reserva registrada por el admin (recepción) ────────────────────────
+
+    @Test
+    void adminPuedeRegistrarlaYaConfirmada() {
+        ReservaDeporteDto creada = service.crear(dto(mananaDiez, mananaDiez.plusHours(1)), true, true);
+
+        assertEquals(EstadoReserva.CONFIRMADA, creada.getEstado());
+        assertEquals(true, creada.isRegistradaPorAdministrador());
+        assertNotNull(creada.getFechaConfirmacion());
+    }
+
+    @Test
+    void siNoLaConfirmaQuedaPendienteAunqueLaRegistreElAdmin() {
+        ReservaDeporteDto creada = service.crear(dto(mananaDiez, mananaDiez.plusHours(1)), true, false);
+
+        assertEquals(EstadoReserva.PENDIENTE, creada.getEstado());
+    }
+
+    @Test
+    void rechazaDocumentoQueNoPerteneceANingunCliente() {
+        when(usuarioService.obtenerPorDocNum("123")).thenThrow(new RecursoNoEncontradoException("no existe"));
+
+        assertThrows(RecursoNoEncontradoException.class,
+                () -> service.crear(dto(mananaDiez, mananaDiez.plusHours(1)), true, true));
+        verify(reservaRepo, never()).save(any());
+    }
+
+    @Test
+    void rechazaClienteInactivo() {
+        when(usuarioService.obtenerPorDocNum("123")).thenReturn(
+                UsuarioDto.builder().nombre("Ana").estado(EstadoUsuario.INACTIVO).build());
+
+        assertThrows(ConflictoDeNegocioException.class,
+                () -> service.crear(dto(mananaDiez, mananaDiez.plusHours(1)), true, false));
     }
 
     // ── Aprobar / cancelar ─────────────────────────────────────────────────

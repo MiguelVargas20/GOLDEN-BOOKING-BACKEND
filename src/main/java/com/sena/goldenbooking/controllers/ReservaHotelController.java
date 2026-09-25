@@ -54,18 +54,26 @@ public class ReservaHotelController {
 
     @Operation(summary = "Solicitar una reserva",
             description = "Queda PENDIENTE hasta que el admin la apruebe. Si reserva un CLIENTE se usa su documento; "
-                    + "un ADMIN puede reservar a nombre de otra persona (ej. recepción).")
+                    + "un ADMIN puede reservar a nombre de un cliente registrado (ej. recepción) y, con "
+                    + "?confirmar=true, dejarla CONFIRMADA de una vez.")
     @ApiResponses({
         @ApiResponse(responseCode = "201", description = "Reserva creada en estado PENDIENTE"),
         @ApiResponse(responseCode = "400", description = "Fechas inválidas o en el pasado"),
+        @ApiResponse(responseCode = "404", description = "La habitación o el cliente no existen"),
         @ApiResponse(responseCode = "409", description = "Habitación ocupada en esas fechas o en mantenimiento")
     })
     @PostMapping
-    public ResponseEntity<ReservaHotelDto> crear(@Valid @RequestBody ReservaHotelDto dto, Authentication authentication) {
+    public ResponseEntity<ReservaHotelDto> crear(
+            @Valid @RequestBody ReservaHotelDto dto,
+            @Parameter(description = "Solo ADMIN: registrar la reserva ya CONFIRMADA (huésped presente en recepción). "
+                    + "Para un CLIENTE se ignora.")
+            @RequestParam(defaultValue = "false") boolean confirmar,
+            Authentication authentication) {
         if (!AutenticacionUtils.esAdmin(authentication)) {
             dto.setDocUsuario(documentoDe(authentication));
+            return ResponseEntity.status(HttpStatus.CREATED).body(service.crear(dto));
         }
-        return ResponseEntity.status(HttpStatus.CREATED).body(service.crear(dto));
+        return ResponseEntity.status(HttpStatus.CREATED).body(service.crear(dto, true, confirmar));
     }
 
     @Operation(summary = "Listar todas las reservas (ADMIN)",

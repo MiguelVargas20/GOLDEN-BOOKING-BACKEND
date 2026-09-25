@@ -82,7 +82,7 @@ public ReservaHotelServiceImpl(
     this.usuarioService = usuarioService;
 }
     @Override
-    public ReservaHotelDto crear(ReservaHotelDto dto) {
+    public ReservaHotelDto crear(ReservaHotelDto dto, boolean registradaPorAdmin, boolean confirmarDeInmediato) {
         log.info("Iniciando creación de reserva hotel para usuario: {}", dto.getDocUsuario());
 
         // 1. Validaciones
@@ -90,6 +90,10 @@ public ReservaHotelServiceImpl(
             log.warn("Intento de creación fallido: Datos incompletos.");
             throw new SolicitudInvalidaException("Faltan datos obligatorios de la reserva.");
         }
+
+        // 1.1 El titular debe ser un cliente registrado y activo (importa cuando
+        //     el ADMIN reserva a nombre de otra persona escribiendo su documento).
+        ReglasEstadoReserva.validarCliente(usuarioService, dto.getDocUsuario());
 
         // 2. Búsqueda de la habitación
         Habitacion habitacion = habitacionRepo.findById(dto.getIdHabitacion())
@@ -144,11 +148,14 @@ public ReservaHotelServiceImpl(
                         "Esta habitación ya está reservada para esas fechas. Elige otro rango u otra habitación.");
             }
 
+            LocalDateTime ahora = ZonaHoraria.ahora();
+            boolean confirmada = registradaPorAdmin && confirmarDeInmediato;
+            EstadoReserva estadoInicial = confirmada ? EstadoReserva.CONFIRMADA : EstadoReserva.PENDIENTE;
             Reserva reserva = Reserva.builder()
                     .documentoUsuario(dto.getDocUsuario())
                     .tipo(TipoReserva.HOTEL)
-                    .estado(EstadoReserva.PENDIENTE)
-                    .fechaReserva(LocalDateTime.now())
+                    .estado(estadoInicial)
+                    .fechaReserva(ahora)
                     .fechaInicio(dto.getFCheckIn())
                     .fechaFin(dto.getFCheckOut())
                     .precioTotal(precioTotal)
@@ -164,8 +171,10 @@ public ReservaHotelServiceImpl(
                     .fechaCheckOut(dto.getFCheckOut())
                     .noches((int) noches)
                     .precioTotal(precioTotal)
-                    .estado(EstadoReserva.PENDIENTE)
-                    .fechaSolicitud(ZonaHoraria.ahora())
+                    .estado(estadoInicial)
+                    .registradaPorAdministrador(registradaPorAdmin)
+                    .fechaSolicitud(ahora)
+                    .fechaConfirmacion(confirmada ? ahora : null)
                     .build();
 
             guardada = reservaHotelRepo.save(reservaHotel);
@@ -174,10 +183,12 @@ public ReservaHotelServiceImpl(
         }
         // ── FIN SECCIÓN CRÍTICA ────────────────────────────────────────
 
-        // La reserva queda PENDIENTE hasta que el admin la apruebe: el correo
-        // avisa que se recibió la solicitud (el .ics se envía al confirmarla).
-        enviarCorreo(guardada, Correo.SOLICITUD_RECIBIDA, null);
-        log.info("Reserva hotel creada (PENDIENTE). ID: {}, Usuario: {}", guardada.getIdHotelReserva(), dto.getDocUsuario());
+        // PENDIENTE: el correo avisa que se recibió la solicitud (el .ics se
+        // envía al confirmarla). Si el admin la confirmó de una vez, solo se
+        // envía la confirmación.
+        enviarCorreo(guardada, guardada.getEstado() == EstadoReserva.CONFIRMADA ? Correo.CONFIRMADA : Correo.SOLICITUD_RECIBIDA, null);
+        log.info("Reserva hotel creada ({}{}). ID: {}, Usuario: {}", guardada.getEstado(),
+                registradaPorAdmin ? ", registrada por el administrador" : "", guardada.getIdHotelReserva(), dto.getDocUsuario());
         return mapper.toDto(guardada);
     }
 

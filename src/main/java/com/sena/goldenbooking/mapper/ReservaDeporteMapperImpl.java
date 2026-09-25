@@ -46,6 +46,7 @@ public class ReservaDeporteMapperImpl implements ReservaDeporteMapper {
                 .fFinReserva(rd.getFechaFinReserva())
                 .pr(rd.getPrecio())
                 .estado(rd.getEstado())
+                .registradaPorAdministrador(rd.isRegistradaPorAdministrador())
                 .fechaSolicitud(rd.getFechaSolicitud())
                 .fechaConfirmacion(rd.getFechaConfirmacion())
                 .fechaCancelacion(rd.getFechaCancelacion())
