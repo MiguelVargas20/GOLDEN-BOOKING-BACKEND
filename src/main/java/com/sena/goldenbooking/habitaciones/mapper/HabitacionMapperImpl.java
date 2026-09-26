@@ -32,6 +32,7 @@ public class HabitacionMapperImpl implements HabitacionMapper {
 
     /** "?v=" cambia al subir otra imagen, así el navegador no muestra la vieja en caché. */
     private static final String RUTA_IMAGEN = "/api/habitaciones/%s/imagen?v=%s";
+    private static final String RUTA_GALERIA = "/api/habitaciones/%s/imagenes/%s";
 
     @Override
     public Habitacion toHabitacion(HabitacionDto dto) {
@@ -59,6 +60,9 @@ public class HabitacionMapperImpl implements HabitacionMapper {
                 .estadoHabitacion(hab.getEstado())
                 .descripcion(hab.getDesc())
                 .imagenUrl(hab.getImagenId() != null ? RUTA_IMAGEN.formatted(hab.getId(), hab.getImagenId()) : null)
+                .imagenes(hab.galeria().stream()
+                        .map(img -> new HabitacionDto.ImagenHabitacionDto(img, RUTA_GALERIA.formatted(hab.getId(), img)))
+                        .toList())
                 .build();
     }
 

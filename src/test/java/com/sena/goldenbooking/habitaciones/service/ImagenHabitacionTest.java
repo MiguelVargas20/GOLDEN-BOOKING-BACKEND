@@ -70,4 +70,53 @@ class ImagenHabitacionTest {
         hab.setImagenId(null);
         assertThrows(RecursoNoEncontradoException.class, () -> service.obtenerImagen("h1"));
     }
+
+    // ── Galería (hasta 5) ──────────────────────────────────────────────────
+
+    @Test
+    void laGaleriaIncluyeLaImagenAntiguaComoPortada() {
+        MultipartFile archivo = mock(MultipartFile.class);
+        when(imagenes.guardar(archivo, "habitacion-h1")).thenReturn("g2");
+
+        HabitacionDto dto = service.agregarImagen("h1", archivo);
+
+        assertEquals(2, dto.getImagenes().size());
+        assertEquals("vieja", dto.getImagenes().get(0).id());
+        assertEquals("/api/habitaciones/h1/imagenes/g2", dto.getImagenes().get(1).url());
+    }
+
+    @Test
+    void noAdmiteMasDeCincoImagenes() {
+        hab.guardarGaleria(java.util.List.of("a", "b", "c", "d", "e"));
+        assertThrows(com.sena.goldenbooking.compartido.exception.ConflictoDeNegocioException.class,
+                () -> service.agregarImagen("h1", mock(MultipartFile.class)));
+    }
+
+    @Test
+    void elegirPortadaYQuitarUnaImagen() {
+        hab.guardarGaleria(java.util.List.of("a", "b", "c"));
+
+        HabitacionDto dto = service.elegirPortada("h1", "c");
+        assertEquals("c", dto.getImagenes().get(0).id());
+        assertEquals("/api/habitaciones/h1/imagen?v=c", dto.getImagenUrl());
+
+        dto = service.quitarImagen("h1", "a");
+        assertEquals(2, dto.getImagenes().size());
+        verify(imagenes).borrar("a");
+        assertThrows(RecursoNoEncontradoException.class, () -> service.quitarImagen("h1", "otra"));
+    }
+
+    @Test
+    void soloSeSirvenImagenesDeLaPropiaHabitacion() {
+        hab.guardarGaleria(java.util.List.of("a"));
+        assertThrows(RecursoNoEncontradoException.class, () -> service.obtenerImagenGaleria("h1", "ajena"));
+    }
+
+    @Test
+    void alEliminarLaHabitacionSeBorranTodasSusImagenes() {
+        hab.guardarGaleria(java.util.List.of("a", "b"));
+        service.eliminar("h1");
+        verify(imagenes).borrar("a");
+        verify(imagenes).borrar("b");
+    }
 }

@@ -8,6 +8,7 @@ import com.sena.goldenbooking.usuarios.model.Direccion;
 import com.sena.goldenbooking.usuarios.model.Documento;
 import com.sena.goldenbooking.usuarios.model.EstadoUsuario;
 import com.sena.goldenbooking.usuarios.model.Rol;
+import com.sena.goldenbooking.usuarios.model.TipoMembresia;
 
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -31,6 +32,7 @@ public class UsuarioDto {
     private LocalDate fechaNacimiento; //Fecha de nacimiento del usuario (String ISO: yyyy-MM-dd)
     private EstadoUsuario estado; //Estado del usuario: "activo" | "inactivo"  
     private LocalDateTime fechaRegistro;
+    private TipoMembresia membresia; // NINGUNA | OCASIONAL | MIEMBRO (solo lectura: se cambia en el panel de socios)
     /** Roles del usuario (se leen de UsuarioAuth). En la edición del admin: null = no cambiar. */
     private List<Rol> roles; //Fecha de registro del usuario en el sistema M-ddTHH:mm:ss)
 

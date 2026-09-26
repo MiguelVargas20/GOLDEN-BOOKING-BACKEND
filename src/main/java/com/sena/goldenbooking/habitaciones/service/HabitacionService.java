@@ -43,4 +43,16 @@ public interface HabitacionService {
 
     /** Archivo de la imagen para enviarlo al navegador. */
     GridFsResource obtenerImagen(String id);
+
+    /** Agrega una imagen a la galería (máximo 5). */
+    HabitacionDto agregarImagen(String id, MultipartFile archivo);
+
+    /** Quita una imagen de la galería. */
+    HabitacionDto quitarImagen(String id, String imagenId);
+
+    /** Pone esa imagen de primera (portada del catálogo). */
+    HabitacionDto elegirPortada(String id, String imagenId);
+
+    /** Archivo de una imagen de la galería. */
+    GridFsResource obtenerImagenGaleria(String id, String imagenId);
 }

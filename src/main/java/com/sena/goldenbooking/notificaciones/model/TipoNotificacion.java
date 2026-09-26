@@ -6,5 +6,8 @@ public enum TipoNotificacion {
     RESERVA_CANCELADA,
     RESERVA_VENCIDA,
     RESERVA_REPROGRAMADA,
-    CALIFICAR
+    CALIFICAR,
+    MEMBRESIA,
+    CARGO,
+    EVENTO
 }

@@ -18,6 +18,10 @@ import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.stereotype.Service;
 
 import com.sena.goldenbooking.compartido.config.ZonaHoraria;
+import com.sena.goldenbooking.reservas.service.ReglasMiembros;
+import com.sena.goldenbooking.reservas.model.MiembroReserva;
+import com.sena.goldenbooking.membresias.service.MembresiaService;
+import com.sena.goldenbooking.membresias.dto.BeneficioVigente;
 import com.sena.goldenbooking.compartido.email.EmailService;
 import com.sena.goldenbooking.compartido.exception.AccesoDenegadoException;
 import com.sena.goldenbooking.compartido.exception.ConflictoDeNegocioException;
@@ -68,6 +72,7 @@ public class ReservaDeporteServiceImpl implements ReservaDeporteService {
     private final EspacioDeportivoService espacioService;
     private final AvisosAdminService avisosAdmin;
     private final NotificacionService notificaciones;
+    private final MembresiaService membresias;
 
     // ── Lock por espacio (evita dos reservas simultáneas del mismo horario) ──
     // Entre "consultar solapamientos" y "guardar", ningún otro hilo puede
@@ -84,7 +89,8 @@ public class ReservaDeporteServiceImpl implements ReservaDeporteService {
             UsuarioService usuarioService,
             EspacioDeportivoService espacioService,
             AvisosAdminService avisosAdmin,
-            NotificacionService notificaciones) {
+            NotificacionService notificaciones,
+            MembresiaService membresias) {
         this.reservaDeporteRepo = reservaDeporteRepo;
         this.reservaRepo = reservaRepo;
         this.mapper = mapper;
@@ -94,6 +100,7 @@ public class ReservaDeporteServiceImpl implements ReservaDeporteService {
         this.espacioService = espacioService;
         this.avisosAdmin = avisosAdmin;
         this.notificaciones = notificaciones;
+        this.membresias = membresias;
     }
 
     // ═══════════════════════════════════════════════════════════════════════
@@ -124,9 +131,14 @@ public class ReservaDeporteServiceImpl implements ReservaDeporteService {
         LocalDateTime fin = dto.getFFinReserva();
         validarFechas(inicio, fin, espacio);
 
-        // Precio proporcional a los minutos, con la tarifa de ESTE espacio
+        // Beneficios de socio: más días de anticipación (solo si reserva el cliente) y descuento
+        BeneficioVigente beneficio = beneficioDe(dto.getDocUsuario());
+        if (!registradaPorAdmin) beneficio.validarAnticipacion(inicio.toLocalDate());
+        List<MiembroReserva> miembros = ReglasMiembros.validar(dto.getMiembros(), dto.getDocUsuario(), espacio.getCapacidad());
+
+        // Precio proporcional a los minutos, con la tarifa de ESTE espacio (y el descuento de socio)
         long minutos = ChronoUnit.MINUTES.between(inicio, fin);
-        double precioTotal = Math.round(minutos / 60.0 * espacio.getTarifaHora());
+        double precioTotal = beneficio.aplicar(minutos / 60.0 * espacio.getTarifaHora());
 
         Lock lock = locksPorEspacio.computeIfAbsent(espacio.getId(), k -> new ReentrantLock());
         ReservaDeporte guardada;
@@ -165,6 +177,8 @@ public class ReservaDeporteServiceImpl implements ReservaDeporteService {
                     .registradaPorAdministrador(registradaPorAdmin)
                     .fechaSolicitud(ahora)
                     .fechaConfirmacion(confirmada ? ahora : null)
+                    .miembros(miembros)
+                    .descuento(beneficio.descuentoParaGuardar())
                     .historial(HistorialReserva.agregar(null, HistorialReserva.evento(AccionReserva.CREADA,
                             registradaPorAdmin ? (confirmada ? "Registrada en recepción y confirmada" : "Registrada en recepción") : null)))
                     .build());
@@ -374,7 +388,9 @@ public class ReservaDeporteServiceImpl implements ReservaDeporteService {
         // Mismas reglas que al crear: espacio activo, horario de apertura, 1 hora mínima
         EspacioDeportivo espacio = espacioService.obtenerReservable(rd.getEspacioId());
         validarFechas(inicio, fin, espacio);
-        double precioTotal = Math.round(ChronoUnit.MINUTES.between(inicio, fin) / 60.0 * espacio.getTarifaHora());
+        if (!esAdmin) beneficioDe(rd.getDocUsuario()).validarAnticipacion(inicio.toLocalDate());
+        double precioTotal = BeneficioVigente.aplicar(
+                ChronoUnit.MINUTES.between(inicio, fin) / 60.0 * espacio.getTarifaHora(), rd.getDescuento());
         String anterior = PlantillasCorreoReserva.fecha(rd.getFechaReserva()) + " – "
                 + PlantillasCorreoReserva.fecha(rd.getFechaFinReserva());
 
@@ -423,9 +439,33 @@ public class ReservaDeporteServiceImpl implements ReservaDeporteService {
         return mapper.toDto(guardada);
     }
 
+    @Override
+    public ReservaDeporteDto actualizarMiembros(String id, List<MiembroReserva> miembros, String docUsuarioSolicitante, boolean esAdmin) {
+        ReservaDeporte rd = buscar(id);
+        validarDuenoOAdmin(rd, docUsuarioSolicitante, esAdmin, "modificar");
+        ReglasEstadoReserva.validarReprogramable(rd.getEstado());
+        Integer capacidad = espacioService.obtenerReservable(rd.getEspacioId()).getCapacidad();
+        List<MiembroReserva> limpios = ReglasMiembros.validar(miembros, rd.getDocUsuario(), capacidad);
+        rd.setMiembros(limpios);
+        rd.setHistorial(HistorialReserva.agregar(rd.getHistorial(), HistorialReserva.evento(AccionReserva.ACOMPANANTES,
+                limpios.isEmpty() ? "Sin acompañantes" : limpios.size() + (limpios.size() == 1 ? " acompañante" : " acompañantes"))));
+        return mapper.toDto(reservaDeporteRepo.save(rd));
+    }
+
     // ═══════════════════════════════════════════════════════════════════════
     // Utilidades
     // ═══════════════════════════════════════════════════════════════════════
+
+    /** Beneficios de socio del cliente. Si no se pueden consultar, se reserva sin beneficios ni límite. */
+    private BeneficioVigente beneficioDe(String docUsuario) {
+        try {
+            BeneficioVigente b = membresias.beneficiosDe(docUsuario);
+            return b != null ? b : BeneficioVigente.sinBeneficios(3650);
+        } catch (Exception e) {
+            log.warn("No se pudieron consultar los beneficios de socio de {}: {}", docUsuario, e.getMessage());
+            return BeneficioVigente.sinBeneficios(3650);
+        }
+    }
 
     private ReservaDeporte buscar(String id) {
         return reservaDeporteRepo.findById(id)

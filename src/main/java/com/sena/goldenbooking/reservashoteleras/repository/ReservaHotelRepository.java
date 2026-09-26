@@ -63,4 +63,14 @@ public interface ReservaHotelRepository extends MongoRepository<ReservaHotel, St
 
     /** Pendientes de aprobación, la más próxima primero. */
     List<ReservaHotel> findByEstadoOrderByFechaCheckInAsc(EstadoReserva estado, Pageable pageable);
+
+    // ── Socios y cargos ──────────────────────────────────────────────────
+
+    /** Reservas en alguno de los estados (conteo de reservas por cliente en el panel de socios). */
+    List<ReservaHotel> findByEstadoIn(Collection<EstadoReserva> estados);
+
+    long countByDocUsuarioAndEstadoIn(String docUsuario, Collection<EstadoReserva> estados);
+
+    /** Reservas del cliente en un estado (reservas activas a las que se cargan consumos). */
+    List<ReservaHotel> findByDocUsuarioAndEstado(String docUsuario, EstadoReserva estado);
 }

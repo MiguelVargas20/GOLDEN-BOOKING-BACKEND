@@ -31,10 +31,14 @@ import com.sena.goldenbooking.compartido.exception.SolicitudInvalidaException;
 import com.sena.goldenbooking.habitaciones.model.EstadoHabitacion;
 import com.sena.goldenbooking.habitaciones.model.Habitacion;
 import com.sena.goldenbooking.habitaciones.repository.HabitacionRepository;
+import com.sena.goldenbooking.membresias.dto.BeneficioVigente;
+import com.sena.goldenbooking.membresias.service.MembresiaService;
 import com.sena.goldenbooking.notificaciones.model.TipoNotificacion;
 import com.sena.goldenbooking.notificaciones.service.NotificacionService;
 import com.sena.goldenbooking.reservas.model.AccionReserva;
 import com.sena.goldenbooking.reservas.model.CanceladaPor;
+import com.sena.goldenbooking.reservas.model.MiembroReserva;
+import com.sena.goldenbooking.usuarios.model.TipoMembresia;
 import com.sena.goldenbooking.reservas.model.EstadoReserva;
 import com.sena.goldenbooking.reservas.model.Reserva;
 import com.sena.goldenbooking.reservas.repository.ReservaRepository;
@@ -60,6 +64,7 @@ class ReservaHotelServiceImplTest {
     private UsuarioService usuarioService;
     private AvisosAdminService avisosAdmin;
     private NotificacionService notificaciones;
+    private MembresiaService membresias;
     private ReservaHotelServiceImpl service;
 
     private final LocalDate enDiezDias = ZonaHoraria.ahora().toLocalDate().plusDays(10);
@@ -72,8 +77,11 @@ class ReservaHotelServiceImplTest {
         usuarioService = mock(UsuarioService.class);
         avisosAdmin = mock(AvisosAdminService.class);
         notificaciones = mock(NotificacionService.class);
+        membresias = mock(MembresiaService.class);
+        when(membresias.beneficiosDe(anyString())).thenReturn(BeneficioVigente.sinBeneficios(365));
         service = new ReservaHotelServiceImpl(reservaHotelRepo, reservaRepo, habitacionRepo,
-                new ReservaHotelMapperImpl(), mock(EmailService.class), usuarioService, avisosAdmin, notificaciones);
+                new ReservaHotelMapperImpl(), mock(EmailService.class), usuarioService, avisosAdmin, notificaciones,
+                membresias);
 
         when(habitacionRepo.findById("h1")).thenReturn(Optional.of(habitacion(EstadoHabitacion.DISPONIBLE)));
         when(usuarioService.obtenerPorDocNum("123")).thenReturn(
@@ -391,5 +399,63 @@ class ReservaHotelServiceImplTest {
                 enDiezDias.plusDays(3).atStartOfDay(), enDiezDias.plusDays(4).atStartOfDay(), "123", false));
         assertThrows(AccesoDenegadoException.class, () -> service.reprogramar("rh1",
                 enDiezDias.plusDays(3).atStartOfDay(), enDiezDias.plusDays(4).atStartOfDay(), "otro", false));
+    }
+
+    // ── Acompañantes y beneficios de socio ─────────────────────────────────
+
+    @Test
+    void guardaLosAcompanantesSinSuperarLaCapacidadDelTipo() {
+        when(habitacionRepo.findById("h1")).thenReturn(Optional.of(Habitacion.builder().id("h1").numHab("101").precNoche(180000.0)
+                .estado(EstadoHabitacion.DISPONIBLE)
+                .tipoHabitacion(com.sena.goldenbooking.habitaciones.model.TipoHabitacion.builder().cap(2).build()).build()));
+        ReservaHotelDto conUno = dto(enDiezDias, enDiezDias.plusDays(1));
+        conUno.setMiembros(List.of(MiembroReserva.builder().nombre("Sofía Pérez").tipoDocumento("TI").numeroDocumento("1023456789").build()));
+
+        assertEquals(1, service.crear(conUno, false, false).getMiembros().size());
+
+        ReservaHotelDto conDos = dto(enDiezDias.plusDays(5), enDiezDias.plusDays(6));
+        conDos.setMiembros(List.of(
+                MiembroReserva.builder().nombre("Sofía Pérez").tipoDocumento("TI").numeroDocumento("1023456789").build(),
+                MiembroReserva.builder().nombre("Juan Pérez").tipoDocumento("CC").numeroDocumento("80123456").build()));
+        assertThrows(SolicitudInvalidaException.class, () -> service.crear(conDos, false, false));
+    }
+
+    @Test
+    void aplicaElDescuentoDeSocioYLoGuarda() {
+        when(membresias.beneficiosDe("123")).thenReturn(new BeneficioVigente(TipoMembresia.MIEMBRO, 10, 365));
+
+        ReservaHotelDto creada = service.crear(dto(enDiezDias, enDiezDias.plusDays(2)), false, false);
+
+        assertEquals(324000.0, creada.getPTotal()); // 2 noches x 180.000 - 10 %
+        assertEquals(10.0, creada.getDescuento());
+    }
+
+    @Test
+    void unClienteSinMembresiaNoReservaMasAllaDeSuAnticipacion() {
+        when(membresias.beneficiosDe("123")).thenReturn(new BeneficioVigente(TipoMembresia.NINGUNA, 0, 5));
+
+        SolicitudInvalidaException ex = assertThrows(SolicitudInvalidaException.class,
+                () -> service.crear(dto(enDiezDias, enDiezDias.plusDays(1)), false, false));
+        assertTrue(ex.getMessage().contains("Los socios pueden reservar con más anticipación"));
+        // en recepción (admin) no aplica el límite
+        assertEquals(EstadoReserva.PENDIENTE, service.crear(dto(enDiezDias, enDiezDias.plusDays(1)), true, false).getEstado());
+    }
+
+    @Test
+    void siNoSePuedenLeerLosBeneficiosSeReservaSinEllos() {
+        when(membresias.beneficiosDe("123")).thenThrow(new RuntimeException("Mongo caído"));
+        assertEquals(180000.0, service.crear(dto(enDiezDias, enDiezDias.plusDays(1)), false, false).getPTotal());
+    }
+
+    @Test
+    void elDuenoActualizaSusAcompanantesYQuedaEnElHistorial() {
+        reservaExistente(EstadoReserva.CONFIRMADA, enDiezDias.atTime(15, 0));
+
+        ReservaHotelDto r = service.actualizarMiembros("rh1",
+                List.of(MiembroReserva.builder().nombre("Sofía Pérez").tipoDocumento("TI").numeroDocumento("1023456789").build()), "123", false);
+
+        assertEquals(1, r.getMiembros().size());
+        assertEquals(AccionReserva.ACOMPANANTES, r.getHistorial().get(r.getHistorial().size() - 1).getAccion());
+        assertThrows(AccesoDenegadoException.class, () -> service.actualizarMiembros("rh1", List.of(), "otro", false));
     }
 }

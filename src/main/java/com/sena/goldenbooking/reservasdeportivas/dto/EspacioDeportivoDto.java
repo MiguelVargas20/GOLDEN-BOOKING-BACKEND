@@ -2,6 +2,7 @@ package com.sena.goldenbooking.reservasdeportivas.dto;
 
 import java.time.LocalDateTime;
 import java.time.LocalTime;
+import java.util.List;
 
 import com.fasterxml.jackson.annotation.JsonFormat;
 import com.sena.goldenbooking.reservasdeportivas.model.EstadoEspacio;
@@ -72,6 +73,11 @@ public class EspacioDeportivoDto {
 
     @Schema(description = "Estado. Si no se envía al crear, queda ACTIVO.", example = "ACTIVO")
     private EstadoEspacio estado;
+
+    @Schema(description = "Implementos que el cliente puede elegir al reservar. Si se deja vacío se sugieren "
+            + "según el deporte.", example = "[\"Balón\", \"Petos\"]")
+    @Size(max = 12, message = "Máximo 12 implementos por espacio.")
+    private List<@NotBlank @Size(max = 40, message = "Cada implemento admite máximo 40 caracteres.") String> implementos;
 
     @Schema(description = "URL de la imagen subida (null si usa la imagen por defecto del deporte).",
             accessMode = Schema.AccessMode.READ_ONLY, example = "/api/espacios-deportivos/66f1.../imagen")

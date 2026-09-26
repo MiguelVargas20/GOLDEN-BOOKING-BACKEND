@@ -19,6 +19,7 @@ import org.springframework.web.bind.annotation.RestController;
 import com.sena.goldenbooking.compartido.exception.AccesoDenegadoException;
 import com.sena.goldenbooking.compartido.web.Paginacion;
 import com.sena.goldenbooking.reservas.dto.CancelacionReservaDto;
+import com.sena.goldenbooking.reservas.dto.MiembrosDto;
 import com.sena.goldenbooking.reservas.dto.ReprogramacionDto;
 import com.sena.goldenbooking.reservas.model.EstadoReserva;
 import com.sena.goldenbooking.reservashoteleras.dto.RangoOcupadoDto;
@@ -181,6 +182,16 @@ public class ReservaHotelController {
                                                       @Valid @RequestBody ReprogramacionDto fechas,
                                                       Authentication authentication) {
         return ResponseEntity.ok(service.reprogramar(id, fechas.getInicio(), fechas.getFin(),
+                documentoDe(authentication), AutenticacionUtils.esAdmin(authentication)));
+    }
+
+    @Operation(summary = "Actualizar los acompañantes de la reserva",
+            description = "Reemplaza la lista completa (nombre, tipo y número de documento; los menores con TI). "
+                    + "Dueño o ADMIN, en reservas pendientes o confirmadas y sin superar la capacidad.")
+    @PatchMapping("/{id}/miembros")
+    public ResponseEntity<ReservaHotelDto> actualizarMiembros(@PathVariable String id, @Valid @RequestBody MiembrosDto cuerpo,
+                                                          Authentication authentication) {
+        return ResponseEntity.ok(service.actualizarMiembros(id, cuerpo.getMiembros(),
                 documentoDe(authentication), AutenticacionUtils.esAdmin(authentication)));
     }
 

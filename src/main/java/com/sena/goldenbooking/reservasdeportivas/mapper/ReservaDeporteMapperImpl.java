@@ -54,6 +54,8 @@ public class ReservaDeporteMapperImpl implements ReservaDeporteMapper {
                 .canceladaPor(rd.getCanceladaPor())
                 .motivoCancelacion(rd.getMotivoCancelacion())
                 .historial(rd.getHistorial())
+                .miembros(rd.getMiembros())
+                .descuento(rd.getDescuento())
                 .build();
     }
     // Mapeo de lista de ReservaDeporte a lista de ReservaDeporteDto

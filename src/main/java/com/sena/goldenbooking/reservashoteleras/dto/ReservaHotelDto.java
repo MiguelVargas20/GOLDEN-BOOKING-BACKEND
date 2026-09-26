@@ -3,13 +3,16 @@ package com.sena.goldenbooking.reservashoteleras.dto;
 import java.time.LocalDateTime;
 import java.util.List;
 
+import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Size;
 
 import com.sena.goldenbooking.habitaciones.model.EstadoHabitacion;
 import com.sena.goldenbooking.reservas.model.CanceladaPor;
 import com.sena.goldenbooking.reservas.model.EstadoReserva;
 import com.sena.goldenbooking.reservas.model.EventoReserva;
+import com.sena.goldenbooking.reservas.model.MiembroReserva;
 
 import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.AllArgsConstructor;
@@ -86,6 +89,14 @@ public class ReservaHotelDto {
     private String nombreCliente;
     @Schema(accessMode = Schema.AccessMode.READ_ONLY, description = "Solo en los listados del administrador.")
     private String correoCliente;
+
+    @Schema(description = "Acompañantes del titular (máximo la capacidad del espacio o habitación menos uno).")
+    @Valid
+    @Size(max = 50, message = "Máximo 50 acompañantes.")
+    private List<MiembroReserva> miembros;
+
+    @Schema(description = "Descuento de socio aplicado (porcentaje).", accessMode = Schema.AccessMode.READ_ONLY, example = "10")
+    private Double descuento;
 
     @Schema(description = "Historial de cambios (quién la creó, aprobó, canceló o reprogramó y cuándo).",
             accessMode = Schema.AccessMode.READ_ONLY)

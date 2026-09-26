@@ -1,5 +1,7 @@
 package com.sena.goldenbooking.habitaciones.dto;
 
+import java.util.List;
+
 import com.sena.goldenbooking.habitaciones.model.EstadoHabitacion;
 import com.sena.goldenbooking.habitaciones.model.TipoHabitacion;
 
@@ -31,5 +33,12 @@ public class HabitacionDto {
 
     /** URL pública de la imagen subida (solo lectura; null si no tiene). */
     private String imagenUrl;
+
+    /** Galería completa (hasta 5, la primera es la portada). Solo lectura. */
+    private List<ImagenHabitacionDto> imagenes;
+
+    /** Una imagen de la galería. */
+    public record ImagenHabitacionDto(String id, String url) {
+    }
 
 }

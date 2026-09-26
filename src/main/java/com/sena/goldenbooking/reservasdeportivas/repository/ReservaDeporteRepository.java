@@ -1,6 +1,7 @@
 package com.sena.goldenbooking.reservasdeportivas.repository;
 
 import java.time.LocalDateTime;
+import java.util.Collection;
 import java.util.List;
 
 import org.springframework.data.domain.Page;
@@ -78,4 +79,14 @@ public interface ReservaDeporteRepository extends MongoRepository<ReservaDeporte
 
     /** Pendientes de aprobación, la más próxima primero. */
     List<ReservaDeporte> findByEstadoOrderByFechaReservaAsc(EstadoReserva estado, Pageable pageable);
+
+    // ── Socios y cargos ──────────────────────────────────────────────────
+
+    /** Reservas en alguno de los estados (conteo de reservas por cliente en el panel de socios). */
+    List<ReservaDeporte> findByEstadoIn(Collection<EstadoReserva> estados);
+
+    long countByDocUsuarioAndEstadoIn(String docUsuario, Collection<EstadoReserva> estados);
+
+    /** Reservas del cliente en un estado (reservas activas a las que se cargan consumos). */
+    List<ReservaDeporte> findByDocUsuarioAndEstado(String docUsuario, EstadoReserva estado);
 }

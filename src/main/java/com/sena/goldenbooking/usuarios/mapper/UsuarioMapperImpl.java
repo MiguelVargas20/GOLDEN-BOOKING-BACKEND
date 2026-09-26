@@ -5,6 +5,7 @@ import java.util.List;
 import org.springframework.stereotype.Component;
 
 import com.sena.goldenbooking.usuarios.dto.UsuarioDto;
+import com.sena.goldenbooking.usuarios.model.TipoMembresia;
 import com.sena.goldenbooking.usuarios.model.Usuario;
 
 @Component
@@ -48,6 +49,7 @@ public class UsuarioMapperImpl implements UsuarioMapper {
                 .fechaNacimiento(usuario.getFNac())
                 .estado(usuario.getEstado())
                 .fechaRegistro(usuario.getFReg())
+                .membresia(usuario.getMembresia() != null ? usuario.getMembresia() : TipoMembresia.NINGUNA)
                 .build();
     }
 

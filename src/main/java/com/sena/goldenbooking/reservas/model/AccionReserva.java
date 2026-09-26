@@ -8,5 +8,6 @@ public enum AccionReserva {
     REPROGRAMADA,
     FINALIZADA,
     VENCIDA,
-    CALIFICADA
+    CALIFICADA,
+    ACOMPANANTES
 }

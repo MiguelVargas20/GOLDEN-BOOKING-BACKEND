@@ -18,6 +18,10 @@ import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 
 import com.sena.goldenbooking.compartido.config.ZonaHoraria;
+import com.sena.goldenbooking.reservas.service.ReglasMiembros;
+import com.sena.goldenbooking.reservas.model.MiembroReserva;
+import com.sena.goldenbooking.membresias.service.MembresiaService;
+import com.sena.goldenbooking.membresias.dto.BeneficioVigente;
 import com.sena.goldenbooking.compartido.email.EmailService;
 import com.sena.goldenbooking.compartido.exception.AccesoDenegadoException;
 import com.sena.goldenbooking.compartido.exception.ConflictoDeNegocioException;
@@ -60,6 +64,7 @@ public class ReservaHotelServiceImpl implements ReservaHotelService {
     private final UsuarioService usuarioService;
     private final AvisosAdminService avisosAdmin;
     private final NotificacionService notificaciones;
+    private final MembresiaService membresias;
 
     // ── FIX RACE CONDITION ──────────────────────────────────────────
     // Un ReentrantLock por habitación (no uno global, para no bloquear
@@ -91,7 +96,8 @@ public class ReservaHotelServiceImpl implements ReservaHotelService {
             EmailService emailService,
             UsuarioService usuarioService,
             AvisosAdminService avisosAdmin,
-            NotificacionService notificaciones) {
+            NotificacionService notificaciones,
+            MembresiaService membresias) {
         this.reservaHotelRepo = reservaHotelRepo;
         this.reservaRepo = reservaRepo;
         this.habitacionRepo = habitacionRepo;
@@ -100,6 +106,7 @@ public class ReservaHotelServiceImpl implements ReservaHotelService {
         this.usuarioService = usuarioService;
         this.avisosAdmin = avisosAdmin;
         this.notificaciones = notificaciones;
+        this.membresias = membresias;
     }
     @Override
     public ReservaHotelDto crear(ReservaHotelDto dto, boolean registradaPorAdmin, boolean confirmarDeInmediato) {
@@ -149,7 +156,13 @@ public class ReservaHotelServiceImpl implements ReservaHotelService {
             throw new SolicitudInvalidaException("La fecha de check-in no puede estar en el pasado.");
         }
 
-        double precioTotal = noches * habitacion.getPrecNoche();
+        // Beneficios de socio: más días de anticipación (solo si reserva el cliente) y descuento
+        BeneficioVigente beneficio = beneficioDe(dto.getDocUsuario());
+        if (!registradaPorAdmin) beneficio.validarAnticipacion(dto.getFCheckIn().toLocalDate());
+        Integer capacidad = habitacion.getTipoHabitacion() != null ? habitacion.getTipoHabitacion().getCap() : null;
+        List<MiembroReserva> miembros = ReglasMiembros.validar(dto.getMiembros(), dto.getDocUsuario(), capacidad);
+
+        double precioTotal = beneficio.aplicar(noches * habitacion.getPrecNoche());
 
         // ── SECCIÓN CRÍTICA (fix race condition) ──────────────────────
         // Desde acá hasta que soltamos el lock, ningún otro hilo puede estar
@@ -204,6 +217,8 @@ public class ReservaHotelServiceImpl implements ReservaHotelService {
                     .registradaPorAdministrador(registradaPorAdmin)
                     .fechaSolicitud(ahora)
                     .fechaConfirmacion(confirmada ? ahora : null)
+                    .miembros(miembros)
+                    .descuento(beneficio.descuentoParaGuardar())
                     .historial(HistorialReserva.agregar(null, HistorialReserva.evento(AccionReserva.CREADA,
                             registradaPorAdmin ? (confirmada ? "Registrada en recepción y confirmada" : "Registrada en recepción") : null)))
                     .build();
@@ -404,7 +419,8 @@ public ReservaHotelDto actualizar(String id, ReservaHotelDto dto, String docUsua
         if (habitacion.getEstado() == EstadoHabitacion.MANTENIMIENTO) {
             throw new ConflictoDeNegocioException("Esta habitación está en mantenimiento.");
         }
-        double precioTotal = noches * habitacion.getPrecNoche();
+        if (!esAdmin) beneficioDe(rh.getDocUsuario()).validarAnticipacion(checkIn.toLocalDate());
+        double precioTotal = BeneficioVigente.aplicar(noches * habitacion.getPrecNoche(), rh.getDescuento());
         String anterior = PlantillasCorreoReserva.fecha(rh.getFechaCheckIn()) + " → "
                 + PlantillasCorreoReserva.fecha(rh.getFechaCheckOut());
 
@@ -455,6 +471,23 @@ public ReservaHotelDto actualizar(String id, ReservaHotelDto dto, String docUsua
         }
         log.info("Reserva hotel {} reprogramada ({} → {}).", id, anterior, checkIn);
         return mapper.toDto(guardada);
+    }
+
+    @Override
+    public ReservaHotelDto actualizarMiembros(String id, List<MiembroReserva> miembros, String docUsuarioSolicitante, boolean esAdmin) {
+        ReservaHotel rh = reservaHotelRepo.findById(id)
+                .orElseThrow(() -> new ReservaNoEncontradaException("La reserva no existe."));
+        if (!esAdmin && !rh.getDocUsuario().equals(docUsuarioSolicitante)) {
+            throw new AccesoDenegadoException("No tienes permiso para modificar esta reserva.");
+        }
+        ReglasEstadoReserva.validarReprogramable(rh.getEstado());
+        Habitacion habitacion = habitacionRepo.findById(rh.getIdHabitacion()).orElse(rh.getDatosH());
+        Integer capacidad = habitacion != null && habitacion.getTipoHabitacion() != null ? habitacion.getTipoHabitacion().getCap() : null;
+        List<MiembroReserva> limpios = ReglasMiembros.validar(miembros, rh.getDocUsuario(), capacidad);
+        rh.setMiembros(limpios);
+        rh.setHistorial(HistorialReserva.agregar(rh.getHistorial(), HistorialReserva.evento(AccionReserva.ACOMPANANTES,
+                limpios.isEmpty() ? "Sin acompañantes" : limpios.size() + (limpios.size() == 1 ? " acompañante" : " acompañantes"))));
+        return mapper.toDto(reservaHotelRepo.save(rh));
     }
 
     // Método adicional para obtener reservas por documento de usuario
@@ -556,5 +589,16 @@ public ReservaHotelDto actualizar(String id, ReservaHotelDto dto, String docUsua
     /** Número de la habitación guardado en la reserva ("—" en reservas antiguas sin datos). */
     private static String numeroHabitacion(ReservaHotel rh) {
         return rh.getDatosH() != null && rh.getDatosH().getNumHab() != null ? rh.getDatosH().getNumHab() : "—";
+    }
+
+    /** Beneficios de socio del cliente. Si no se pueden consultar, se reserva sin beneficios ni límite. */
+    private BeneficioVigente beneficioDe(String docUsuario) {
+        try {
+            BeneficioVigente b = membresias.beneficiosDe(docUsuario);
+            return b != null ? b : BeneficioVigente.sinBeneficios(3650);
+        } catch (Exception e) {
+            log.warn("No se pudieron consultar los beneficios de socio de {}: {}", docUsuario, e.getMessage());
+            return BeneficioVigente.sinBeneficios(3650);
+        }
     }
 }

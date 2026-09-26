@@ -1,11 +1,16 @@
 package com.sena.goldenbooking.reservasdeportivas.mapper;
 
+import java.util.HashSet;
 import java.util.List;
+import java.util.Locale;
+import java.util.Objects;
+import java.util.Set;
 
 import org.springframework.stereotype.Component;
 
 import com.sena.goldenbooking.reservasdeportivas.dto.EspacioDeportivoDto;
 import com.sena.goldenbooking.reservasdeportivas.model.EspacioDeportivo;
+import com.sena.goldenbooking.reservasdeportivas.model.ImplementosSugeridos;
 
 @Component
 public class EspacioDeportivoMapperImpl implements EspacioDeportivoMapper {
@@ -29,6 +34,7 @@ public class EspacioDeportivoMapperImpl implements EspacioDeportivoMapper {
                 .horaApertura(dto.getHoraApertura())
                 .horaCierre(dto.getHoraCierre())
                 .estado(dto.getEstado())
+                .implementos(limpiarLista(dto.getImplementos()))
                 .build();
     }
 
@@ -45,6 +51,8 @@ public class EspacioDeportivoMapperImpl implements EspacioDeportivoMapper {
                 .horaApertura(e.getHoraApertura())
                 .horaCierre(e.getHoraCierre())
                 .estado(e.getEstado())
+                .implementos(e.getImplementos() != null && !e.getImplementos().isEmpty()
+                        ? e.getImplementos() : ImplementosSugeridos.para(e.getDeporte()))
                 .imagenUrl(e.getImagenId() != null ? RUTA_IMAGEN.formatted(e.getId(), e.getImagenId()) : null)
                 .fechaCreacion(e.getFechaCreacion())
                 .fechaActualizacion(e.getFechaActualizacion())
@@ -70,6 +78,20 @@ public class EspacioDeportivoMapperImpl implements EspacioDeportivoMapper {
         if (dto.getEstado() != null) {
             espacio.setEstado(dto.getEstado());
         }
+        if (dto.getImplementos() != null) {
+            espacio.setImplementos(limpiarLista(dto.getImplementos()));
+        }
+    }
+
+    /** Sin vacíos ni repetidos (sin importar mayúsculas). */
+    private static List<String> limpiarLista(List<String> lista) {
+        if (lista == null) return null;
+        Set<String> vistos = new HashSet<>();
+        return lista.stream()
+                .filter(Objects::nonNull)
+                .map(String::trim)
+                .filter(t -> !t.isEmpty() && vistos.add(t.toLowerCase(Locale.ROOT)))
+                .toList();
     }
 
     /** Quita espacios sobrantes para que "Cancha  1 " y "Cancha 1" no sean nombres distintos. */

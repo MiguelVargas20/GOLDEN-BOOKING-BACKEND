@@ -72,6 +72,8 @@ public class SecurityConfig {
                     //    la carga con <img src>, que no envía el token ────────
                     .requestMatchers(HttpMethod.GET, "/api/espacios-deportivos/*/imagen").permitAll()
                     .requestMatchers(HttpMethod.GET, "/api/habitaciones/*/imagen").permitAll()
+                    .requestMatchers(HttpMethod.GET, "/api/habitaciones/*/imagenes/*").permitAll()
+                    .requestMatchers(HttpMethod.GET, "/api/eventos/*/imagen").permitAll()
 
                     // ── Documentación Swagger / OpenAPI ───────────────────
                     .requestMatchers(
@@ -118,6 +120,15 @@ public class SecurityConfig {
                     .requestMatchers("/api/dashboard/**").hasAuthority("ROL_ADMIN")
                     // Calendario de ocupación y reportes: solo ADMIN
                     .requestMatchers("/api/calendario/**", "/api/reportes/**").hasAuthority("ROL_ADMIN")
+                    // Eventos: los clientes ven los próximos; crear y editar solo ADMIN
+                    .requestMatchers(HttpMethod.GET, "/api/eventos/proximos").hasAnyAuthority("ROL_ADMIN", "ROL_CLIENTE")
+                    .requestMatchers("/api/eventos/**").hasAuthority("ROL_ADMIN")
+                    // Cargos: el cliente ve los suyos; registrar y cobrar solo ADMIN
+                    .requestMatchers(HttpMethod.GET, "/api/cargos/mios").hasAnyAuthority("ROL_ADMIN", "ROL_CLIENTE")
+                    .requestMatchers("/api/cargos/**").hasAuthority("ROL_ADMIN")
+                    // Membresías: cada usuario ve la suya; el panel de socios es solo ADMIN
+                    .requestMatchers(HttpMethod.GET, "/api/membresias/mia").hasAnyAuthority("ROL_ADMIN", "ROL_CLIENTE")
+                    .requestMatchers("/api/membresias/**").hasAuthority("ROL_ADMIN")
                     // Notificaciones y calificaciones: cada usuario las suyas (el service usa su documento)
                     .requestMatchers("/api/notificaciones/**").hasAnyAuthority("ROL_ADMIN", "ROL_CLIENTE")
                     .requestMatchers(HttpMethod.GET,  "/api/calificaciones/**").hasAnyAuthority("ROL_ADMIN", "ROL_CLIENTE")

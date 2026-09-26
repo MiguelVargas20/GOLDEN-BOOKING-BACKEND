@@ -8,6 +8,7 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 
 import com.sena.goldenbooking.reservas.model.EstadoReserva;
+import com.sena.goldenbooking.reservas.model.MiembroReserva;
 import com.sena.goldenbooking.reservashoteleras.dto.RangoOcupadoDto;
 import com.sena.goldenbooking.reservashoteleras.dto.ReservaHotelDto;
 
@@ -53,6 +54,9 @@ public interface ReservaHotelService {
      * quedar PENDIENTE. El ADMIN puede reprogramar cualquiera y se avisa al cliente.
      */
     ReservaHotelDto reprogramar(String id, LocalDateTime checkIn, LocalDateTime checkOut, String docUsuarioSolicitante, boolean esAdmin);
+
+    /** Reemplaza los acompañantes (dueño o ADMIN; reservas pendientes o confirmadas; respeta la capacidad). */
+    ReservaHotelDto actualizarMiembros(String id, List<MiembroReserva> miembros, String docUsuarioSolicitante, boolean esAdmin);
 
     /** Reservas del usuario autenticado (más recientes primero). */
     List<ReservaHotelDto> obtenerPorUsuario(String docUsuario);

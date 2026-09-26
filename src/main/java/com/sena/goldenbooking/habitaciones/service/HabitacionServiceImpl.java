@@ -162,7 +162,7 @@ public class HabitacionServiceImpl implements HabitacionService {
             return new RecursoNoEncontradoException("No se puede eliminar, ID no existe: " + id);
         });
         habRepo.deleteById(id);
-        imagenes.borrar(hab.getImagenId());
+        hab.galeria().forEach(imagenes::borrar);
         log.info("Habitación con ID: {} eliminada correctamente.", id);
     }
 
@@ -175,23 +175,75 @@ public class HabitacionServiceImpl implements HabitacionService {
 
     // ── Imagen (GridFS, mismas reglas que los espacios deportivos) ─────────
 
+    /** Sube o reemplaza la PORTADA (primera imagen de la galería). */
     @Override
     public HabitacionDto subirImagen(String id, MultipartFile archivo) {
         Habitacion hab = buscar(id);
         String nuevoId = imagenes.guardar(archivo, "habitacion-" + id);
-        String anterior = hab.getImagenId();
-        hab.setImagenId(nuevoId);
+        List<String> galeria = hab.galeria();
+        String anterior = galeria.isEmpty() ? null : galeria.set(0, nuevoId);
+        if (anterior == null) galeria.add(nuevoId);
+        hab.guardarGaleria(galeria);
         Habitacion guardada = habRepo.save(hab);
         imagenes.borrar(anterior); // la vieja se borra solo cuando la nueva ya quedó guardada
         return habMapper.toDto(guardada);
     }
 
+    /** Quita la portada; la siguiente imagen de la galería pasa a ser la portada. */
     @Override
     public HabitacionDto eliminarImagen(String id) {
         Habitacion hab = buscar(id);
-        imagenes.borrar(hab.getImagenId());
-        hab.setImagenId(null);
+        List<String> galeria = hab.galeria();
+        if (galeria.isEmpty()) return habMapper.toDto(hab);
+        String quitada = galeria.remove(0);
+        hab.guardarGaleria(galeria);
+        Habitacion guardada = habRepo.save(hab);
+        imagenes.borrar(quitada);
+        return habMapper.toDto(guardada);
+    }
+
+    // ── Galería (hasta 5 imágenes; la primera es la portada) ───────────────
+
+    @Override
+    public HabitacionDto agregarImagen(String id, MultipartFile archivo) {
+        Habitacion hab = buscar(id);
+        List<String> galeria = hab.galeria();
+        if (galeria.size() >= Habitacion.MAXIMO_IMAGENES) {
+            throw new ConflictoDeNegocioException("Cada habitación admite máximo " + Habitacion.MAXIMO_IMAGENES
+                    + " imágenes. Quita una antes de subir otra.");
+        }
+        galeria.add(imagenes.guardar(archivo, "habitacion-" + id));
+        hab.guardarGaleria(galeria);
         return habMapper.toDto(habRepo.save(hab));
+    }
+
+    @Override
+    public HabitacionDto quitarImagen(String id, String imagenId) {
+        Habitacion hab = buscar(id);
+        List<String> galeria = hab.galeria();
+        if (!galeria.remove(imagenId)) throw new RecursoNoEncontradoException("Esa imagen no es de esta habitación.");
+        hab.guardarGaleria(galeria);
+        Habitacion guardada = habRepo.save(hab);
+        imagenes.borrar(imagenId);
+        return habMapper.toDto(guardada);
+    }
+
+    @Override
+    public HabitacionDto elegirPortada(String id, String imagenId) {
+        Habitacion hab = buscar(id);
+        List<String> galeria = hab.galeria();
+        if (!galeria.remove(imagenId)) throw new RecursoNoEncontradoException("Esa imagen no es de esta habitación.");
+        galeria.add(0, imagenId);
+        hab.guardarGaleria(galeria);
+        return habMapper.toDto(habRepo.save(hab));
+    }
+
+    @Override
+    public GridFsResource obtenerImagenGaleria(String id, String imagenId) {
+        if (!buscar(id).galeria().contains(imagenId)) {
+            throw new RecursoNoEncontradoException("Esa imagen no es de esta habitación.");
+        }
+        return imagenes.obtener(imagenId);
     }
 
     @Override

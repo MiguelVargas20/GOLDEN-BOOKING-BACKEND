@@ -134,4 +134,46 @@ class ConsultasRepositoriosTest {
 
         assertEquals(1, r.size());
     }
+
+    // ── Consultas nuevas (socios, cargos y eventos) ────────────────────────
+
+    @Test
+    void reservasPorEstadoYPorCliente() {
+        deporteRepo.save(ReservaDeporte.builder().idReservaDeporte("mia").docUsuario("123").estado(EstadoReserva.CONFIRMADA)
+                .fechaReserva(lunes.atTime(9, 0)).fechaFinReserva(lunes.atTime(10, 0)).build());
+        List<EstadoReserva> cuentan = List.of(EstadoReserva.CONFIRMADA, EstadoReserva.FINALIZADA);
+
+        assertEquals(4, deporteRepo.findByEstadoIn(cuentan).size());
+        assertEquals(1, deporteRepo.countByDocUsuarioAndEstadoIn("123", cuentan));
+        assertEquals(1, deporteRepo.findByDocUsuarioAndEstado("123", EstadoReserva.CONFIRMADA).size());
+        assertEquals(2, hotelRepo.findByEstadoIn(cuentan).size());
+    }
+
+    @Test
+    void eventosPublicadosQueNoHanTerminado() {
+        var eventos = new MongoRepositoryFactory(mongo).getRepository(com.sena.goldenbooking.eventos.repository.EventoRepository.class);
+        eventos.saveAll(List.of(
+                com.sena.goldenbooking.eventos.model.Evento.builder().id("ok").publicado(true)
+                        .fechaInicio(lunes.atTime(19, 0)).fechaFin(lunes.atTime(23, 0)).build(),
+                com.sena.goldenbooking.eventos.model.Evento.builder().id("borrador").publicado(false)
+                        .fechaInicio(lunes.atTime(19, 0)).fechaFin(lunes.atTime(23, 0)).build(),
+                com.sena.goldenbooking.eventos.model.Evento.builder().id("pasado").publicado(true)
+                        .fechaInicio(lunes.minusDays(3).atTime(19, 0)).fechaFin(lunes.minusDays(3).atTime(23, 0)).build()));
+
+        var r = eventos.findByPublicadoTrueAndFechaFinAfter(lunes.atStartOfDay(), org.springframework.data.domain.Sort.by("fechaInicio"));
+
+        assertEquals(1, r.size());
+        assertEquals("ok", r.get(0).getId());
+    }
+
+    @Test
+    void cargosPendientesDeUnCliente() {
+        var cargos = new MongoRepositoryFactory(mongo).getRepository(com.sena.goldenbooking.cargos.repository.CargoRepository.class);
+        cargos.saveAll(List.of(
+                com.sena.goldenbooking.cargos.model.Cargo.builder().docUsuario("123").estado(com.sena.goldenbooking.cargos.model.EstadoCargo.PENDIENTE).fecha(lunes.atStartOfDay()).build(),
+                com.sena.goldenbooking.cargos.model.Cargo.builder().docUsuario("123").estado(com.sena.goldenbooking.cargos.model.EstadoCargo.PAGADO).fecha(lunes.atStartOfDay()).build()));
+
+        assertEquals(1, cargos.findByDocUsuarioAndEstado("123", com.sena.goldenbooking.cargos.model.EstadoCargo.PENDIENTE).size());
+        assertEquals(2, cargos.findByDocUsuarioOrderByFechaDesc("123").size());
+    }
 }

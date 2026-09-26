@@ -18,6 +18,7 @@ import com.sena.goldenbooking.compartido.web.Paginacion;
 import com.sena.goldenbooking.habitaciones.dto.HabitacionDto;
 import com.sena.goldenbooking.habitaciones.model.EstadoHabitacion;
 import com.sena.goldenbooking.habitaciones.service.HabitacionService;
+
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.security.SecurityRequirements;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -130,6 +131,38 @@ public class HabitacionController {
                 .contentLength(imagen.contentLength())
                 // la URL lleva ?v=<id de la imagen>: al subir otra cambia, así que cachear un día es seguro
                 .cacheControl(CacheControl.maxAge(1, TimeUnit.DAYS).cachePublic())
+                .header("X-Content-Type-Options", "nosniff")
+                .body(new InputStreamResource(imagen.getInputStream()));
+    }
+
+    // ── Galería (hasta 5 imágenes; la primera es la portada) ───────────────
+
+    @Operation(summary = "Agregar una imagen a la galería (ADMIN)", description = "Máximo 5 por habitación. Mismas reglas de formato y tamaño.")
+    @PostMapping(value = "/{id}/imagenes", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    public ResponseEntity<HabitacionDto> agregarImagen(@PathVariable String id, @RequestParam("archivo") MultipartFile archivo) {
+        return ResponseEntity.ok(service.agregarImagen(id, archivo));
+    }
+
+    @Operation(summary = "Quitar una imagen de la galería (ADMIN)")
+    @DeleteMapping("/{id}/imagenes/{imagenId}")
+    public ResponseEntity<HabitacionDto> quitarImagen(@PathVariable String id, @PathVariable String imagenId) {
+        return ResponseEntity.ok(service.quitarImagen(id, imagenId));
+    }
+
+    @Operation(summary = "Usar una imagen como portada (ADMIN)")
+    @PatchMapping("/{id}/imagenes/{imagenId}/portada")
+    public ResponseEntity<HabitacionDto> elegirPortada(@PathVariable String id, @PathVariable String imagenId) {
+        return ResponseEntity.ok(service.elegirPortada(id, imagenId));
+    }
+
+    @Operation(summary = "Ver una imagen de la galería (público)", description = "Para <img src> (el navegador no envía el token).")
+    @GetMapping("/{id}/imagenes/{imagenId}")
+    public ResponseEntity<InputStreamResource> verImagenGaleria(@PathVariable String id, @PathVariable String imagenId) throws IOException {
+        var imagen = service.obtenerImagenGaleria(id, imagenId);
+        return ResponseEntity.ok()
+                .contentType(MediaType.parseMediaType(imagen.getContentType()))
+                .contentLength(imagen.contentLength())
+                .cacheControl(CacheControl.maxAge(1, TimeUnit.DAYS).cachePublic()) // el id de la imagen no cambia
                 .header("X-Content-Type-Options", "nosniff")
                 .body(new InputStreamResource(imagen.getInputStream()));
     }

@@ -14,6 +14,7 @@ import com.sena.goldenbooking.habitaciones.model.Habitacion;
 import com.sena.goldenbooking.reservas.model.CanceladaPor;
 import com.sena.goldenbooking.reservas.model.EstadoReserva;
 import com.sena.goldenbooking.reservas.model.EventoReserva;
+import com.sena.goldenbooking.reservas.model.MiembroReserva;
 
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -69,6 +70,13 @@ public class ReservaHotel {
     private boolean recordatorio24hEnviado;
     
     private boolean recordatorio2hEnviado;
+
+    /** Acompañantes del titular (nombre y documento; los menores con tarjeta de identidad). */
+    @Builder.Default
+    private List<MiembroReserva> miembros = new ArrayList<>();
+
+    /** Descuento de socio aplicado al precio (porcentaje; 0 o null = sin descuento). */
+    private Double descuento;
 
     /** Quién la creó, aprobó, canceló o reprogramó y cuándo (lo ve el administrador). */
     @Builder.Default

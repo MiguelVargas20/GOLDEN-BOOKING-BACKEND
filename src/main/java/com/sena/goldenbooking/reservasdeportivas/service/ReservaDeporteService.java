@@ -8,6 +8,7 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 
 import com.sena.goldenbooking.reservas.model.EstadoReserva;
+import com.sena.goldenbooking.reservas.model.MiembroReserva;
 import com.sena.goldenbooking.reservasdeportivas.dto.RangoOcupadoDeporteDto;
 import com.sena.goldenbooking.reservasdeportivas.dto.ReservaDeporteDto;
 
@@ -58,6 +59,9 @@ public interface ReservaDeporteService {
      * PENDIENTE. El ADMIN puede reprogramar cualquiera y se avisa al cliente.
      */
     ReservaDeporteDto reprogramar(String id, LocalDateTime inicio, LocalDateTime fin, String docUsuarioSolicitante, boolean esAdmin);
+
+    /** Reemplaza los acompañantes (dueño o ADMIN; reservas pendientes o confirmadas; respeta la capacidad). */
+    ReservaDeporteDto actualizarMiembros(String id, List<MiembroReserva> miembros, String docUsuarioSolicitante, boolean esAdmin);
 
     /** Reservas del usuario autenticado (más recientes primero). */
     List<ReservaDeporteDto> obtenerPorUsuario(String docUsuario);

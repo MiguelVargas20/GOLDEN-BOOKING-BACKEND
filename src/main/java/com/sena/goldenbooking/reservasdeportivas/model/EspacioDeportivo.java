@@ -2,6 +2,7 @@ package com.sena.goldenbooking.reservasdeportivas.model;
 
 import java.time.LocalDateTime;
 import java.time.LocalTime;
+import java.util.List;
 
 import org.springframework.data.annotation.Id;
 import org.springframework.data.mongodb.core.index.Indexed;
@@ -54,6 +55,9 @@ public class EspacioDeportivo {
     private String imagenId;
 
     private EstadoEspacio estado;
+
+    /** Implementos que se ofrecen al reservar (vacío = los sugeridos para el deporte). */
+    private List<String> implementos;
 
     private LocalDateTime fechaCreacion;
     private LocalDateTime fechaActualizacion;

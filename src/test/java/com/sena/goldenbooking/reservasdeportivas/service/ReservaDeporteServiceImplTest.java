@@ -28,6 +28,8 @@ import com.sena.goldenbooking.compartido.exception.AccesoDenegadoException;
 import com.sena.goldenbooking.compartido.exception.ConflictoDeNegocioException;
 import com.sena.goldenbooking.compartido.exception.RecursoNoEncontradoException;
 import com.sena.goldenbooking.compartido.exception.SolicitudInvalidaException;
+import com.sena.goldenbooking.membresias.dto.BeneficioVigente;
+import com.sena.goldenbooking.membresias.service.MembresiaService;
 import com.sena.goldenbooking.notificaciones.model.TipoNotificacion;
 import com.sena.goldenbooking.notificaciones.service.NotificacionService;
 import com.sena.goldenbooking.reservas.model.AccionReserva;
@@ -59,6 +61,7 @@ class ReservaDeporteServiceImplTest {
     private ReservaDeporteServiceImpl service;
     private AvisosAdminService avisosAdmin;
     private NotificacionService notificaciones;
+    private MembresiaService membresias;
 
     /** Mañana a las 10:00 (dentro del horario 06:00 - 22:00 del espacio). */
     private final LocalDateTime mananaDiez = ZonaHoraria.ahora().plusDays(1).with(LocalTime.of(10, 0));
@@ -71,6 +74,8 @@ class ReservaDeporteServiceImplTest {
         usuarioService = mock(UsuarioService.class);
         avisosAdmin = mock(AvisosAdminService.class);
         notificaciones = mock(NotificacionService.class);
+        membresias = mock(MembresiaService.class);
+        when(membresias.beneficiosDe(anyString())).thenReturn(BeneficioVigente.sinBeneficios(365));
         service = new ReservaDeporteServiceImpl(
                 reservaDeporteRepo,
                 reservaRepo,
@@ -80,7 +85,8 @@ class ReservaDeporteServiceImplTest {
                 usuarioService,
                 espacioService,
                 avisosAdmin,
-                notificaciones);
+                notificaciones,
+                membresias);
 
         when(espacioService.obtenerReservable("e1")).thenReturn(EspacioDeportivo.builder()
                 .id("e1").nombre("Cancha 1").tarifaHora(50000.0)

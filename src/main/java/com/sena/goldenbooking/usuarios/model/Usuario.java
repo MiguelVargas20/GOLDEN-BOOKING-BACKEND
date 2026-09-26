@@ -55,4 +55,10 @@ public class Usuario {
     /** Indica si el usuario confirmó su correo electrónico */
     @Builder.Default
     private boolean verificado = false;
+
+    /** Categoría de socio (null o NINGUNA = cliente sin membresía). */
+    private TipoMembresia membresia;
+
+    /** Desde cuándo tiene la membresía actual. */
+    private LocalDateTime fechaMembresia;
 }
