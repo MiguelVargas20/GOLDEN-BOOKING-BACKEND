@@ -1,6 +1,7 @@
 package com.sena.goldenbooking.reservashoteleras.service;
 
 import java.time.LocalDateTime;
+import java.time.LocalTime;
 import java.time.temporal.ChronoUnit;
 import java.util.EnumMap;
 import java.util.LinkedHashMap;
@@ -67,6 +68,10 @@ public class ReservaHotelServiceImpl implements ReservaHotelService {
     // suficiente y hay que migrar a un lock distribuido (ej. un documento
     // de "lock" en Mongo con índice único + TTL, o Redis con Redisson).
     // Para un solo proceso, como corre hoy este proyecto, es correcto.
+    /** Horarios estándar del hotel (se guardan con cada reserva). */
+    static final LocalTime HORA_CHECK_IN = LocalTime.of(15, 0);
+    static final LocalTime HORA_CHECK_OUT = LocalTime.of(12, 0);
+
     private final ConcurrentHashMap<String, Lock> locksPorHabitacion = new ConcurrentHashMap<>();
 
     private Lock obtenerLock(String idHabitacion) {
@@ -113,6 +118,15 @@ public ReservaHotelServiceImpl(
             log.warn("Intento de reserva en habitación en mantenimiento: ID {}", habitacion.getId());
             throw new ConflictoDeNegocioException("Esta habitación está en mantenimiento.");
         }
+
+        // 2.1.1 Horarios estándar de hotel: solo importa el DÍA que elige el
+        //       cliente; se guarda check-in a las 3:00 p. m. y check-out a las
+        //       12:00 m. Antes llegaba la medianoche (o corrida a UTC), y la
+        //       agenda mostraba "12:00 a. m.", el recordatorio de 2 h llegaba a
+        //       las 10 p. m. del día anterior y el cierre finalizaba la estadía
+        //       a medianoche del día de salida.
+        dto.setFCheckIn(dto.getFCheckIn().toLocalDate().atTime(HORA_CHECK_IN));
+        dto.setFCheckOut(dto.getFCheckOut().toLocalDate().atTime(HORA_CHECK_OUT));
 
         // 2.2 Validación de fechas antes de comparar solapamientos
         long noches = ChronoUnit.DAYS.between(dto.getFCheckIn().toLocalDate(), dto.getFCheckOut().toLocalDate());
@@ -365,9 +379,15 @@ public ReservaHotelDto actualizar(String id, ReservaHotelDto dto, String docUsua
     // Nueva reserva 15-20 julio (empieza justo cuando la otra termina) →
     // 10 < 20 (true) Y 15 > 15 (false) → NO se solapan (check-out y check-in
     // el mismo día se permite, como en cualquier hotel real).
-    private boolean seSolapan(LocalDateTime inicioA, LocalDateTime finA,
-                               LocalDateTime inicioB, LocalDateTime finB) {
-        return inicioA.isBefore(finB) && finA.isAfter(inicioB);
+    /**
+     * ¿Se cruzan dos estadías? Se compara por DÍA: las reservas antiguas tienen
+     * horas distintas (medianoche corrida a UTC) y, comparando la hora, una
+     * entrada el mismo día en que sale otro huésped parecía un choque.
+     * Salir y entrar el mismo día no es solapamiento.
+     */
+    static boolean seSolapan(LocalDateTime inicioA, LocalDateTime finA,
+                             LocalDateTime inicioB, LocalDateTime finB) {
+        return inicioA.toLocalDate().isBefore(finB.toLocalDate()) && finA.toLocalDate().isAfter(inicioB.toLocalDate());
     }
 
     /** Mantiene la Reserva "padre" con el mismo estado que la reserva de hotel. */

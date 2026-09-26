@@ -47,4 +47,21 @@ class JsonReservasTest {
                 """, ReservaHotelDto.class);
         assertEquals(LocalDateTime.of(2026, 9, 27, 15, 0), dto.getFCheckIn());
     }
+
+    @Test
+    void camposQueElBackendNoConoceSeIgnoran() {
+        // El front a veces envía campos de más (p. ej. datos de pantalla): no deben romper la petición
+        ReservaHotelDto dto = mapper.readValue("""
+                {"idHabitacion":"h1","docUsuario":"1","fCheckIn":"2026-09-27T00:00:00","fCheckOut":"2026-09-29T00:00:00",
+                 "campoQueNoExiste":123}
+                """, ReservaHotelDto.class);
+        assertEquals("h1", dto.getIdHabitacion());
+    }
+
+    @Test
+    void lasFechasSeEnvianComoTextoIso() {
+        String json = mapper.writeValueAsString(ReservaHotelDto.builder()
+                .fCheckIn(LocalDateTime.of(2026, 9, 27, 0, 0)).build());
+        org.junit.jupiter.api.Assertions.assertTrue(json.contains("\"fCheckIn\":\"2026-09-27T00:00:00\""), json);
+    }
 }
