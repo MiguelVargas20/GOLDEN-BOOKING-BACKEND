@@ -96,6 +96,11 @@ public class UsuarioServiceImpl implements UsuarioService {
             throw new ConflictoDeNegocioException(MENSAJE_REGISTRO_NO_POSIBLE);
         }
 
+        // Dirección: ciudad y país obligatorios (calle y carrera son opcionales)
+        if (dto.getDireccion() == null || estaVacio(dto.getDireccion().getCd()) || estaVacio(dto.getDireccion().getPs())) {
+            throw new SolicitudInvalidaException("Indica al menos la ciudad y el país de tu dirección.");
+        }
+
         // 1. Guardar perfil en colección UsuarioPerfil
         Usuario perfil = Usuario.builder()
                 .nomUsr(dto.getNombre())
@@ -105,7 +110,7 @@ public class UsuarioServiceImpl implements UsuarioService {
                 .correo(dto.getEmail())
                 .dir(dto.getDireccion())
                 .fNac(dto.getFechaNacimiento())
-                .estado(dto.getEstado())
+                .estado(EstadoUsuario.ACTIVO) // antes se tomaba del JSON que manda el cliente
                 .fReg(LocalDateTime.now())
                 .build();
 
@@ -249,6 +254,10 @@ public class UsuarioServiceImpl implements UsuarioService {
         }
         log.info("Usuario con ID: {} actualizado correctamente.", id);
         return conRoles(userMapper.toDto(guardado), auth);
+    }
+
+    private static boolean estaVacio(String texto) {
+        return texto == null || texto.isBlank();
     }
 
     /** Reglas básicas de los campos que manda el formulario del admin. */

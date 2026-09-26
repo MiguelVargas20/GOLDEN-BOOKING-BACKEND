@@ -10,6 +10,8 @@ import jakarta.validation.Valid;
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Past;
+import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
 
 import lombok.AllArgsConstructor;
@@ -32,14 +34,23 @@ public class UsuarioRegistroDto {
     @NotNull(message = "El documento es obligatorio.")
     @Valid
     private Documento documento; // Asegúrate que incluya tipo y numeroD
+
+    @NotBlank(message = "El teléfono es obligatorio.")
+    @Pattern(regexp = "^\\+?[0-9 ]{7,15}$", message = "El teléfono debe tener entre 7 y 15 dígitos.")
     private String telefono;
 
     @NotBlank(message = "El email es obligatorio.")
     @Email(message = "El correo no tiene un formato válido.")
     private String email;
-    private Direccion direccion;
+    @NotNull(message = "La dirección es obligatoria.")
+    private Direccion direccion; // ciudad y país obligatorios (se valida en el servicio)
+
+    @NotNull(message = "La fecha de nacimiento es obligatoria.")
+    @Past(message = "La fecha de nacimiento debe ser una fecha pasada.")
     private LocalDate fechaNacimiento;
-    private EstadoUsuario estado; // "activo" por defecto
+
+    // Se ignora lo que mande el cliente: toda cuenta nueva queda ACTIVO (lo fija el servicio)
+    private EstadoUsuario estado;
 
     // DATOS PARA AUTH (Colección UsuarioAuth)
     // Eliminamos 'username' si vamos a usar el 'email' como login
@@ -48,7 +59,7 @@ public class UsuarioRegistroDto {
     // chocaran entre sí en authRepo.existsByUser(null), igual que pasó con
     // documento.numeroD. Lo obligamos aquí, antes de que llegue al service.
     @NotBlank(message = "El nombre de usuario es obligatorio.")
-    @Size(min = 4, message = "El nombre de usuario debe tener al menos 4 caracteres.")
+    @Size(min = 4, max = 20, message = "El nombre de usuario debe tener entre 4 y 20 caracteres.")
     private String username;
 
     @NotBlank(message = "La contraseña es obligatoria.")

@@ -20,7 +20,9 @@ import com.sena.goldenbooking.auth.service.TokenService;
 import com.sena.goldenbooking.compartido.email.EmailService;
 import com.sena.goldenbooking.usuarios.dto.UsuarioRegistroDto;
 import com.sena.goldenbooking.usuarios.mapper.UsuarioMapper;
+import com.sena.goldenbooking.usuarios.model.Direccion;
 import com.sena.goldenbooking.usuarios.model.Documento;
+import com.sena.goldenbooking.usuarios.model.EstadoUsuario;
 import com.sena.goldenbooking.usuarios.model.Usuario;
 import com.sena.goldenbooking.usuarios.model.UsuarioAuth;
 import com.sena.goldenbooking.usuarios.repository.UsuarioAuthRepository;
@@ -60,6 +62,7 @@ class UsuarioServiceImplTest {
                 .nombre("Ana").apellido("Paz")
                 .documento(new Documento("CC", "123"))
                 .email("ana@test.com").username("anapaz").password("12345678")
+                .direccion(new Direccion("10", "20", "Bogotá", "Colombia"))
                 .build();
     }
 
@@ -81,5 +84,22 @@ class UsuarioServiceImplTest {
         verify(userRepo).deleteById("u1");
         verify(tokenService, never()).generarToken(anyString(), any(TipoToken.class));
         verify(emailService, never()).enviarCorreoVerificacion(anyString(), anyString());
+    }
+
+    @Test
+    void laCuentaNuevaQuedaActivaAunqueElClienteMandeOtroEstado() {
+        UsuarioRegistroDto datos = dto();
+        datos.setEstado(EstadoUsuario.INACTIVO);
+        service.registrarUsuario(datos);
+        verify(userRepo).save(org.mockito.ArgumentMatchers.argThat(u -> u.getEstado() == EstadoUsuario.ACTIVO));
+    }
+
+    @Test
+    void exigeCiudadYPais() {
+        UsuarioRegistroDto datos = dto();
+        datos.setDireccion(new Direccion("10", "20", " ", "Colombia"));
+        assertThrows(com.sena.goldenbooking.compartido.exception.SolicitudInvalidaException.class,
+                () -> service.registrarUsuario(datos));
+        verify(userRepo, never()).save(any(Usuario.class));
     }
 }
