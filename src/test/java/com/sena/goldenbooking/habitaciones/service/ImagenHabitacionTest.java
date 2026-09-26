@@ -33,7 +33,8 @@ class ImagenHabitacionTest {
     void setUp() {
         repo = mock(HabitacionRepository.class);
         imagenes = mock(AlmacenImagenes.class);
-        service = new HabitacionServiceImpl(repo, new HabitacionMapperImpl(), imagenes);
+        service = new HabitacionServiceImpl(repo, new HabitacionMapperImpl(), imagenes,
+                mock(com.sena.goldenbooking.habitaciones.repository.TipoHabitacionRepository.class));
         hab = Habitacion.builder().id("h1").numHab("101").imagenId("vieja").build();
         when(repo.findById("h1")).thenReturn(Optional.of(hab));
         when(repo.save(any(Habitacion.class))).thenAnswer(inv -> inv.getArgument(0));

@@ -8,13 +8,16 @@ import org.springframework.data.mongodb.gridfs.GridFsResource;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
 
+import com.sena.goldenbooking.compartido.exception.ConflictoDeNegocioException;
 import com.sena.goldenbooking.compartido.exception.RecursoNoEncontradoException;
+import com.sena.goldenbooking.compartido.exception.SolicitudInvalidaException;
 import com.sena.goldenbooking.compartido.imagenes.AlmacenImagenes;
 import com.sena.goldenbooking.habitaciones.dto.HabitacionDto;
 import com.sena.goldenbooking.habitaciones.mapper.HabitacionMapper;
 import com.sena.goldenbooking.habitaciones.model.EstadoHabitacion;
 import com.sena.goldenbooking.habitaciones.model.Habitacion;
 import com.sena.goldenbooking.habitaciones.repository.HabitacionRepository;
+import com.sena.goldenbooking.habitaciones.repository.TipoHabitacionRepository;
 
 import lombok.extern.slf4j.Slf4j;
 
@@ -29,10 +32,45 @@ public class HabitacionServiceImpl implements HabitacionService {
     // Constructor para inyección de dependencias
     private final AlmacenImagenes imagenes;
 
-    public HabitacionServiceImpl(HabitacionRepository habRepo, HabitacionMapper habMapper, AlmacenImagenes imagenes) {
+    private final TipoHabitacionRepository tipoRepo;
+
+    public HabitacionServiceImpl(HabitacionRepository habRepo, HabitacionMapper habMapper, AlmacenImagenes imagenes,
+                                 TipoHabitacionRepository tipoRepo) {
         this.habRepo = habRepo;
         this.habMapper = habMapper;
         this.imagenes = imagenes;
+        this.tipoRepo = tipoRepo;
+    }
+
+    /**
+     * Valida los datos y toma el tipo de habitación de la base de datos por su
+     * id. Antes se guardaba el objeto que mandaba el navegador tal cual: si
+     * llegaba con otros nombres de campo (nombreTipoHabitacion en vez de
+     * nomTipo) el tipo quedaba vacío y el catálogo mostraba "—".
+     */
+    private void validarYResolverTipo(HabitacionDto dto, String idActual) {
+        if (dto.getNumeroHabitacion() == null || dto.getNumeroHabitacion().isBlank()) {
+            throw new SolicitudInvalidaException("El número de habitación es obligatorio.");
+        }
+        dto.setNumeroHabitacion(dto.getNumeroHabitacion().trim());
+        if (dto.getPrecioNoche() == null || dto.getPrecioNoche() <= 0) {
+            throw new SolicitudInvalidaException("El precio por noche debe ser mayor a cero.");
+        }
+        if (dto.getEstadoHabitacion() == null) {
+            dto.setEstadoHabitacion(EstadoHabitacion.DISPONIBLE);
+        }
+        boolean repetido = habRepo.findAllByNumHab(dto.getNumeroHabitacion()).stream()
+                .anyMatch(otra -> !otra.getId().equals(idActual));
+        if (repetido) {
+            throw new ConflictoDeNegocioException("Ya existe una habitación con el número " + dto.getNumeroHabitacion() + ".");
+        }
+
+        String idTipo = dto.getDatosTipoHabitacion() != null ? dto.getDatosTipoHabitacion().getId() : null;
+        if (idTipo == null || idTipo.isBlank()) {
+            throw new SolicitudInvalidaException("Selecciona un tipo de habitación.");
+        }
+        dto.setDatosTipoHabitacion(tipoRepo.findById(idTipo)
+                .orElseThrow(() -> new SolicitudInvalidaException("El tipo de habitación elegido no existe.")));
     }
 
     /* Implementación de los métodos definidos en la interfaz HabitacionService */
@@ -40,8 +78,9 @@ public class HabitacionServiceImpl implements HabitacionService {
     public HabitacionDto crear(HabitacionDto dto) {
         log.info("Creando habitación: {}", dto.getNumeroHabitacion());
 
-        // Convertimos DTO a Entidad
+        validarYResolverTipo(dto, null);
         Habitacion habitacion = habMapper.toHabitacion(dto);
+        habitacion.setId(null); // lo asigna Mongo
 
         // Guardamos en MongoDB y mapeamos el resultado
         HabitacionDto resultado = habMapper.toDto(habRepo.save(habitacion));
@@ -98,8 +137,8 @@ public class HabitacionServiceImpl implements HabitacionService {
                     return new RecursoNoEncontradoException("No se puede actualizar, ID no encontrado: " + id);
                 });
         
-        // Usamos el método de Mapper para pasar los datos del DTO a la entidad existente
-        habMapper.actualizarHabitacion(dto, habExistente);
+        validarYResolverTipo(dto, id);
+        habMapper.actualizarHabitacion(dto, habExistente); // la imagen (imagenId) no se toca aquí
         
         HabitacionDto resultado = habMapper.toDto(habRepo.save(habExistente));
         log.info("Habitación con ID: {} actualizada correctamente.", id);

@@ -14,4 +14,7 @@ public interface HabitacionRepository extends MongoRepository<Habitacion, String
 
     /*Para buscar por tipo en MongoDB, buscamos por el ID del objeto TipoHabitacion que está dentro de la habitación*/
     List<Habitacion> findByTipoHabitacion_Id(String idTipoHabitacion);
+
+    /** Para no repetir el número de habitación (lista: la base podría tener repetidos antiguos). */
+    List<Habitacion> findAllByNumHab(String numHab);
 }
