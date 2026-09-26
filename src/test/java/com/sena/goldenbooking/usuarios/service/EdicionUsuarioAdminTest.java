@@ -125,4 +125,31 @@ class EdicionUsuarioAdminTest {
         assertThrows(SolicitudInvalidaException.class, () -> service.actualizarUsuario("u1",
                 UsuarioDto.builder().fechaNacimiento(java.time.LocalDate.now().plusDays(1)).build(), "admin"));
     }
+
+    // ── Perfil propio (PATCH /api/usuarios/perfil/{id}) ─────────────────
+
+    @Test
+    void elPerfilActualizaContactoDireccionYFecha() {
+        UsuarioDto r = service.actualizarPerfil("u1", java.util.Map.of(
+                "telefono", "3001234567", "ciudad", " Medellín ", "pais", "Colombia", "calle", "",
+                "fechaNacimiento", "1990-05-10"));
+
+        assertEquals("3001234567", r.getTelefono());
+        assertEquals("Medellín", r.getDireccion().getCd());
+        assertEquals(null, r.getDireccion().getCll());
+        assertEquals(java.time.LocalDate.of(1990, 5, 10), r.getFechaNacimiento());
+    }
+
+    @Test
+    void elPerfilNoAceptaCorreoAjenoNiFechaInvalidaNiCambiaElDocumento() {
+        when(userRepo.existsByCorreo("otro@test.com")).thenReturn(true);
+        assertThrows(ConflictoDeNegocioException.class,
+                () -> service.actualizarPerfil("u1", java.util.Map.of("correo", "otro@test.com")));
+        assertThrows(SolicitudInvalidaException.class,
+                () -> service.actualizarPerfil("u1", java.util.Map.of("fechaNacimiento", "10/05/1990")));
+
+        service.actualizarPerfil("u1", java.util.Map.of("documento", "999999"));
+        assertEquals("100000", usuario.getDocId().getNumeroD());
+        verify(reservasPorDocumento, never()).trasladarDocumento(anyString(), anyString());
+    }
 }

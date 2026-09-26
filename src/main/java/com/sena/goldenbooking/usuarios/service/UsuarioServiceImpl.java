@@ -22,6 +22,7 @@ import com.sena.goldenbooking.reservas.service.ReservasPorDocumentoService;
 import com.sena.goldenbooking.usuarios.dto.UsuarioDto;
 import com.sena.goldenbooking.usuarios.dto.UsuarioRegistroDto;
 import com.sena.goldenbooking.usuarios.mapper.UsuarioMapper;
+import com.sena.goldenbooking.usuarios.model.Direccion;
 import com.sena.goldenbooking.usuarios.model.EstadoUsuario;
 import com.sena.goldenbooking.usuarios.model.Rol;
 import com.sena.goldenbooking.usuarios.model.Usuario;
@@ -273,6 +274,10 @@ public class UsuarioServiceImpl implements UsuarioService {
         return conRoles(userMapper.toDto(guardado), auth);
     }
 
+    private static String textoONulo(String texto) {
+        return estaVacio(texto) ? null : texto.trim();
+    }
+
     private static boolean estaVacio(String texto) {
         return texto == null || texto.isBlank();
     }
@@ -350,11 +355,42 @@ public class UsuarioServiceImpl implements UsuarioService {
                     return new RecursoNoEncontradoException("Usuario no encontrado con ID: " + id);
                 });
 
-        // Solo permite cambiar nombre, apellido, teléfono y correo
-        if (campos.containsKey("nombre"))   usuario.setNomUsr(campos.get("nombre"));
-        if (campos.containsKey("apellido")) usuario.setApellUsr(campos.get("apellido"));
-        if (campos.containsKey("telefono")) usuario.setTel(campos.get("telefono"));
-        if (campos.containsKey("correo"))   usuario.setCorreo(campos.get("correo"));
+        // Datos que el propio usuario puede cambiar. El documento NO (sus reservas
+        // dependen de él: lo corrige el admin), ni el estado ni el rol.
+        UsuarioDto cambios = new UsuarioDto();
+        if (campos.containsKey("nombre"))   cambios.setNombre(campos.get("nombre"));
+        if (campos.containsKey("apellido")) cambios.setApellido(campos.get("apellido"));
+        if (campos.containsKey("telefono")) cambios.setTelefono(campos.get("telefono"));
+        if (campos.containsKey("correo"))   cambios.setEmail(campos.get("correo"));
+        if (campos.containsKey("fechaNacimiento") && !estaVacio(campos.get("fechaNacimiento"))) {
+            try {
+                cambios.setFechaNacimiento(java.time.LocalDate.parse(campos.get("fechaNacimiento")));
+            } catch (java.time.format.DateTimeParseException e) {
+                throw new SolicitudInvalidaException("La fecha de nacimiento no es válida.");
+            }
+        }
+        validarEdicion(cambios);
+
+        String correoNuevo = cambios.getEmail() != null ? cambios.getEmail().trim() : null;
+        if (correoNuevo != null && !correoNuevo.equalsIgnoreCase(usuario.getCorreo()) && userRepo.existsByCorreo(correoNuevo)) {
+            throw new ConflictoDeNegocioException("Ese correo ya pertenece a otra cuenta.");
+        }
+
+        if (cambios.getNombre() != null)   usuario.setNomUsr(cambios.getNombre().trim());
+        if (cambios.getApellido() != null) usuario.setApellUsr(cambios.getApellido().trim());
+        if (cambios.getTelefono() != null) usuario.setTel(cambios.getTelefono().trim());
+        if (correoNuevo != null)           usuario.setCorreo(correoNuevo);
+        if (cambios.getFechaNacimiento() != null) usuario.setFNac(cambios.getFechaNacimiento());
+
+        // Dirección: se actualiza completa si viene alguno de sus campos
+        if (campos.containsKey("ciudad") || campos.containsKey("pais") || campos.containsKey("calle") || campos.containsKey("carrera")) {
+            Direccion dir = usuario.getDir() != null ? usuario.getDir() : new Direccion();
+            if (campos.containsKey("calle"))   dir.setCll(textoONulo(campos.get("calle")));
+            if (campos.containsKey("carrera")) dir.setCrr(textoONulo(campos.get("carrera")));
+            if (campos.containsKey("ciudad"))  dir.setCd(textoONulo(campos.get("ciudad")));
+            if (campos.containsKey("pais"))    dir.setPs(textoONulo(campos.get("pais")));
+            usuario.setDir(dir);
+        }
 
         UsuarioDto resultado = userMapper.toDto(userRepo.save(usuario));
         log.info("Perfil del usuario ID: {} actualizado correctamente.", id);
