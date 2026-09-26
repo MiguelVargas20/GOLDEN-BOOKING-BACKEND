@@ -29,7 +29,12 @@ public interface UsuarioService {
 
     /** * Actualiza datos de perfil (nombre, dirección, etc.). No toca credenciales.
      */
-    UsuarioDto actualizarUsuario(String id, UsuarioDto usuarioDto);
+    /**
+     * Edición completa por el ADMIN (null en un campo = no cambiarlo).
+     * @param usernameSolicitante admin que edita: no puede quitarse su propio
+     *        rol de administrador ni desactivarse a sí mismo.
+     */
+    UsuarioDto actualizarUsuario(String id, UsuarioDto usuarioDto, String usernameSolicitante);
 
     /** * Elimina el perfil del usuario. 
      * Nota: En el Impl deberás decidir si también eliminas su Auth.

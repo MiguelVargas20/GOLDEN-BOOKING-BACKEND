@@ -44,7 +44,8 @@ class UsuarioServiceImplTest {
         PasswordEncoder encoder = mock(PasswordEncoder.class);
         when(encoder.encode(anyString())).thenReturn("hash");
         service = new UsuarioServiceImpl(userRepo, authRepo, mock(UsuarioMapper.class),
-                encoder, emailService, tokenService, mock(RefreshTokenService.class));
+                encoder, emailService, tokenService, mock(RefreshTokenService.class),
+                mock(com.sena.goldenbooking.reservas.service.ReservasPorDocumentoService.class));
 
         when(userRepo.save(any(Usuario.class))).thenAnswer(inv -> {
             Usuario u = inv.getArgument(0);

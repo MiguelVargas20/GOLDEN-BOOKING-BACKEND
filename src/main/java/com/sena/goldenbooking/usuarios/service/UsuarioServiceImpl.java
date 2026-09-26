@@ -16,7 +16,9 @@ import com.sena.goldenbooking.auth.service.RefreshTokenService;
 import com.sena.goldenbooking.auth.service.TokenService;
 import com.sena.goldenbooking.compartido.email.EmailService;
 import com.sena.goldenbooking.compartido.exception.ConflictoDeNegocioException;
+import com.sena.goldenbooking.compartido.exception.SolicitudInvalidaException;
 import com.sena.goldenbooking.compartido.exception.RecursoNoEncontradoException;
+import com.sena.goldenbooking.reservas.service.ReservasPorDocumentoService;
 import com.sena.goldenbooking.usuarios.dto.UsuarioDto;
 import com.sena.goldenbooking.usuarios.dto.UsuarioRegistroDto;
 import com.sena.goldenbooking.usuarios.mapper.UsuarioMapper;
@@ -45,10 +47,13 @@ public class UsuarioServiceImpl implements UsuarioService {
             "No fue posible completar el registro con los datos ingresados. "
             + "Si ya tienes una cuenta, inicia sesión o recupera tu contraseña.";
 
+    private final ReservasPorDocumentoService reservasPorDocumento;
+
     public UsuarioServiceImpl(UsuarioRepository userRepo, UsuarioAuthRepository authRepo,
             UsuarioMapper userMapper, PasswordEncoder passwordEncoder,
             EmailService emailService, TokenService tokenService,
-            RefreshTokenService refreshTokenService) {
+            RefreshTokenService refreshTokenService,
+            ReservasPorDocumentoService reservasPorDocumento) {
         this.userRepo = userRepo;
         this.authRepo = authRepo;
         this.userMapper = userMapper;
@@ -56,6 +61,7 @@ public class UsuarioServiceImpl implements UsuarioService {
         this.emailService = emailService;
         this.tokenService = tokenService;
         this.refreshTokenService = refreshTokenService;
+        this.reservasPorDocumento = reservasPorDocumento;
     }
 
     @Override
@@ -182,26 +188,101 @@ public class UsuarioServiceImpl implements UsuarioService {
     }
 
     @Override
-    public UsuarioDto actualizarUsuario(String id, UsuarioDto usuarioDto) {
+    public UsuarioDto actualizarUsuario(String id, UsuarioDto dto, String usernameSolicitante) {
         log.info("Actualizando usuario con ID: {}", id);
-        Usuario usuarioExistente = userRepo.findById(id)
+        Usuario usuario = userRepo.findById(id)
                 .orElseThrow(() -> {
                     log.warn("Actualización fallida: usuario con ID {} no encontrado.", id);
                     return new RecursoNoEncontradoException("No existe usuario con ID: " + id);
                 });
+        UsuarioAuth auth = authRepo.findById(id).orElse(null);
 
-        userMapper.actualizarUsuario(usuarioDto, usuarioExistente);
-        UsuarioDto resultado = userMapper.toDto(userRepo.save(usuarioExistente));
+        validarEdicion(dto);
+        boolean esElMismoAdmin = auth != null && auth.getUser() != null && auth.getUser().equals(usernameSolicitante);
+        if (esElMismoAdmin && dto.getEstado() == EstadoUsuario.INACTIVO) {
+            throw new ConflictoDeNegocioException("No puedes desactivar tu propia cuenta.");
+        }
+        if (esElMismoAdmin && dto.getRoles() != null && !dto.getRoles().contains(Rol.ROL_ADMIN)) {
+            throw new ConflictoDeNegocioException("No puedes quitarte tu propio rol de administrador.");
+        }
+
+        // Correo: único (índice único en Mongo). Aquí sí se dice el motivo: lo ve el admin.
+        String correoNuevo = dto.getEmail() != null ? dto.getEmail().trim() : null;
+        if (correoNuevo != null && !correoNuevo.equalsIgnoreCase(usuario.getCorreo()) && userRepo.existsByCorreo(correoNuevo)) {
+            throw new ConflictoDeNegocioException("Ese correo ya pertenece a otro usuario.");
+        }
+
+        // Documento: único, y si cambia el número las reservas se trasladan al nuevo
+        String docAnterior = usuario.getDocId() != null ? usuario.getDocId().getNumeroD() : null;
+        String docNuevo = dto.getDocumento() != null && dto.getDocumento().getNumeroD() != null
+                ? dto.getDocumento().getNumeroD().trim() : null;
+        boolean cambiaDocumento = docNuevo != null && !docNuevo.equals(docAnterior);
+        if (cambiaDocumento && userRepo.existsByDocNum(docNuevo)) {
+            throw new ConflictoDeNegocioException("Ese número de documento ya pertenece a otro usuario.");
+        }
+        if (dto.getDocumento() != null && docNuevo != null) {
+            dto.getDocumento().setNumeroD(docNuevo);
+        }
+        if (correoNuevo != null) dto.setEmail(correoNuevo);
+
+        userMapper.actualizarUsuario(dto, usuario);
+        Usuario guardado = userRepo.save(usuario);
+
+        if (cambiaDocumento && docAnterior != null) {
+            reservasPorDocumento.trasladarDocumento(docAnterior, docNuevo);
+        }
+
+        // Roles (viven en UsuarioAuth). JwtFilter los lee de la BD en cada
+        // petición, así que el cambio aplica de inmediato.
+        if (dto.getRoles() != null && auth != null) {
+            auth.setRls(List.copyOf(new java.util.LinkedHashSet<>(dto.getRoles())));
+            authRepo.save(auth);
+            log.info("Roles del usuario ID {} actualizados a {}.", id, auth.getRls());
+        }
 
         // Si el admin lo desactivó, se cierran sus sesiones: ya no podrá renovar
         // el token. (Sus peticiones con el access token actual también se
         // rechazan de inmediato: JwtFilter verifica el estado en cada petición.)
-        if (usuarioExistente.getEstado() == EstadoUsuario.INACTIVO) {
+        if (guardado.getEstado() == EstadoUsuario.INACTIVO) {
             refreshTokenService.revocarTodosDelUsuario(id);
             log.info("Usuario ID {} desactivado: sesiones revocadas.", id);
         }
         log.info("Usuario con ID: {} actualizado correctamente.", id);
-        return resultado;
+        return conRoles(userMapper.toDto(guardado), auth);
+    }
+
+    /** Reglas básicas de los campos que manda el formulario del admin. */
+    private static void validarEdicion(UsuarioDto dto) {
+        if (dto.getNombre() != null && dto.getNombre().isBlank()) {
+            throw new SolicitudInvalidaException("El nombre no puede quedar vacío.");
+        }
+        if (dto.getApellido() != null && dto.getApellido().isBlank()) {
+            throw new SolicitudInvalidaException("El apellido no puede quedar vacío.");
+        }
+        if (dto.getEmail() != null && !dto.getEmail().trim().matches("^[^@\\s]+@[^@\\s]+\\.[^@\\s]+$")) {
+            throw new SolicitudInvalidaException("El correo no tiene un formato válido.");
+        }
+        if (dto.getDocumento() != null) {
+            String numero = dto.getDocumento().getNumeroD();
+            if (numero == null || !numero.trim().matches("^\\S{5,15}$")) {
+                throw new SolicitudInvalidaException("El número de documento debe tener entre 5 y 15 caracteres, sin espacios.");
+            }
+        }
+        if (dto.getTelefono() != null && !dto.getTelefono().isBlank()
+                && !dto.getTelefono().trim().matches("^\\+?[0-9 ]{7,15}$")) {
+            throw new SolicitudInvalidaException("El teléfono debe tener entre 7 y 15 dígitos.");
+        }
+        if (dto.getFechaNacimiento() != null && dto.getFechaNacimiento().isAfter(java.time.LocalDate.now())) {
+            throw new SolicitudInvalidaException("La fecha de nacimiento no puede ser futura.");
+        }
+        if (dto.getRoles() != null && dto.getRoles().isEmpty()) {
+            throw new SolicitudInvalidaException("El usuario debe tener al menos un rol.");
+        }
+    }
+
+    private static UsuarioDto conRoles(UsuarioDto dto, UsuarioAuth auth) {
+        if (dto != null && auth != null) dto.setRoles(auth.getRls());
+        return dto;
     }
 
     @Override
@@ -226,7 +307,11 @@ public class UsuarioServiceImpl implements UsuarioService {
     public Page<UsuarioDto> listarUsuariosPaginados(Pageable pageable) {
         log.info("Listado paginado de usuarios. Página: {}, Tamaño: {}", 
                 pageable.getPageNumber(), pageable.getPageSize());
-        return userRepo.findAll(pageable).map(userMapper::toDto);
+        Page<Usuario> pagina = userRepo.findAll(pageable);
+        // Roles de toda la página en una sola consulta (para mostrarlos y editarlos)
+        Map<String, UsuarioAuth> auths = new java.util.HashMap<>();
+        authRepo.findAllById(pagina.map(Usuario::getId).getContent()).forEach(a -> auths.put(a.getId(), a));
+        return pagina.map(u -> conRoles(userMapper.toDto(u), auths.get(u.getId())));
     }
 
     // Actualiza el perfil del usuario con los campos proporcionados en el mapa.

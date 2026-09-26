@@ -66,8 +66,9 @@ public class UsuarioController {
 
     // PUT /api/usuarios/{id}
     @PutMapping("/{id}")
-    public ResponseEntity<UsuarioDto> actualizar(@PathVariable String id,@RequestBody UsuarioDto dto) {
-        return ResponseEntity.ok(usuarioService.actualizarUsuario(id, dto));
+    public ResponseEntity<UsuarioDto> actualizar(@PathVariable String id, @RequestBody UsuarioDto dto,
+                                                 Authentication authentication) {
+        return ResponseEntity.ok(usuarioService.actualizarUsuario(id, dto, authentication.getName()));
     }
 
     // DELETE /api/usuarios/{id}

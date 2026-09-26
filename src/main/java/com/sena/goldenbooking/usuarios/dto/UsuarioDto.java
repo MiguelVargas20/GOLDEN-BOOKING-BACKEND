@@ -2,10 +2,12 @@ package com.sena.goldenbooking.usuarios.dto;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.util.List;
 
 import com.sena.goldenbooking.usuarios.model.Direccion;
 import com.sena.goldenbooking.usuarios.model.Documento;
 import com.sena.goldenbooking.usuarios.model.EstadoUsuario;
+import com.sena.goldenbooking.usuarios.model.Rol;
 
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -28,6 +30,8 @@ public class UsuarioDto {
     private Direccion direccion; //Direccion de residencia del usuario
     private LocalDate fechaNacimiento; //Fecha de nacimiento del usuario (String ISO: yyyy-MM-dd)
     private EstadoUsuario estado; //Estado del usuario: "activo" | "inactivo"  
-    private LocalDateTime fechaRegistro; //Fecha de registro del usuario en el sistema M-ddTHH:mm:ss)
+    private LocalDateTime fechaRegistro;
+    /** Roles del usuario (se leen de UsuarioAuth). En la edición del admin: null = no cambiar. */
+    private List<Rol> roles; //Fecha de registro del usuario en el sistema M-ddTHH:mm:ss)
 
 }
