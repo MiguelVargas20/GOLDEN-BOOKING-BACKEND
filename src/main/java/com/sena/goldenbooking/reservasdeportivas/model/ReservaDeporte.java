@@ -1,6 +1,8 @@
 package com.sena.goldenbooking.reservasdeportivas.model;
 
 import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.List;
 
 import org.springframework.data.annotation.Id;
 import org.springframework.data.mongodb.core.index.CompoundIndex;
@@ -10,6 +12,7 @@ import org.springframework.data.mongodb.core.mapping.Document;
 
 import com.sena.goldenbooking.reservas.model.CanceladaPor;
 import com.sena.goldenbooking.reservas.model.EstadoReserva;
+import com.sena.goldenbooking.reservas.model.EventoReserva;
 
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -73,4 +76,8 @@ public class ReservaDeporte {
     private boolean recordatorio24hEnviado;
 
     private boolean recordatorio2hEnviado;
+
+    /** Quién la creó, aprobó, canceló o reprogramó y cuándo (lo ve el administrador). */
+    @Builder.Default
+    private List<EventoReserva> historial = new ArrayList<>();
 }

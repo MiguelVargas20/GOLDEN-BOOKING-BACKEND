@@ -43,6 +43,11 @@ public class AvisosAdminService {
         enviar(new AvisoReservaDto(categoria, "CANCELADA", idReserva, nombreCliente(docCliente), lugar, inicio, fin));
     }
 
+    public void reservaReprogramadaPorCliente(String categoria, String idReserva, String docCliente, String lugar,
+                                              LocalDateTime inicio, LocalDateTime fin) {
+        enviar(new AvisoReservaDto(categoria, "REPROGRAMADA", idReserva, nombreCliente(docCliente), lugar, inicio, fin));
+    }
+
     private void enviar(AvisoReservaDto aviso) {
         try {
             messagingTemplate.convertAndSend(TOPICO_ADMIN_RESERVAS, aviso);

@@ -75,4 +75,14 @@ public final class ReglasEstadoReserva {
         }
         return (limpio == null || limpio.isEmpty()) ? null : limpio;
     }
+
+    /** Solo se cambia la fecha de reservas PENDIENTES o CONFIRMADAS. */
+    public static void validarReprogramable(EstadoReserva estado) {
+        if (estado == EstadoReserva.CANCELADA) {
+            throw new ConflictoDeNegocioException("No se puede reprogramar una reserva cancelada.");
+        }
+        if (estado == EstadoReserva.FINALIZADA) {
+            throw new ConflictoDeNegocioException("No se puede reprogramar una reserva finalizada.");
+        }
+    }
 }

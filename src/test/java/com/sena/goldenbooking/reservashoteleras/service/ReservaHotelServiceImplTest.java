@@ -7,6 +7,7 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
@@ -30,6 +31,9 @@ import com.sena.goldenbooking.compartido.exception.SolicitudInvalidaException;
 import com.sena.goldenbooking.habitaciones.model.EstadoHabitacion;
 import com.sena.goldenbooking.habitaciones.model.Habitacion;
 import com.sena.goldenbooking.habitaciones.repository.HabitacionRepository;
+import com.sena.goldenbooking.notificaciones.model.TipoNotificacion;
+import com.sena.goldenbooking.notificaciones.service.NotificacionService;
+import com.sena.goldenbooking.reservas.model.AccionReserva;
 import com.sena.goldenbooking.reservas.model.CanceladaPor;
 import com.sena.goldenbooking.reservas.model.EstadoReserva;
 import com.sena.goldenbooking.reservas.model.Reserva;
@@ -55,6 +59,7 @@ class ReservaHotelServiceImplTest {
     private HabitacionRepository habitacionRepo;
     private UsuarioService usuarioService;
     private AvisosAdminService avisosAdmin;
+    private NotificacionService notificaciones;
     private ReservaHotelServiceImpl service;
 
     private final LocalDate enDiezDias = ZonaHoraria.ahora().toLocalDate().plusDays(10);
@@ -66,8 +71,9 @@ class ReservaHotelServiceImplTest {
         habitacionRepo = mock(HabitacionRepository.class);
         usuarioService = mock(UsuarioService.class);
         avisosAdmin = mock(AvisosAdminService.class);
+        notificaciones = mock(NotificacionService.class);
         service = new ReservaHotelServiceImpl(reservaHotelRepo, reservaRepo, habitacionRepo,
-                new ReservaHotelMapperImpl(), mock(EmailService.class), usuarioService, avisosAdmin);
+                new ReservaHotelMapperImpl(), mock(EmailService.class), usuarioService, avisosAdmin, notificaciones);
 
         when(habitacionRepo.findById("h1")).thenReturn(Optional.of(habitacion(EstadoHabitacion.DISPONIBLE)));
         when(usuarioService.obtenerPorDocNum("123")).thenReturn(
@@ -286,5 +292,104 @@ class ReservaHotelServiceImplTest {
 
         assertThrows(AccesoDenegadoException.class, () -> service.obtenerPorId("rh1", "456", false));
         assertEquals("rh1", service.obtenerPorId("rh1", "999", true).getIdH());
+    }
+
+    // ── Historial y notificaciones ─────────────────────────────────────────
+
+    @Test
+    void aprobarYCancelarQuedanEnElHistorialYSeNotificaAlCliente() {
+        reservaExistente(EstadoReserva.PENDIENTE, enDiezDias.atTime(15, 0));
+        ReservaHotelDto confirmada = service.confirmar("rh1");
+        assertEquals(AccionReserva.CONFIRMADA, confirmada.getHistorial().get(0).getAccion());
+        verify(notificaciones).notificar(eq("123"), eq(TipoNotificacion.RESERVA_APROBADA), any(), eq("rh1"), anyString(), anyString());
+
+        reservaExistente(EstadoReserva.CONFIRMADA, enDiezDias.atTime(15, 0));
+        service.cancelar("rh1", "999", true, "Habitación en remodelación");
+        verify(notificaciones).notificar(eq("123"), eq(TipoNotificacion.RESERVA_CANCELADA), any(), eq("rh1"), anyString(), anyString());
+    }
+
+    // ── Reprogramar ────────────────────────────────────────────────────────
+
+    @Test
+    void reprogramaConHorariosDelHotelYRecalculaNochesYPrecio() {
+        reservaExistente(EstadoReserva.PENDIENTE, enDiezDias.atTime(15, 0));
+        LocalDate nuevaEntrada = enDiezDias.plusDays(5);
+
+        ReservaHotelDto r = service.reprogramar("rh1", nuevaEntrada.atStartOfDay(), nuevaEntrada.plusDays(3).atStartOfDay(), "123", false);
+
+        assertEquals(nuevaEntrada.atTime(15, 0), r.getFCheckIn());
+        assertEquals(nuevaEntrada.plusDays(3).atTime(12, 0), r.getFCheckOut());
+        assertEquals(3, r.getNoch());
+        assertEquals(540000.0, r.getPTotal());
+        assertEquals(AccionReserva.REPROGRAMADA, r.getHistorial().get(0).getAccion());
+        ArgumentCaptor<Reserva> padre = ArgumentCaptor.forClass(Reserva.class);
+        verify(reservaRepo).save(padre.capture());
+        assertEquals(nuevaEntrada.atTime(15, 0), padre.getValue().getFechaInicio());
+        assertEquals(540000.0, padre.getValue().getPrecioTotal());
+        verify(avisosAdmin).reservaReprogramadaPorCliente(eq("HOTEL"), eq("rh1"), eq("123"), anyString(), any(), any());
+    }
+
+    @Test
+    void siElClienteReprogramaUnaConfirmadaVuelveAPendiente() {
+        reservaExistente(EstadoReserva.CONFIRMADA, enDiezDias.atTime(15, 0));
+
+        ReservaHotelDto r = service.reprogramar("rh1", enDiezDias.plusDays(1).atStartOfDay(),
+                enDiezDias.plusDays(2).atStartOfDay(), "123", false);
+
+        assertEquals(EstadoReserva.PENDIENTE, r.getEstado());
+        assertNull(r.getFechaConfirmacion());
+    }
+
+    @Test
+    void siReprogramaElAdminSigueConfirmadaYSeNotificaAlCliente() {
+        reservaExistente(EstadoReserva.CONFIRMADA, enDiezDias.atTime(15, 0));
+
+        ReservaHotelDto r = service.reprogramar("rh1", enDiezDias.plusDays(1).atStartOfDay(),
+                enDiezDias.plusDays(2).atStartOfDay(), "999", true);
+
+        assertEquals(EstadoReserva.CONFIRMADA, r.getEstado());
+        verify(notificaciones).notificar(eq("123"), eq(TipoNotificacion.RESERVA_REPROGRAMADA), any(), eq("rh1"), anyString(), anyString());
+    }
+
+    @Test
+    void reprogramarIgnoraSuPropiaReservaAlBuscarCruces() {
+        reservaExistente(EstadoReserva.PENDIENTE, enDiezDias.atTime(15, 0));
+        when(reservaHotelRepo.findByIdHabitacionAndEstadoNot("h1", EstadoReserva.CANCELADA)).thenReturn(List.of(
+                ReservaHotel.builder().idHotelReserva("rh1").fechaCheckIn(enDiezDias.atTime(15, 0))
+                        .fechaCheckOut(enDiezDias.plusDays(2).atTime(12, 0)).build()));
+
+        // alargar la misma estadía un día se permite
+        ReservaHotelDto r = service.reprogramar("rh1", enDiezDias.atStartOfDay(), enDiezDias.plusDays(3).atStartOfDay(), "123", false);
+        assertEquals(3, r.getNoch());
+    }
+
+    @Test
+    void reprogramarRechazaFechasOcupadasPorOtraReserva() {
+        reservaExistente(EstadoReserva.PENDIENTE, enDiezDias.atTime(15, 0));
+        when(reservaHotelRepo.findByIdHabitacionAndEstadoNot("h1", EstadoReserva.CANCELADA)).thenReturn(List.of(
+                ReservaHotel.builder().idHotelReserva("otra").fechaCheckIn(enDiezDias.plusDays(4).atTime(15, 0))
+                        .fechaCheckOut(enDiezDias.plusDays(6).atTime(12, 0)).build()));
+
+        assertThrows(ConflictoDeNegocioException.class, () -> service.reprogramar("rh1",
+                enDiezDias.plusDays(5).atStartOfDay(), enDiezDias.plusDays(7).atStartOfDay(), "123", false));
+    }
+
+    @Test
+    void reprogramarValidaFechasEstadoY24Horas() {
+        reservaExistente(EstadoReserva.PENDIENTE, enDiezDias.atTime(15, 0));
+        assertThrows(SolicitudInvalidaException.class, () -> service.reprogramar("rh1",
+                enDiezDias.plusDays(3).atStartOfDay(), enDiezDias.plusDays(3).atStartOfDay(), "123", false));
+        assertThrows(SolicitudInvalidaException.class, () -> service.reprogramar("rh1",
+                enDiezDias.atStartOfDay(), enDiezDias.plusDays(2).atStartOfDay(), "123", false)); // mismas fechas
+
+        reservaExistente(EstadoReserva.FINALIZADA, enDiezDias.atTime(15, 0));
+        assertThrows(ConflictoDeNegocioException.class, () -> service.reprogramar("rh1",
+                enDiezDias.plusDays(3).atStartOfDay(), enDiezDias.plusDays(4).atStartOfDay(), "123", false));
+
+        reservaExistente(EstadoReserva.CONFIRMADA, ZonaHoraria.ahora().plusHours(5));
+        assertThrows(ConflictoDeNegocioException.class, () -> service.reprogramar("rh1",
+                enDiezDias.plusDays(3).atStartOfDay(), enDiezDias.plusDays(4).atStartOfDay(), "123", false));
+        assertThrows(AccesoDenegadoException.class, () -> service.reprogramar("rh1",
+                enDiezDias.plusDays(3).atStartOfDay(), enDiezDias.plusDays(4).atStartOfDay(), "otro", false));
     }
 }

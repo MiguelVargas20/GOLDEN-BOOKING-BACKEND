@@ -7,7 +7,7 @@ import java.time.LocalDateTime;
  * cuando un cliente crea o cancela una reserva.
  *
  * @param categoria DEPORTE | HOTEL
- * @param accion    NUEVA | CANCELADA
+ * @param accion    NUEVA | CANCELADA | REPROGRAMADA
  */
 public record AvisoReservaDto(
         String categoria,

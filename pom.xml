@@ -124,6 +124,18 @@
     		<artifactId>spring-dotenv</artifactId>
     		<version>4.0.0</version>
 		</dependency>
+
+		<!-- Reportes exportables: Excel (Apache POI) y PDF (OpenPDF) -->
+		<dependency>
+			<groupId>org.apache.poi</groupId>
+			<artifactId>poi-ooxml</artifactId>
+			<version>5.5.1</version>
+		</dependency>
+		<dependency>
+			<groupId>com.github.librepdf</groupId>
+			<artifactId>openpdf</artifactId>
+			<version>2.4.0</version>
+		</dependency>
 		
 		</dependencies>
 

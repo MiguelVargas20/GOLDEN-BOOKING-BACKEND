@@ -19,6 +19,7 @@ import org.springframework.web.bind.annotation.RestController;
 import com.sena.goldenbooking.compartido.exception.AccesoDenegadoException;
 import com.sena.goldenbooking.compartido.web.Paginacion;
 import com.sena.goldenbooking.reservas.dto.CancelacionReservaDto;
+import com.sena.goldenbooking.reservas.dto.ReprogramacionDto;
 import com.sena.goldenbooking.reservas.model.EstadoReserva;
 import com.sena.goldenbooking.reservasdeportivas.dto.RangoOcupadoDeporteDto;
 import com.sena.goldenbooking.reservasdeportivas.dto.ReservaDeporteDto;
@@ -163,6 +164,24 @@ public class ReservaDeporteController {
         String motivo = cancelacion != null ? cancelacion.getMotivo() : null;
         return ResponseEntity.ok(service.cancelar(id, documentoDe(authentication),
                 AutenticacionUtils.esAdmin(authentication), motivo));
+    }
+
+    @Operation(summary = "Reprogramar (cambiar la fecha sin cancelar)",
+            description = "Body: inicio y fin del nuevo horario. Se validan las mismas reglas que al reservar y se recalcula el precio. "
+                    + "CLIENTE: solo la suya, con 24 h de anticipación; si estaba CONFIRMADA vuelve a PENDIENTE. "
+                    + "ADMIN: cualquiera; el cliente recibe un correo y una notificación.")
+    @ApiResponses({
+        @ApiResponse(responseCode = "200", description = "Reserva reprogramada"),
+        @ApiResponse(responseCode = "400", description = "Fechas inválidas o iguales a las actuales"),
+        @ApiResponse(responseCode = "403", description = "La reserva es de otro usuario"),
+        @ApiResponse(responseCode = "409", description = "Fechas ocupadas, reserva cancelada/finalizada o menos de 24 h (CLIENTE)")
+    })
+    @PatchMapping("/{id}/reprogramar")
+    public ResponseEntity<ReservaDeporteDto> reprogramar(@PathVariable String id,
+                                                      @Valid @RequestBody ReprogramacionDto fechas,
+                                                      Authentication authentication) {
+        return ResponseEntity.ok(service.reprogramar(id, fechas.getInicio(), fechas.getFin(),
+                documentoDe(authentication), AutenticacionUtils.esAdmin(authentication)));
     }
 
     // ── Utilidades ─────────────────────────────────────────────────────────

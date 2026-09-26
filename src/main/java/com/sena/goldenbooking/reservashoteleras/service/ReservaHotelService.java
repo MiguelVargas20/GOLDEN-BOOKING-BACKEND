@@ -1,5 +1,6 @@
 package com.sena.goldenbooking.reservashoteleras.service;
 
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Map;
 
@@ -44,6 +45,14 @@ public interface ReservaHotelService {
      * el ADMIN cualquiera, con motivo obligatorio que se envía al cliente.
      */
     ReservaHotelDto cancelar(String id, String docUsuarioSolicitante, boolean esAdmin, String motivo);
+
+    /**
+     * Cambia las fechas sin cancelar la reserva. Mismas reglas que al crear
+     * (horarios del hotel, sin cruces) y recalcula noches y precio. El CLIENTE
+     * solo la suya, con 24 h de anticipación; si ya estaba aprobada vuelve a
+     * quedar PENDIENTE. El ADMIN puede reprogramar cualquiera y se avisa al cliente.
+     */
+    ReservaHotelDto reprogramar(String id, LocalDateTime checkIn, LocalDateTime checkOut, String docUsuarioSolicitante, boolean esAdmin);
 
     /** Reservas del usuario autenticado (más recientes primero). */
     List<ReservaHotelDto> obtenerPorUsuario(String docUsuario);

@@ -23,6 +23,9 @@ import com.sena.goldenbooking.compartido.exception.AccesoDenegadoException;
 import com.sena.goldenbooking.compartido.exception.ConflictoDeNegocioException;
 import com.sena.goldenbooking.compartido.exception.ReservaNoEncontradaException;
 import com.sena.goldenbooking.compartido.exception.SolicitudInvalidaException;
+import com.sena.goldenbooking.notificaciones.model.TipoNotificacion;
+import com.sena.goldenbooking.notificaciones.service.NotificacionService;
+import com.sena.goldenbooking.reservas.model.AccionReserva;
 import com.sena.goldenbooking.reservas.model.CanceladaPor;
 import com.sena.goldenbooking.reservas.model.EstadoReserva;
 import com.sena.goldenbooking.reservas.model.Reserva;
@@ -30,6 +33,7 @@ import com.sena.goldenbooking.reservas.model.TipoReserva;
 import com.sena.goldenbooking.reservas.repository.ReservaRepository;
 import com.sena.goldenbooking.reservas.service.PlantillasCorreoReserva;
 import com.sena.goldenbooking.reservas.service.AvisosAdminService;
+import com.sena.goldenbooking.reservas.service.HistorialReserva;
 import com.sena.goldenbooking.reservas.service.ReglasEstadoReserva;
 import com.sena.goldenbooking.reservasdeportivas.dto.RangoOcupadoDeporteDto;
 import com.sena.goldenbooking.reservasdeportivas.dto.ReservaDeporteDto;
@@ -63,6 +67,7 @@ public class ReservaDeporteServiceImpl implements ReservaDeporteService {
     private final UsuarioService usuarioService;
     private final EspacioDeportivoService espacioService;
     private final AvisosAdminService avisosAdmin;
+    private final NotificacionService notificaciones;
 
     // ── Lock por espacio (evita dos reservas simultáneas del mismo horario) ──
     // Entre "consultar solapamientos" y "guardar", ningún otro hilo puede
@@ -78,7 +83,8 @@ public class ReservaDeporteServiceImpl implements ReservaDeporteService {
             EmailService emailService,
             UsuarioService usuarioService,
             EspacioDeportivoService espacioService,
-            AvisosAdminService avisosAdmin) {
+            AvisosAdminService avisosAdmin,
+            NotificacionService notificaciones) {
         this.reservaDeporteRepo = reservaDeporteRepo;
         this.reservaRepo = reservaRepo;
         this.mapper = mapper;
@@ -87,6 +93,7 @@ public class ReservaDeporteServiceImpl implements ReservaDeporteService {
         this.usuarioService = usuarioService;
         this.espacioService = espacioService;
         this.avisosAdmin = avisosAdmin;
+        this.notificaciones = notificaciones;
     }
 
     // ═══════════════════════════════════════════════════════════════════════
@@ -158,6 +165,8 @@ public class ReservaDeporteServiceImpl implements ReservaDeporteService {
                     .registradaPorAdministrador(registradaPorAdmin)
                     .fechaSolicitud(ahora)
                     .fechaConfirmacion(confirmada ? ahora : null)
+                    .historial(HistorialReserva.agregar(null, HistorialReserva.evento(AccionReserva.CREADA,
+                            registradaPorAdmin ? (confirmada ? "Registrada en recepción y confirmada" : "Registrada en recepción") : null)))
                     .build());
         } finally {
             lock.unlock();
@@ -300,10 +309,14 @@ public class ReservaDeporteServiceImpl implements ReservaDeporteService {
 
         rd.setEstado(EstadoReserva.CONFIRMADA);
         rd.setFechaConfirmacion(ZonaHoraria.ahora());
+        rd.setHistorial(HistorialReserva.agregar(rd.getHistorial(), HistorialReserva.evento(AccionReserva.CONFIRMADA, null)));
         ReservaDeporte guardada = reservaDeporteRepo.save(rd);
         sincronizarPadre(rd.getIdReserva(), EstadoReserva.CONFIRMADA);
 
         enviarCorreo(guardada, Correo.CONFIRMADA, null);
+        notificaciones.notificar(guardada.getDocUsuario(), TipoNotificacion.RESERVA_APROBADA, TipoReserva.DEPORTE, id,
+                "Reserva aprobada", "Tu reserva de " + guardada.getTipoCancha() + " para el "
+                        + PlantillasCorreoReserva.fecha(guardada.getFechaReserva()) + " fue aprobada. ¡Te esperamos!");
         log.info("Reserva deportiva {} CONFIRMADA por el administrador.", id);
         return mapper.toDto(guardada);
     }
@@ -323,17 +336,90 @@ public class ReservaDeporteServiceImpl implements ReservaDeporteService {
         rd.setFechaCancelacion(ZonaHoraria.ahora());
         rd.setCanceladaPor(esAdmin ? CanceladaPor.ADMINISTRADOR : CanceladaPor.CLIENTE);
         rd.setMotivoCancelacion(motivoLimpio);
+        rd.setHistorial(HistorialReserva.agregar(rd.getHistorial(), HistorialReserva.evento(AccionReserva.CANCELADA, motivoLimpio)));
         ReservaDeporte guardada = reservaDeporteRepo.save(rd);
         sincronizarPadre(rd.getIdReserva(), EstadoReserva.CANCELADA);
 
         notificarWebSocket(guardada, "DISPONIBLE", "El espacio " + rd.getTipoCancha() + " quedó disponible.");
         enviarCorreo(guardada, Correo.CANCELADA, motivoLimpio);
-        if (!esAdmin) {
+        if (esAdmin) {
+            notificaciones.notificar(guardada.getDocUsuario(), TipoNotificacion.RESERVA_CANCELADA, TipoReserva.DEPORTE, id,
+                    "Reserva cancelada", "La administración canceló tu reserva de " + guardada.getTipoCancha() + " del "
+                            + PlantillasCorreoReserva.fecha(guardada.getFechaReserva()) + ". Motivo: " + motivoLimpio);
+        } else {
             avisosAdmin.reservaCanceladaPorCliente("DEPORTE", id, guardada.getDocUsuario(),
                     guardada.getTipoCancha(), guardada.getFechaReserva(), guardada.getFechaFinReserva());
         }
 
         log.info("Reserva deportiva {} CANCELADA por {}.", id, guardada.getCanceladaPor());
+        return mapper.toDto(guardada);
+    }
+
+    @Override
+    public ReservaDeporteDto reprogramar(String id, LocalDateTime inicio, LocalDateTime fin,
+                                         String docUsuarioSolicitante, boolean esAdmin) {
+        if (inicio == null || fin == null) {
+            throw new SolicitudInvalidaException("Indica el nuevo horario.");
+        }
+        ReservaDeporte rd = buscar(id);
+        validarDuenoOAdmin(rd, docUsuarioSolicitante, esAdmin, "reprogramar");
+        ReglasEstadoReserva.validarReprogramable(rd.getEstado());
+        if (!esAdmin && rd.getFechaReserva().isBefore(ZonaHoraria.ahora().plusHours(HORAS_MINIMAS_CANCELACION))) {
+            throw new ConflictoDeNegocioException("No se puede reprogramar con menos de 24 horas de anticipación.");
+        }
+        if (inicio.equals(rd.getFechaReserva()) && fin.equals(rd.getFechaFinReserva())) {
+            throw new SolicitudInvalidaException("Elige un horario distinto al actual.");
+        }
+
+        // Mismas reglas que al crear: espacio activo, horario de apertura, 1 hora mínima
+        EspacioDeportivo espacio = espacioService.obtenerReservable(rd.getEspacioId());
+        validarFechas(inicio, fin, espacio);
+        double precioTotal = Math.round(ChronoUnit.MINUTES.between(inicio, fin) / 60.0 * espacio.getTarifaHora());
+        String anterior = PlantillasCorreoReserva.fecha(rd.getFechaReserva()) + " – "
+                + PlantillasCorreoReserva.fecha(rd.getFechaFinReserva());
+
+        Lock lock = locksPorEspacio.computeIfAbsent(espacio.getId(), k -> new ReentrantLock());
+        ReservaDeporte guardada;
+        boolean vuelveAPendiente;
+        lock.lock();
+        try {
+            boolean ocupado = reservaDeporteRepo.findSolapadasEnEspacio(espacio.getId(), inicio, fin).stream()
+                    .anyMatch(otra -> !id.equals(otra.getIdReservaDeporte()));
+            if (ocupado) {
+                throw new ConflictoDeNegocioException(
+                        "El espacio " + espacio.getNombre() + " ya está reservado en ese horario. Elige otro horario.");
+            }
+
+            // Si el cliente cambia una reserva ya aprobada, la administración debe aprobar el nuevo horario
+            vuelveAPendiente = !esAdmin && rd.getEstado() == EstadoReserva.CONFIRMADA;
+            rd.setFechaReserva(inicio);
+            rd.setFechaFinReserva(fin);
+            rd.setPrecio(precioTotal);
+            rd.setRecordatorio24hEnviado(false);
+            rd.setRecordatorio2hEnviado(false);
+            if (vuelveAPendiente) {
+                rd.setEstado(EstadoReserva.PENDIENTE);
+                rd.setFechaConfirmacion(null);
+            }
+            rd.setHistorial(HistorialReserva.agregar(rd.getHistorial(), HistorialReserva.evento(AccionReserva.REPROGRAMADA,
+                    "Horario anterior: " + anterior + (vuelveAPendiente ? ". Vuelve a quedar pendiente de aprobación." : ""))));
+            guardada = reservaDeporteRepo.save(rd);
+        } finally {
+            lock.unlock();
+        }
+        sincronizarPadre(guardada.getIdReserva(), guardada.getEstado(), inicio, fin, precioTotal);
+
+        notificarWebSocket(guardada, "OCUPADO", "El espacio " + guardada.getTipoCancha() + " cambió de horario.");
+        enviarCorreo(guardada, Correo.REPROGRAMADA, null);
+        if (esAdmin) {
+            notificaciones.notificar(guardada.getDocUsuario(), TipoNotificacion.RESERVA_REPROGRAMADA, TipoReserva.DEPORTE, id,
+                    "Reserva reprogramada", "La administración cambió tu reserva de " + guardada.getTipoCancha()
+                            + " al " + PlantillasCorreoReserva.fecha(inicio) + ".");
+        } else {
+            avisosAdmin.reservaReprogramadaPorCliente("DEPORTE", id, guardada.getDocUsuario(),
+                    guardada.getTipoCancha(), inicio, fin);
+        }
+        log.info("Reserva deportiva {} reprogramada ({} → {}).", id, anterior, inicio);
         return mapper.toDto(guardada);
     }
 
@@ -362,6 +448,18 @@ public class ReservaDeporteServiceImpl implements ReservaDeporteService {
         });
     }
 
+    /** Reprogramación: la Reserva "padre" también cambia de fechas, precio y (quizá) estado. */
+    private void sincronizarPadre(String idReserva, EstadoReserva estado, LocalDateTime inicio, LocalDateTime fin, double precio) {
+        if (idReserva == null) return;
+        reservaRepo.findById(idReserva).ifPresent(padre -> {
+            padre.setEstado(estado);
+            padre.setFechaInicio(inicio);
+            padre.setFechaFin(fin);
+            padre.setPrecioTotal(precio);
+            reservaRepo.save(padre);
+        });
+    }
+
     private void notificarWebSocket(ReservaDeporte rd, String estado, String mensaje) {
         try {
             messagingTemplate.convertAndSend(TOPICO_WEBSOCKET, ReservaDeporteEventDto.builder()
@@ -379,7 +477,7 @@ public class ReservaDeporteServiceImpl implements ReservaDeporteService {
         }
     }
 
-    private enum Correo { SOLICITUD_RECIBIDA, CONFIRMADA, CANCELADA }
+    private enum Correo { SOLICITUD_RECIBIDA, CONFIRMADA, CANCELADA, REPROGRAMADA }
 
     private void enviarCorreo(ReservaDeporte rd, Correo tipo, String motivo) {
         try {
@@ -402,6 +500,10 @@ public class ReservaDeporteServiceImpl implements ReservaDeporteService {
                         "Reserva cancelada - " + rd.getTipoCancha(),
                         PlantillasCorreoReserva.reservaCancelada(cliente.getNombre(), detalles, motivo,
                                 rd.getCanceladaPor() == CanceladaPor.ADMINISTRADOR));
+                case REPROGRAMADA -> emailService.enviarCorreoHtml(cliente.getEmail(),
+                        "Tu reserva cambió de fecha - " + rd.getTipoCancha(),
+                        PlantillasCorreoReserva.reservaReprogramada(cliente.getNombre(), detalles,
+                                rd.getEstado() == EstadoReserva.PENDIENTE));
             }
         } catch (Exception e) {
             // El correo no debe impedir la operación (EmailService además es @Async)

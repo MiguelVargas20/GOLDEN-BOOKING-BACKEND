@@ -26,12 +26,16 @@ import com.sena.goldenbooking.compartido.exception.SolicitudInvalidaException;
 import com.sena.goldenbooking.habitaciones.model.EstadoHabitacion;
 import com.sena.goldenbooking.habitaciones.model.Habitacion;
 import com.sena.goldenbooking.habitaciones.repository.HabitacionRepository;
+import com.sena.goldenbooking.notificaciones.model.TipoNotificacion;
+import com.sena.goldenbooking.notificaciones.service.NotificacionService;
+import com.sena.goldenbooking.reservas.model.AccionReserva;
 import com.sena.goldenbooking.reservas.model.CanceladaPor;
 import com.sena.goldenbooking.reservas.model.EstadoReserva;
 import com.sena.goldenbooking.reservas.model.Reserva;
 import com.sena.goldenbooking.reservas.model.TipoReserva;
 import com.sena.goldenbooking.reservas.repository.ReservaRepository;
 import com.sena.goldenbooking.reservas.service.AvisosAdminService;
+import com.sena.goldenbooking.reservas.service.HistorialReserva;
 import com.sena.goldenbooking.reservas.service.PlantillasCorreoReserva;
 import com.sena.goldenbooking.reservas.service.ReglasEstadoReserva;
 import com.sena.goldenbooking.reservashoteleras.dto.RangoOcupadoDto;
@@ -55,6 +59,7 @@ public class ReservaHotelServiceImpl implements ReservaHotelService {
     private final EmailService emailService;
     private final UsuarioService usuarioService;
     private final AvisosAdminService avisosAdmin;
+    private final NotificacionService notificaciones;
 
     // ── FIX RACE CONDITION ──────────────────────────────────────────
     // Un ReentrantLock por habitación (no uno global, para no bloquear
@@ -78,22 +83,24 @@ public class ReservaHotelServiceImpl implements ReservaHotelService {
         return locksPorHabitacion.computeIfAbsent(idHabitacion, k -> new ReentrantLock());
     }
 
-public ReservaHotelServiceImpl(
-        ReservaHotelRepository reservaHotelRepo,
-        ReservaRepository reservaRepo,
-        HabitacionRepository habitacionRepo,
-        ReservaHotelMapper mapper,
-        EmailService emailService,           // ← nuevo
-        UsuarioService usuarioService,
-        AvisosAdminService avisosAdmin) {
-    this.reservaHotelRepo = reservaHotelRepo;
-    this.reservaRepo = reservaRepo;
-    this.habitacionRepo = habitacionRepo;
-    this.mapper = mapper;
-    this.emailService = emailService;
-    this.usuarioService = usuarioService;
-    this.avisosAdmin = avisosAdmin;
-}
+    public ReservaHotelServiceImpl(
+            ReservaHotelRepository reservaHotelRepo,
+            ReservaRepository reservaRepo,
+            HabitacionRepository habitacionRepo,
+            ReservaHotelMapper mapper,
+            EmailService emailService,
+            UsuarioService usuarioService,
+            AvisosAdminService avisosAdmin,
+            NotificacionService notificaciones) {
+        this.reservaHotelRepo = reservaHotelRepo;
+        this.reservaRepo = reservaRepo;
+        this.habitacionRepo = habitacionRepo;
+        this.mapper = mapper;
+        this.emailService = emailService;
+        this.usuarioService = usuarioService;
+        this.avisosAdmin = avisosAdmin;
+        this.notificaciones = notificaciones;
+    }
     @Override
     public ReservaHotelDto crear(ReservaHotelDto dto, boolean registradaPorAdmin, boolean confirmarDeInmediato) {
         log.info("Iniciando creación de reserva hotel para usuario: {}", dto.getDocUsuario());
@@ -197,6 +204,8 @@ public ReservaHotelServiceImpl(
                     .registradaPorAdministrador(registradaPorAdmin)
                     .fechaSolicitud(ahora)
                     .fechaConfirmacion(confirmada ? ahora : null)
+                    .historial(HistorialReserva.agregar(null, HistorialReserva.evento(AccionReserva.CREADA,
+                            registradaPorAdmin ? (confirmada ? "Registrada en recepción y confirmada" : "Registrada en recepción") : null)))
                     .build();
 
             guardada = reservaHotelRepo.save(reservaHotel);
@@ -308,10 +317,14 @@ public ReservaHotelDto actualizar(String id, ReservaHotelDto dto, String docUsua
 
         rh.setEstado(EstadoReserva.CONFIRMADA);
         rh.setFechaConfirmacion(ZonaHoraria.ahora());
+        rh.setHistorial(HistorialReserva.agregar(rh.getHistorial(), HistorialReserva.evento(AccionReserva.CONFIRMADA, null)));
         ReservaHotel guardada = reservaHotelRepo.save(rh);
         sincronizarPadre(rh.getIdReserva(), EstadoReserva.CONFIRMADA);
 
         enviarCorreo(guardada, Correo.CONFIRMADA, null);
+        notificaciones.notificar(guardada.getDocUsuario(), TipoNotificacion.RESERVA_APROBADA, TipoReserva.HOTEL, id,
+                "Reserva aprobada", "Tu reserva de la habitación " + numeroHabitacion(guardada) + " (check-in "
+                        + PlantillasCorreoReserva.fecha(guardada.getFechaCheckIn()) + ") fue aprobada. ¡Te esperamos!");
         log.info("Reserva hotel {} CONFIRMADA por el administrador.", id);
         return mapper.toDto(guardada);
     }
@@ -337,17 +350,110 @@ public ReservaHotelDto actualizar(String id, ReservaHotelDto dto, String docUsua
         rh.setFechaCancelacion(ZonaHoraria.ahora());
         rh.setCanceladaPor(esAdmin ? CanceladaPor.ADMINISTRADOR : CanceladaPor.CLIENTE);
         rh.setMotivoCancelacion(motivoLimpio);
+        rh.setHistorial(HistorialReserva.agregar(rh.getHistorial(), HistorialReserva.evento(AccionReserva.CANCELADA, motivoLimpio)));
         ReservaHotel guardada = reservaHotelRepo.save(rh);
         sincronizarPadre(rh.getIdReserva(), EstadoReserva.CANCELADA);
 
         // Al quedar CANCELADA deja de contar en findByIdHabitacionAndEstadoNot:
         // esas fechas quedan libres automáticamente.
         enviarCorreo(guardada, Correo.CANCELADA, motivoLimpio);
-        if (!esAdmin) {
+        if (esAdmin) {
+            notificaciones.notificar(guardada.getDocUsuario(), TipoNotificacion.RESERVA_CANCELADA, TipoReserva.HOTEL, id,
+                    "Reserva cancelada", "La administración canceló tu reserva de la habitación " + numeroHabitacion(guardada)
+                            + " (check-in " + PlantillasCorreoReserva.fecha(guardada.getFechaCheckIn()) + "). Motivo: " + motivoLimpio);
+        } else {
             avisosAdmin.reservaCanceladaPorCliente("HOTEL", id, guardada.getDocUsuario(),
                     "Habitación " + numeroHabitacion(guardada), guardada.getFechaCheckIn(), guardada.getFechaCheckOut());
         }
         log.info("Reserva hotel {} CANCELADA por {}.", id, guardada.getCanceladaPor());
+        return mapper.toDto(guardada);
+    }
+
+    @Override
+    public ReservaHotelDto reprogramar(String id, LocalDateTime nuevoCheckIn, LocalDateTime nuevoCheckOut,
+                                       String docUsuarioSolicitante, boolean esAdmin) {
+        if (nuevoCheckIn == null || nuevoCheckOut == null) {
+            throw new SolicitudInvalidaException("Indica las nuevas fechas de check-in y check-out.");
+        }
+        ReservaHotel rh = reservaHotelRepo.findById(id)
+                .orElseThrow(() -> new ReservaNoEncontradaException("La reserva no existe."));
+        if (!esAdmin && !rh.getDocUsuario().equals(docUsuarioSolicitante)) {
+            log.warn("Usuario {} intentó reprogramar la reserva {} de otro usuario.", docUsuarioSolicitante, id);
+            throw new AccesoDenegadoException("No tienes permiso para reprogramar esta reserva.");
+        }
+        ReglasEstadoReserva.validarReprogramable(rh.getEstado());
+        if (!esAdmin && rh.getFechaCheckIn().isBefore(ZonaHoraria.ahora().plusHours(24))) {
+            throw new ConflictoDeNegocioException("No se puede reprogramar con menos de 24 horas de anticipación.");
+        }
+
+        // Mismas reglas que al crear: horarios del hotel, al menos una noche, no en el pasado
+        LocalDateTime checkIn = nuevoCheckIn.toLocalDate().atTime(HORA_CHECK_IN);
+        LocalDateTime checkOut = nuevoCheckOut.toLocalDate().atTime(HORA_CHECK_OUT);
+        long noches = ChronoUnit.DAYS.between(checkIn.toLocalDate(), checkOut.toLocalDate());
+        if (noches <= 0) throw new SolicitudInvalidaException("La fecha de check-out debe ser posterior a la de check-in.");
+        if (checkIn.toLocalDate().isBefore(ZonaHoraria.ahora().toLocalDate())) {
+            throw new SolicitudInvalidaException("La fecha de check-in no puede estar en el pasado.");
+        }
+        if (checkIn.toLocalDate().equals(rh.getFechaCheckIn().toLocalDate())
+                && checkOut.toLocalDate().equals(rh.getFechaCheckOut().toLocalDate())) {
+            throw new SolicitudInvalidaException("Elige fechas distintas a las actuales.");
+        }
+
+        Habitacion habitacion = habitacionRepo.findById(rh.getIdHabitacion())
+                .orElseThrow(() -> new ReservaNoEncontradaException("Habitación no encontrada."));
+        if (habitacion.getEstado() == EstadoHabitacion.MANTENIMIENTO) {
+            throw new ConflictoDeNegocioException("Esta habitación está en mantenimiento.");
+        }
+        double precioTotal = noches * habitacion.getPrecNoche();
+        String anterior = PlantillasCorreoReserva.fecha(rh.getFechaCheckIn()) + " → "
+                + PlantillasCorreoReserva.fecha(rh.getFechaCheckOut());
+
+        Lock lock = obtenerLock(habitacion.getId());
+        ReservaHotel guardada;
+        boolean vuelveAPendiente;
+        lock.lock();
+        try {
+            boolean ocupada = reservaHotelRepo.findByIdHabitacionAndEstadoNot(habitacion.getId(), EstadoReserva.CANCELADA)
+                    .stream()
+                    .filter(otra -> !id.equals(otra.getIdHotelReserva()))
+                    .anyMatch(otra -> seSolapan(otra.getFechaCheckIn(), otra.getFechaCheckOut(), checkIn, checkOut));
+            if (ocupada) {
+                throw new ConflictoDeNegocioException(
+                        "Esta habitación ya está reservada para esas fechas. Elige otro rango u otra habitación.");
+            }
+
+            // Si el cliente cambia una reserva ya aprobada, la administración debe aprobar las nuevas fechas
+            vuelveAPendiente = !esAdmin && rh.getEstado() == EstadoReserva.CONFIRMADA;
+            rh.setFechaCheckIn(checkIn);
+            rh.setFechaCheckOut(checkOut);
+            rh.setNoches((int) noches);
+            rh.setPrecioTotal(precioTotal);
+            rh.setDatosH(habitacion);
+            rh.setRecordatorio24hEnviado(false);
+            rh.setRecordatorio2hEnviado(false);
+            if (vuelveAPendiente) {
+                rh.setEstado(EstadoReserva.PENDIENTE);
+                rh.setFechaConfirmacion(null);
+            }
+            rh.setHistorial(HistorialReserva.agregar(rh.getHistorial(), HistorialReserva.evento(AccionReserva.REPROGRAMADA,
+                    "Fechas anteriores: " + anterior + (vuelveAPendiente ? ". Vuelve a quedar pendiente de aprobación." : ""))));
+            guardada = reservaHotelRepo.save(rh);
+        } finally {
+            lock.unlock();
+        }
+        sincronizarPadre(guardada.getIdReserva(), guardada.getEstado(), checkIn, checkOut, precioTotal);
+
+        enviarCorreo(guardada, Correo.REPROGRAMADA, null);
+        if (esAdmin) {
+            notificaciones.notificar(guardada.getDocUsuario(), TipoNotificacion.RESERVA_REPROGRAMADA, TipoReserva.HOTEL, id,
+                    "Reserva reprogramada", "La administración cambió tu reserva de la habitación " + numeroHabitacion(guardada)
+                            + ": check-in " + PlantillasCorreoReserva.fecha(checkIn) + ", check-out "
+                            + PlantillasCorreoReserva.fecha(checkOut) + ".");
+        } else {
+            avisosAdmin.reservaReprogramadaPorCliente("HOTEL", id, guardada.getDocUsuario(),
+                    "Habitación " + numeroHabitacion(guardada), checkIn, checkOut);
+        }
+        log.info("Reserva hotel {} reprogramada ({} → {}).", id, anterior, checkIn);
         return mapper.toDto(guardada);
     }
 
@@ -399,7 +505,19 @@ public ReservaHotelDto actualizar(String id, ReservaHotelDto dto, String docUsua
         });
     }
 
-    private enum Correo { SOLICITUD_RECIBIDA, CONFIRMADA, CANCELADA }
+    /** Reprogramación: la Reserva "padre" también cambia de fechas, precio y (quizá) estado. */
+    private void sincronizarPadre(String idReserva, EstadoReserva estado, LocalDateTime inicio, LocalDateTime fin, double precio) {
+        if (idReserva == null) return;
+        reservaRepo.findById(idReserva).ifPresent(padre -> {
+            padre.setEstado(estado);
+            padre.setFechaInicio(inicio);
+            padre.setFechaFin(fin);
+            padre.setPrecioTotal(precio);
+            reservaRepo.save(padre);
+        });
+    }
+
+    private enum Correo { SOLICITUD_RECIBIDA, CONFIRMADA, CANCELADA, REPROGRAMADA }
 
     private void enviarCorreo(ReservaHotel rh, Correo tipo, String motivo) {
         try {
@@ -424,6 +542,10 @@ public ReservaHotelDto actualizar(String id, ReservaHotelDto dto, String docUsua
                         "Reserva cancelada - Habitación " + habitacion,
                         PlantillasCorreoReserva.reservaCancelada(cliente.getNombre(), detalles, motivo,
                                 rh.getCanceladaPor() == CanceladaPor.ADMINISTRADOR));
+                case REPROGRAMADA -> emailService.enviarCorreoHtml(cliente.getEmail(),
+                        "Tu reserva cambió de fecha - Habitación " + habitacion,
+                        PlantillasCorreoReserva.reservaReprogramada(cliente.getNombre(), detalles,
+                                rh.getEstado() == EstadoReserva.PENDIENTE));
             }
         } catch (Exception e) {
             // El correo no debe impedir la operación (EmailService además es @Async)

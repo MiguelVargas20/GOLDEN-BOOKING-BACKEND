@@ -26,11 +26,15 @@ La documentación completa (con ejemplos y "Probar") está en Swagger: `http://l
 |---|---|
 | Autenticación | `POST /auth/login`, `POST /auth/refresh`, `POST /auth/logout`, `GET /auth/verificar-cuenta`, `POST /auth/solicitar-recuperacion`, `POST /auth/restablecer-password` |
 | Usuarios | `POST /api/usuarios/registro` (público, siempre cliente), `POST /api/usuarios?rol=` (admin), `GET/PUT/DELETE /api/usuarios/**` (admin), `GET/PATCH /api/usuarios/perfil/{id}` (perfil propio) |
-| Reservas deportivas | `/api/reservas/deporte` — crear, mis reservas, gestión del admin (aprobar / cancelar con motivo), resumen |
-| Reservas hoteleras | `/api/reservas/hotel` — crear, mis reservas, gestión del admin, fechas ocupadas por habitación |
+| Reservas deportivas | `/api/reservas/deporte` — crear, mis reservas, gestión del admin (aprobar / cancelar con motivo), `PATCH /{id}/reprogramar`, resumen |
+| Reservas hoteleras | `/api/reservas/hotel` — crear, mis reservas, gestión del admin, `PATCH /{id}/reprogramar`, fechas ocupadas por habitación |
 | Espacios deportivos | `/api/espacios-deportivos` — CRUD (admin), estado e imagen (GridFS) |
 | Habitaciones | `/api/habitaciones` y `/api/tipohabitaciones` — CRUD (admin), imagen (GridFS) |
 | Dashboard | `GET /api/dashboard?dias=14` (admin) |
+| Calendario | `GET /api/calendario/semana?desde=2026-10-05` (admin) — ocupación semanal por espacio y habitación |
+| Reportes | `GET /api/reportes`, `/api/reportes/excel`, `/api/reportes/pdf` con `?desde=&hasta=` (admin) |
+| Notificaciones | `/api/notificaciones` — campana del cliente: listar, contar no leídas, marcar leídas |
+| Calificaciones | `POST /api/calificaciones` (reserva finalizada, una vez), `GET /resumen?categoria=`, `GET ?categoria=&idRecurso=`, `GET /mias` |
 | Mensajes | `/api/contacto` — contacto, bandeja del admin, respuestas |
 | Tiempo real | WebSocket STOMP en `/ws` (`/topic/reservas-deporte` público, `/topic/admin/reservas` solo admin) |
 
@@ -54,9 +58,13 @@ com.sena.goldenbooking
 ├── usuarios/             Registro, perfil y administración de usuarios
 ├── habitaciones/         Habitaciones y tipos de habitación
 ├── reservas/             Lo común a todas las reservas: Reserva "padre", estados, reglas de
-│                         aprobación/cancelación, plantillas de correo y recordatorios
+│                         aprobación/cancelación/reprogramación, historial, plantillas de correo y recordatorios
 ├── reservasdeportivas/   Espacios deportivos (con imágenes en GridFS) y sus reservas
 ├── reservashoteleras/    Reservas de habitaciones
+├── calendario/           Ocupación semanal de espacios y habitaciones (admin)
+├── reportes/             Reservas e ingresos por rango de fechas, en Excel (Apache POI) y PDF (OpenPDF)
+├── notificaciones/       Campana del cliente (aprobada, cancelada, reprogramada, vencida, calificar)
+├── calificaciones/       Estrellas y opiniones de espacios y habitaciones
 ├── mensajes/             Formulario de contacto y respuestas del admin
 ├── security/             JWT, filtro de autenticación y reglas de acceso (SecurityConfig)
 └── compartido/           Lo que usan varios módulos:

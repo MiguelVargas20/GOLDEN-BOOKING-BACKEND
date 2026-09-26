@@ -11,8 +11,12 @@ import org.springframework.stereotype.Service;
 
 import com.sena.goldenbooking.compartido.config.ZonaHoraria;
 import com.sena.goldenbooking.compartido.email.EmailService;
+import com.sena.goldenbooking.notificaciones.model.TipoNotificacion;
+import com.sena.goldenbooking.notificaciones.service.NotificacionService;
+import com.sena.goldenbooking.reservas.model.AccionReserva;
 import com.sena.goldenbooking.reservas.model.CanceladaPor;
 import com.sena.goldenbooking.reservas.model.EstadoReserva;
+import com.sena.goldenbooking.reservas.model.TipoReserva;
 import com.sena.goldenbooking.reservas.repository.ReservaRepository;
 import com.sena.goldenbooking.reservasdeportivas.model.ReservaDeporte;
 import com.sena.goldenbooking.reservasdeportivas.repository.ReservaDeporteRepository;
@@ -50,17 +54,20 @@ public class CierreReservasService {
     private final ReservaRepository reservaRepo;
     private final EmailService emailService;
     private final UsuarioService usuarioService;
+    private final NotificacionService notificaciones;
 
     public CierreReservasService(ReservaDeporteRepository reservaDeporteRepo,
                                  ReservaHotelRepository reservaHotelRepo,
                                  ReservaRepository reservaRepo,
                                  EmailService emailService,
-                                 UsuarioService usuarioService) {
+                                 UsuarioService usuarioService,
+                                 NotificacionService notificaciones) {
         this.reservaDeporteRepo = reservaDeporteRepo;
         this.reservaHotelRepo = reservaHotelRepo;
         this.reservaRepo = reservaRepo;
         this.emailService = emailService;
         this.usuarioService = usuarioService;
+        this.notificaciones = notificaciones;
     }
 
     /** Primera corrida un minuto después de arrancar (así se pone al día tras un reinicio). */
@@ -80,15 +87,21 @@ public class CierreReservasService {
         List<ReservaHotel> hotel = reservaHotelRepo.findByEstadoAndFechaCheckOutBefore(EstadoReserva.CONFIRMADA, ahora);
         hotel.forEach(rh -> {
             rh.setEstado(EstadoReserva.FINALIZADA);
+            rh.setHistorial(HistorialReserva.agregar(rh.getHistorial(), HistorialReserva.delSistema(AccionReserva.FINALIZADA, null)));
             reservaHotelRepo.save(rh);
             sincronizarPadre(rh.getIdReserva(), EstadoReserva.FINALIZADA);
+            notificaciones.notificar(rh.getDocUsuario(), TipoNotificacion.CALIFICAR, TipoReserva.HOTEL, rh.getIdHotelReserva(),
+                    "¿Qué tal tu estadía?", "Califica la habitación " + numeroHabitacion(rh) + ": tu opinión nos ayuda a mejorar.");
         });
 
         List<ReservaDeporte> deporte = reservaDeporteRepo.findByEstadoAndFechaFinReservaBefore(EstadoReserva.CONFIRMADA, ahora);
         deporte.forEach(rd -> {
             rd.setEstado(EstadoReserva.FINALIZADA);
+            rd.setHistorial(HistorialReserva.agregar(rd.getHistorial(), HistorialReserva.delSistema(AccionReserva.FINALIZADA, null)));
             reservaDeporteRepo.save(rd);
             sincronizarPadre(rd.getIdReserva(), EstadoReserva.FINALIZADA);
+            notificaciones.notificar(rd.getDocUsuario(), TipoNotificacion.CALIFICAR, TipoReserva.DEPORTE, rd.getIdReservaDeporte(),
+                    "¿Cómo te fue?", "Califica " + rd.getTipoCancha() + ": tu opinión nos ayuda a mejorar.");
         });
         return hotel.size() + deporte.size();
     }
@@ -112,7 +125,10 @@ public class CierreReservasService {
             rd.setCanceladaPor(CanceladaPor.SISTEMA);
             rd.setMotivoCancelacion(MOTIVO_VENCIDA);
             rd.setFechaCancelacion(ahora);
+            rd.setHistorial(HistorialReserva.agregar(rd.getHistorial(), HistorialReserva.delSistema(AccionReserva.VENCIDA, MOTIVO_VENCIDA)));
             reservaDeporteRepo.save(rd);
+            notificaciones.notificar(rd.getDocUsuario(), TipoNotificacion.RESERVA_VENCIDA, TipoReserva.DEPORTE, rd.getIdReservaDeporte(),
+                    "Tu solicitud venció", "Tu reserva de " + rd.getTipoCancha() + " no alcanzó a ser aprobada a tiempo.");
             sincronizarPadre(rd.getIdReserva(), EstadoReserva.CANCELADA);
 
             Map<String, String> detalles = new LinkedHashMap<>();
@@ -127,10 +143,13 @@ public class CierreReservasService {
             rh.setCanceladaPor(CanceladaPor.SISTEMA);
             rh.setMotivoCancelacion(MOTIVO_VENCIDA);
             rh.setFechaCancelacion(ahora);
+            rh.setHistorial(HistorialReserva.agregar(rh.getHistorial(), HistorialReserva.delSistema(AccionReserva.VENCIDA, MOTIVO_VENCIDA)));
             reservaHotelRepo.save(rh);
+            notificaciones.notificar(rh.getDocUsuario(), TipoNotificacion.RESERVA_VENCIDA, TipoReserva.HOTEL, rh.getIdHotelReserva(),
+                    "Tu solicitud venció", "Tu reserva de la habitación " + numeroHabitacion(rh) + " no alcanzó a ser aprobada a tiempo.");
             sincronizarPadre(rh.getIdReserva(), EstadoReserva.CANCELADA);
 
-            String habitacion = rh.getDatosH() != null && rh.getDatosH().getNumHab() != null ? rh.getDatosH().getNumHab() : "—";
+            String habitacion = numeroHabitacion(rh);
             Map<String, String> detalles = new LinkedHashMap<>();
             detalles.put("Habitación", habitacion);
             detalles.put("Check-in", PlantillasCorreoReserva.fecha(rh.getFechaCheckIn()));
@@ -149,6 +168,10 @@ public class CierreReservasService {
             padre.setEstado(estado);
             reservaRepo.save(padre);
         });
+    }
+
+    private static String numeroHabitacion(ReservaHotel rh) {
+        return rh.getDatosH() != null && rh.getDatosH().getNumHab() != null ? rh.getDatosH().getNumHab() : "—";
     }
 
     private void avisarCliente(UsuarioDto cliente, String asunto, Map<String, String> detalles) {

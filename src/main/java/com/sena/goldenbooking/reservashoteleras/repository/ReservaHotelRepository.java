@@ -53,6 +53,9 @@ public interface ReservaHotelRepository extends MongoRepository<ReservaHotel, St
     List<ReservaHotel> findByFechaCheckInLessThanAndFechaCheckOutGreaterThanEqualAndEstadoIn(
             LocalDateTime hasta, LocalDateTime desde, Collection<EstadoReserva> estados);
 
+    /** Todas las reservas (cualquier estado) con check-in en [desde, hasta): reportes. */
+    List<ReservaHotel> findByFechaCheckInGreaterThanEqualAndFechaCheckInLessThan(LocalDateTime desde, LocalDateTime hasta);
+
     /** Pendientes de aprobación, la más próxima primero. */
     List<ReservaHotel> findByEstadoOrderByFechaCheckInAsc(EstadoReserva estado, Pageable pageable);
 }

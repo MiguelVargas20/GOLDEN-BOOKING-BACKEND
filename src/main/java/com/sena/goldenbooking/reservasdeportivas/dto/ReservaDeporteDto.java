@@ -1,14 +1,17 @@
 package com.sena.goldenbooking.reservasdeportivas.dto;
 
 import java.time.LocalDateTime;
+import java.util.List;
 
-import com.sena.goldenbooking.reservas.model.CanceladaPor;
-import com.sena.goldenbooking.reservas.model.EstadoReserva;
-import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
 
+import com.sena.goldenbooking.reservas.model.CanceladaPor;
+import com.sena.goldenbooking.reservas.model.EstadoReserva;
+import com.sena.goldenbooking.reservas.model.EventoReserva;
+
+import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -85,4 +88,8 @@ public class ReservaDeporteDto {
     private String nombreCliente;
     @Schema(accessMode = Schema.AccessMode.READ_ONLY, description = "Solo en los listados del administrador.")
     private String correoCliente;
+
+    @Schema(description = "Historial de cambios (quién la creó, aprobó, canceló o reprogramó y cuándo).",
+            accessMode = Schema.AccessMode.READ_ONLY)
+    private List<EventoReserva> historial;
 }

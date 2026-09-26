@@ -64,6 +64,15 @@ public final class PlantillasCorreoReserva {
                 detalles, motivo);
     }
 
+    /** Cambió la fecha de la reserva (la reprogramó el cliente o la administración). */
+    public static String reservaReprogramada(String nombreCliente, Map<String, String> detalles, boolean pendiente) {
+        return tarjeta("#3182ce", "Tu reserva cambió de fecha",
+                "Hola " + escapar(nombreCliente) + ", tu reserva fue reprogramada. Estos son los nuevos datos"
+                        + (pendiente ? "; queda <strong>pendiente de aprobación</strong> y te avisaremos cuando sea confirmada."
+                                     : "; sigue <strong>confirmada</strong>."),
+                detalles, null);
+    }
+
     private static String tarjeta(String color, String titulo, String intro, Map<String, String> detalles, String motivo) {
         StringBuilder filas = new StringBuilder();
         detalles.forEach((etiqueta, valor) -> filas.append("""

@@ -116,6 +116,12 @@ public class SecurityConfig {
 
                     // ── Dashboard del administrador ──────────────────────
                     .requestMatchers("/api/dashboard/**").hasAuthority("ROL_ADMIN")
+                    // Calendario de ocupación y reportes: solo ADMIN
+                    .requestMatchers("/api/calendario/**", "/api/reportes/**").hasAuthority("ROL_ADMIN")
+                    // Notificaciones y calificaciones: cada usuario las suyas (el service usa su documento)
+                    .requestMatchers("/api/notificaciones/**").hasAnyAuthority("ROL_ADMIN", "ROL_CLIENTE")
+                    .requestMatchers(HttpMethod.GET,  "/api/calificaciones/**").hasAnyAuthority("ROL_ADMIN", "ROL_CLIENTE")
+                    .requestMatchers(HttpMethod.POST, "/api/calificaciones").hasAnyAuthority("ROL_ADMIN", "ROL_CLIENTE")
 
                     // ── Espacios deportivos: lectura ADMIN o CLIENTE, escritura solo ADMIN ──
                     .requestMatchers(HttpMethod.GET,    "/api/espacios-deportivos/**").hasAnyAuthority("ROL_ADMIN", "ROL_CLIENTE")

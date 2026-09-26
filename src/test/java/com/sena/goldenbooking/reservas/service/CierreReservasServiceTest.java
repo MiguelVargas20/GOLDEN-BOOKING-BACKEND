@@ -20,6 +20,9 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 import com.sena.goldenbooking.compartido.email.EmailService;
+import com.sena.goldenbooking.notificaciones.model.TipoNotificacion;
+import com.sena.goldenbooking.notificaciones.service.NotificacionService;
+import com.sena.goldenbooking.reservas.model.AccionReserva;
 import com.sena.goldenbooking.reservas.model.CanceladaPor;
 import com.sena.goldenbooking.reservas.model.EstadoReserva;
 import com.sena.goldenbooking.reservas.model.Reserva;
@@ -38,6 +41,7 @@ class CierreReservasServiceTest {
     private ReservaHotelRepository reservaHotelRepo;
     private ReservaRepository reservaRepo;
     private EmailService emailService;
+    private NotificacionService notificaciones;
     private CierreReservasService service;
 
     private final LocalDateTime ahora = LocalDateTime.of(2026, 9, 25, 16, 0);
@@ -49,7 +53,8 @@ class CierreReservasServiceTest {
         reservaRepo = mock(ReservaRepository.class);
         emailService = mock(EmailService.class);
         UsuarioService usuarioService = mock(UsuarioService.class);
-        service = new CierreReservasService(reservaDeporteRepo, reservaHotelRepo, reservaRepo, emailService, usuarioService);
+        notificaciones = mock(NotificacionService.class);
+        service = new CierreReservasService(reservaDeporteRepo, reservaHotelRepo, reservaRepo, emailService, usuarioService, notificaciones);
 
         when(usuarioService.obtenerMapaPorDocNums(any())).thenReturn(
                 Map.of("1", UsuarioDto.builder().nombre("Ana").email("ana@test.com").build()));
@@ -74,6 +79,10 @@ class CierreReservasServiceTest {
         assertEquals(EstadoReserva.FINALIZADA, rh.getEstado());
         assertEquals(EstadoReserva.FINALIZADA, padre.getEstado());
         verify(reservaRepo, never()).findById(null);
+        // queda en el historial como hecho por el sistema y se invita al cliente a calificar
+        assertEquals(AccionReserva.FINALIZADA, rd.getHistorial().get(0).getAccion());
+        assertEquals(HistorialReserva.SISTEMA, rd.getHistorial().get(0).getRol());
+        verify(notificaciones, times(2)).notificar(any(), eq(TipoNotificacion.CALIFICAR), any(), any(), anyString(), anyString());
     }
 
     @Test
@@ -96,6 +105,8 @@ class CierreReservasServiceTest {
         assertEquals(CierreReservasService.MOTIVO_VENCIDA, rh.getMotivoCancelacion());
         assertEquals(ahora, rd.getFechaCancelacion());
         verify(emailService, times(2)).enviarCorreoHtml(eq("ana@test.com"), anyString(), anyString());
+        assertEquals(AccionReserva.VENCIDA, rh.getHistorial().get(0).getAccion());
+        verify(notificaciones, times(2)).notificar(eq("1"), eq(TipoNotificacion.RESERVA_VENCIDA), any(), any(), anyString(), anyString());
     }
 
     @Test

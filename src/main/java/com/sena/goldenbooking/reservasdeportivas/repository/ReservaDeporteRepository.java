@@ -68,6 +68,9 @@ public interface ReservaDeporteRepository extends MongoRepository<ReservaDeporte
     List<ReservaDeporte> findByFechaReservaGreaterThanEqualAndFechaReservaLessThanAndEstadoNot(
             LocalDateTime desde, LocalDateTime hasta, EstadoReserva estado);
 
+    /** Todas las reservas (cualquier estado) que empiezan en [desde, hasta): reportes. */
+    List<ReservaDeporte> findByFechaReservaGreaterThanEqualAndFechaReservaLessThan(LocalDateTime desde, LocalDateTime hasta);
+
     /** Pendientes de aprobación, la más próxima primero. */
     List<ReservaDeporte> findByEstadoOrderByFechaReservaAsc(EstadoReserva estado, Pageable pageable);
 }

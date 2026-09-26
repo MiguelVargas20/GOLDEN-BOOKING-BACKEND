@@ -49,6 +49,7 @@ public class ReservaHotelMapperImpl implements ReservaHotelMapper {
                 .fechaCancelacion(rh.getFechaCancelacion())
                 .canceladaPor(rh.getCanceladaPor())
                 .motivoCancelacion(rh.getMotivoCancelacion())
+                .historial(rh.getHistorial())
                 .build();
 
         if (rh.getDatosH() != null) {
