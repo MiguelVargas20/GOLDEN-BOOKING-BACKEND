@@ -174,15 +174,6 @@ public class UsuarioServiceImpl implements UsuarioService {
     }
 
     @Override
-    public List<UsuarioDto> listarUsuarios() {
-        List<UsuarioDto> usuarios = userRepo.findAll().stream()
-                .map(userMapper::toDto)
-                .collect(Collectors.toList());
-        log.info("Listado de usuarios solicitado. Total: {}", usuarios.size());
-        return usuarios;
-    }
-
-    @Override
     public UsuarioDto obtenerPorId(String id) {
         return userRepo.findById(id)
                 .map(u -> {
@@ -203,11 +194,6 @@ public class UsuarioServiceImpl implements UsuarioService {
                     log.warn("Usuario no encontrado con documento: {}", docnum);
                     return new RecursoNoEncontradoException("Usuario no encontrado con documento: " + docnum);
                 });
-    }
-
-    @Override
-    public boolean existePorDocumento(String docnum) {
-        return userRepo.existsByDocNum(docnum);
     }
 
     @Override

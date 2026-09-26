@@ -15,9 +15,6 @@ public interface HabitacionService {
     /* Método para crear una nueva habitación a partir de un DTO */
     HabitacionDto crear(HabitacionDto dto);
     
-    /* Método para listar todas las habitaciones, devolviendo una lista de DTOs */
-    List<HabitacionDto> listarTodas();
-    
     /* Método para listar habitaciones por estado, devolviendo una lista de DTOs */
     List<HabitacionDto> listarPorEstado(EstadoHabitacion estado);
     

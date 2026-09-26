@@ -19,10 +19,6 @@ public interface UsuarioService {
     /** Cuenta creada por el ADMIN: con el rol indicado y ya verificada. */
     UsuarioRegistroDto crearPorAdmin(UsuarioRegistroDto registroDto, Rol rol);
 
-    /** * Obtiene todos los usuarios del sistema.
-     */
-    List<UsuarioDto> listarUsuarios();
-
     /** * Busca un usuario por su ID de MongoDB.
      */
     UsuarioDto obtenerPorId(String id);
@@ -44,11 +40,6 @@ public interface UsuarioService {
      * Nota: En el Impl deberás decidir si también eliminas su Auth.
      */
     void eliminarUsuario(String id);
-
-    /**
-     * Valida si existe un usuario por su documento antes de crear otro.
-     */
-    boolean existePorDocumento(String docnum);
 
     // Paginación
     Page<UsuarioDto> listarUsuariosPaginados(Pageable pageable);

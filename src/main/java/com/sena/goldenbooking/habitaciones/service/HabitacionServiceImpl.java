@@ -89,14 +89,6 @@ public class HabitacionServiceImpl implements HabitacionService {
         return resultado;
     }
 
-    /* Método para listar todas las habitaciones, devolviendo una lista de DTOs */
-    @Override
-    public List<HabitacionDto> listarTodas() {
-        List<HabitacionDto> lista = habMapper.toDtoList(habRepo.findAll());
-        log.info("Listado de habitaciones solicitado. Total: {}", lista.size());
-        return lista;
-    }
-
     /* Método para listar habitaciones por estado, devolviendo una lista de DTOs */
     @Override
     public List<HabitacionDto> listarPorEstado(EstadoHabitacion estado) {

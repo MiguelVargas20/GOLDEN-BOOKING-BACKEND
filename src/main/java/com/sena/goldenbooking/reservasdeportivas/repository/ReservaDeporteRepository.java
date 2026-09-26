@@ -19,12 +19,6 @@ public interface ReservaDeporteRepository extends MongoRepository<ReservaDeporte
     // Reservas de un usuario específico — usado por el endpoint /mis-reservas
     List<ReservaDeporte> findByDocUsuario(String docUsuario);
 
-    // Filtrar por tipo de cancha
-    List<ReservaDeporte> findByTipoCancha(String tipoCancha);
-
-    // Reservas que requieren entrenador
-    List<ReservaDeporte> findByRequiereEntrenador(boolean requiereEntrenador);
-
     
     // FIX hallazgo #12: antes eran findByEstadoNot...(CANCELADA, ...), o sea
     // "cualquier estado que no sea CANCELADA" — eso incluía PENDIENTE, así que
@@ -41,11 +35,6 @@ public interface ReservaDeporteRepository extends MongoRepository<ReservaDeporte
 
     // PENDIENTES cuyo horario ya empezó sin que nadie las aprobara — el job las vence
     List<ReservaDeporte> findByEstadoAndFechaReservaBefore(EstadoReserva estado, LocalDateTime fecha);
-
-    // Todas las reservas activas (no canceladas), sin importar la cancha — usada por
-    // GET /ocupadas para que CUALQUIER cliente autenticado (no solo el admin) sepa
-    // qué horarios ya están ocupados antes de intentar reservar (fix hallazgo #5).
-    List<ReservaDeporte> findByEstadoNot(EstadoReserva estado);
 
     /**
      * Reservas NO canceladas del espacio que se cruzan con [inicio, fin).
