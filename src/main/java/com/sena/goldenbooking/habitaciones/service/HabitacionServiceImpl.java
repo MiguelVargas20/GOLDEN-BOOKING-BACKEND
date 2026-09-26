@@ -4,9 +4,12 @@ import java.util.List;
 
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.mongodb.gridfs.GridFsResource;
 import org.springframework.stereotype.Service;
+import org.springframework.web.multipart.MultipartFile;
 
 import com.sena.goldenbooking.compartido.exception.RecursoNoEncontradoException;
+import com.sena.goldenbooking.compartido.imagenes.AlmacenImagenes;
 import com.sena.goldenbooking.habitaciones.dto.HabitacionDto;
 import com.sena.goldenbooking.habitaciones.mapper.HabitacionMapper;
 import com.sena.goldenbooking.habitaciones.model.EstadoHabitacion;
@@ -24,9 +27,12 @@ public class HabitacionServiceImpl implements HabitacionService {
     private final HabitacionMapper habMapper;
 
     // Constructor para inyección de dependencias
-    public HabitacionServiceImpl(HabitacionRepository habRepo, HabitacionMapper habMapper) {
+    private final AlmacenImagenes imagenes;
+
+    public HabitacionServiceImpl(HabitacionRepository habRepo, HabitacionMapper habMapper, AlmacenImagenes imagenes) {
         this.habRepo = habRepo;
         this.habMapper = habMapper;
+        this.imagenes = imagenes;
     }
 
     /* Implementación de los métodos definidos en la interfaz HabitacionService */
@@ -120,11 +126,12 @@ public class HabitacionServiceImpl implements HabitacionService {
     @Override
     public void eliminar(String id) {
         log.info("Eliminando habitación con ID: {}", id);
-        if (!habRepo.existsById(id)) {
+        Habitacion hab = habRepo.findById(id).orElseThrow(() -> {
             log.warn("Eliminación fallida: habitación con ID {} no encontrada.", id);
-            throw new RecursoNoEncontradoException("No se puede eliminar, ID no existe: " + id);
-        }
+            return new RecursoNoEncontradoException("No se puede eliminar, ID no existe: " + id);
+        });
         habRepo.deleteById(id);
+        imagenes.borrar(hab.getImagenId());
         log.info("Habitación con ID: {} eliminada correctamente.", id);
     }
 
@@ -133,5 +140,40 @@ public class HabitacionServiceImpl implements HabitacionService {
     public Page<HabitacionDto> listarTodasPaginadas(Pageable pageable) {
         log.info("Listado paginado de habitaciones. Página: {}", pageable.getPageNumber());
         return habRepo.findAll(pageable).map(habMapper::toDto);
+    }
+
+    // ── Imagen (GridFS, mismas reglas que los espacios deportivos) ─────────
+
+    @Override
+    public HabitacionDto subirImagen(String id, MultipartFile archivo) {
+        Habitacion hab = buscar(id);
+        String nuevoId = imagenes.guardar(archivo, "habitacion-" + id);
+        String anterior = hab.getImagenId();
+        hab.setImagenId(nuevoId);
+        Habitacion guardada = habRepo.save(hab);
+        imagenes.borrar(anterior); // la vieja se borra solo cuando la nueva ya quedó guardada
+        return habMapper.toDto(guardada);
+    }
+
+    @Override
+    public HabitacionDto eliminarImagen(String id) {
+        Habitacion hab = buscar(id);
+        imagenes.borrar(hab.getImagenId());
+        hab.setImagenId(null);
+        return habMapper.toDto(habRepo.save(hab));
+    }
+
+    @Override
+    public GridFsResource obtenerImagen(String id) {
+        Habitacion hab = buscar(id);
+        if (hab.getImagenId() == null) {
+            throw new RecursoNoEncontradoException("Esta habitación no tiene imagen propia.");
+        }
+        return imagenes.obtener(hab.getImagenId());
+    }
+
+    private Habitacion buscar(String id) {
+        return habRepo.findById(id)
+                .orElseThrow(() -> new RecursoNoEncontradoException("La habitación no existe."));
     }
 }

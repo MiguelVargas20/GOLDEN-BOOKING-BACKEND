@@ -30,6 +30,9 @@ import com.sena.goldenbooking.habitaciones.model.Habitacion;
 @Component
 public class HabitacionMapperImpl implements HabitacionMapper {
 
+    /** "?v=" cambia al subir otra imagen, así el navegador no muestra la vieja en caché. */
+    private static final String RUTA_IMAGEN = "/api/habitaciones/%s/imagen?v=%s";
+
     @Override
     public Habitacion toHabitacion(HabitacionDto dto) {
         if (dto == null) return null;
@@ -55,6 +58,7 @@ public class HabitacionMapperImpl implements HabitacionMapper {
                 .precioNoche(hab.getPrecNoche())
                 .estadoHabitacion(hab.getEstado())
                 .descripcion(hab.getDesc())
+                .imagenUrl(hab.getImagenId() != null ? RUTA_IMAGEN.formatted(hab.getId(), hab.getImagenId()) : null)
                 .build();
     }
 

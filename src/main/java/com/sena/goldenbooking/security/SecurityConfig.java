@@ -71,6 +71,7 @@ public class SecurityConfig {
                     // ── Imagen de un espacio deportivo: pública porque el navegador
                     //    la carga con <img src>, que no envía el token ────────
                     .requestMatchers(HttpMethod.GET, "/api/espacios-deportivos/*/imagen").permitAll()
+                    .requestMatchers(HttpMethod.GET, "/api/habitaciones/*/imagen").permitAll()
 
                     // ── Documentación Swagger / OpenAPI ───────────────────
                     .requestMatchers(

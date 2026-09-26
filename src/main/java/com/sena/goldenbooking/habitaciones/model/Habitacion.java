@@ -33,6 +33,9 @@ public class Habitacion {
  
     /** Descripción de la habitación */
     private String desc;
+
+    /** Imagen subida por el admin (id del archivo en GridFS); null = imagen por defecto */
+    private String imagenId;
  
 }
  

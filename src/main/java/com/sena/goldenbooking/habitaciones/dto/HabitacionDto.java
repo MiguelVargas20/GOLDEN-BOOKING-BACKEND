@@ -29,4 +29,7 @@ public class HabitacionDto {
  
     private String descripcion;
 
+    /** URL pública de la imagen subida (solo lectura; null si no tiene). */
+    private String imagenUrl;
+
 }

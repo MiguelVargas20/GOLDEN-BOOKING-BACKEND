@@ -4,6 +4,8 @@ import java.util.List;
 
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.mongodb.gridfs.GridFsResource;
+import org.springframework.web.multipart.MultipartFile;
 
 import com.sena.goldenbooking.habitaciones.dto.HabitacionDto;
 import com.sena.goldenbooking.habitaciones.model.EstadoHabitacion;
@@ -35,4 +37,13 @@ public interface HabitacionService {
     void eliminar(String id);
 
     Page<HabitacionDto> listarTodasPaginadas(Pageable pageable);
+
+    /** Sube o reemplaza la imagen de la habitación (ADMIN). */
+    HabitacionDto subirImagen(String id, MultipartFile archivo);
+
+    /** Quita la imagen subida: vuelve a la imagen por defecto. */
+    HabitacionDto eliminarImagen(String id);
+
+    /** Archivo de la imagen para enviarlo al navegador. */
+    GridFsResource obtenerImagen(String id);
 }
