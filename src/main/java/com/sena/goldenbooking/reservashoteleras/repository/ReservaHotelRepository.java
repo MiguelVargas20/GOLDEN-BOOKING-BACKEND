@@ -7,6 +7,7 @@ import java.util.List;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.mongodb.repository.MongoRepository;
+import org.springframework.data.mongodb.repository.Query;
 
 import com.sena.goldenbooking.reservas.model.EstadoReserva;
 import com.sena.goldenbooking.reservashoteleras.model.ReservaHotel;
@@ -53,7 +54,11 @@ public interface ReservaHotelRepository extends MongoRepository<ReservaHotel, St
     List<ReservaHotel> findByFechaCheckInLessThanAndFechaCheckOutGreaterThanEqualAndEstadoIn(
             LocalDateTime hasta, LocalDateTime desde, Collection<EstadoReserva> estados);
 
+    // Rango sobre un mismo campo: va con @Query porque Spring Data MongoDB no
+    // admite dos condiciones del mismo campo en un nombre de método derivado
+    // ("findByXGreaterThanEqualAndXLessThan" lanza InvalidMongoDbApiUsageException).
     /** Todas las reservas (cualquier estado) con check-in en [desde, hasta): reportes. */
+    @Query("{ 'fechaCheckIn': { $gte: ?0, $lt: ?1 } }")
     List<ReservaHotel> findByFechaCheckInGreaterThanEqualAndFechaCheckInLessThan(LocalDateTime desde, LocalDateTime hasta);
 
     /** Pendientes de aprobación, la más próxima primero. */

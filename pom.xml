@@ -125,6 +125,14 @@
     		<version>4.0.0</version>
 		</dependency>
 
+		<!-- Pruebas de las consultas de los repositorios contra un MongoDB en memoria (sin instalar nada) -->
+		<dependency>
+			<groupId>de.bwaldvogel</groupId>
+			<artifactId>mongo-java-server-memory-backend</artifactId>
+			<version>1.47.0</version>
+			<scope>test</scope>
+		</dependency>
+
 		<!-- Reportes exportables: Excel (Apache POI) y PDF (OpenPDF) -->
 		<dependency>
 			<groupId>org.apache.poi</groupId>

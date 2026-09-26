@@ -64,11 +64,16 @@ public interface ReservaDeporteRepository extends MongoRepository<ReservaDeporte
 
     // ── Dashboard del administrador ──────────────────────────────────────
 
+    // Rango sobre un mismo campo: va con @Query porque Spring Data MongoDB no
+    // admite dos condiciones del mismo campo en un nombre de método derivado
+    // ("findByXGreaterThanEqualAndXLessThan" lanza InvalidMongoDbApiUsageException).
     /** Reservas no canceladas que empiezan en [desde, hasta) (agenda del día / espacios más reservados). */
+    @Query("{ 'fechaReserva': { $gte: ?0, $lt: ?1 }, 'estado': { $ne: ?2 } }")
     List<ReservaDeporte> findByFechaReservaGreaterThanEqualAndFechaReservaLessThanAndEstadoNot(
             LocalDateTime desde, LocalDateTime hasta, EstadoReserva estado);
 
     /** Todas las reservas (cualquier estado) que empiezan en [desde, hasta): reportes. */
+    @Query("{ 'fechaReserva': { $gte: ?0, $lt: ?1 } }")
     List<ReservaDeporte> findByFechaReservaGreaterThanEqualAndFechaReservaLessThan(LocalDateTime desde, LocalDateTime hasta);
 
     /** Pendientes de aprobación, la más próxima primero. */
