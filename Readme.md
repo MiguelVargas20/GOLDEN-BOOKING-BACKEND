@@ -26,10 +26,13 @@ La documentación completa (con ejemplos y "Probar") está en Swagger: `http://l
 |---|---|
 | Autenticación | `POST /auth/login`, `POST /auth/refresh`, `POST /auth/logout`, `GET /auth/verificar-cuenta`, `POST /auth/solicitar-recuperacion`, `POST /auth/restablecer-password` |
 | Usuarios | `POST /api/usuarios/registro` (público, siempre cliente), `POST /api/usuarios?rol=` (admin), `GET/PUT/DELETE /api/usuarios/**` (admin), `GET/PATCH /api/usuarios/perfil/{id}` (perfil propio) |
-| Reservas deportivas | `/api/reservas/deporte` — crear, mis reservas, gestión del admin (aprobar / cancelar con motivo), `PATCH /{id}/reprogramar`, resumen |
-| Reservas hoteleras | `/api/reservas/hotel` — crear, mis reservas, gestión del admin, `PATCH /{id}/reprogramar`, fechas ocupadas por habitación |
-| Espacios deportivos | `/api/espacios-deportivos` — CRUD (admin), estado e imagen (GridFS) |
-| Habitaciones | `/api/habitaciones` y `/api/tipohabitaciones` — CRUD (admin), imagen (GridFS) |
+| Reservas deportivas | `/api/reservas/deporte` — crear (con acompañantes), mis reservas, gestión del admin (aprobar / cancelar con motivo), `PATCH /{id}/reprogramar`, `PATCH /{id}/miembros`, resumen |
+| Reservas hoteleras | `/api/reservas/hotel` — crear (con acompañantes), mis reservas, gestión del admin, `PATCH /{id}/reprogramar`, `PATCH /{id}/miembros`, fechas ocupadas por habitación |
+| Espacios deportivos | `/api/espacios-deportivos` — CRUD (admin), estado, imagen (GridFS) e implementos (sugeridos según el deporte si no se definen) |
+| Habitaciones | `/api/habitaciones` y `/api/tipohabitaciones` — CRUD (admin), galería de hasta 5 imágenes: `POST /{id}/imagenes`, `DELETE /{id}/imagenes/{imagenId}`, `PATCH /{id}/imagenes/{imagenId}/portada`, `GET /{id}/imagenes/{imagenId}` (público) |
+| Consumos | `/api/cargos` — `GET /mios` (cliente); admin: `GET /cuenta/{documento}`, `GET /pendientes`, `POST`, `PATCH /{id}/pagar`, `PATCH /cuenta/{documento}/pagar?idReserva=&soloCuentaSocio=`, `DELETE /{id}` |
+| Eventos | `GET /api/eventos/proximos` (cualquier usuario); admin: `GET`, `POST`, `PUT /{id}`, `DELETE /{id}`, imagen `POST/DELETE /{id}/imagen` (`GET` público) |
+| Socios | `GET /api/membresias/mia` (usuario en sesión); admin: `GET/PUT /config`, `GET /socios`, `PATCH /socios/{idUsuario}?tipo=` (NINGUNA, OCASIONAL o MIEMBRO) |
 | Dashboard | `GET /api/dashboard?dias=14` (admin) |
 | Calendario | `GET /api/calendario/semana?desde=2026-10-05` (admin) — ocupación semanal por espacio y habitación |
 | Reportes | `GET /api/reportes`, `/api/reportes/excel`, `/api/reportes/pdf` con `?desde=&hasta=` (admin) |
@@ -63,7 +66,10 @@ com.sena.goldenbooking
 ├── reservashoteleras/    Reservas de habitaciones
 ├── calendario/           Ocupación semanal de espacios y habitaciones (admin)
 ├── reportes/             Reservas e ingresos por rango de fechas, en Excel (Apache POI) y PDF (OpenPDF)
-├── notificaciones/       Campana del cliente (aprobada, cancelada, reprogramada, vencida, calificar)
+├── cargos/               Consumos cargados a una reserva activa o a la cuenta de socio y su cobro
+├── eventos/              Eventos del club (baile, recreación, festivales...) con imagen
+├── membresias/           Programa de socios: reglas, beneficios (descuento y anticipación) y asignación
+├── notificaciones/       Campana del cliente (reservas, calificar, eventos, consumos, membresía)
 ├── calificaciones/       Estrellas y opiniones de espacios y habitaciones
 ├── mensajes/             Formulario de contacto y respuestas del admin
 ├── security/             JWT, filtro de autenticación y reglas de acceso (SecurityConfig)
