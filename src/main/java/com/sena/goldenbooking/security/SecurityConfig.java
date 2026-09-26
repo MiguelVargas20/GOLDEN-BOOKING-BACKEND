@@ -90,6 +90,9 @@ public class SecurityConfig {
                     .requestMatchers(HttpMethod.PATCH, "/api/usuarios/perfil/**").hasAnyAuthority("ROL_ADMIN", "ROL_CLIENTE")
 
                     // ── Solo ADMIN — Usuarios ─────────────────────────────
+                    // Crear cuentas desde el panel (el registro público es /api/usuarios/registro, arriba).
+                    // Antes POST /api/usuarios no tenía regla y caía en "cualquier autenticado".
+                    .requestMatchers(HttpMethod.POST,   "/api/usuarios", "/api/usuarios/").hasAuthority("ROL_ADMIN")
                     .requestMatchers(HttpMethod.GET,    "/api/usuarios/**").hasAuthority("ROL_ADMIN")
                     .requestMatchers(HttpMethod.PUT,    "/api/usuarios/**").hasAuthority("ROL_ADMIN")
                     .requestMatchers(HttpMethod.PATCH,  "/api/usuarios/**").hasAuthority("ROL_ADMIN")

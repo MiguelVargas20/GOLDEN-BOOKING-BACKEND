@@ -9,6 +9,8 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import java.util.List;
+
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.InOrder;
@@ -101,5 +103,23 @@ class UsuarioServiceImplTest {
         assertThrows(com.sena.goldenbooking.compartido.exception.SolicitudInvalidaException.class,
                 () -> service.registrarUsuario(datos));
         verify(userRepo, never()).save(any(Usuario.class));
+    }
+
+    @Test
+    void elAdminCreaCuentasConElRolElegidoYaVerificadasSinCorreo() {
+        service.crearPorAdmin(dto(), com.sena.goldenbooking.usuarios.model.Rol.ROL_ADMIN);
+
+        verify(authRepo).save(org.mockito.ArgumentMatchers.argThat(
+                a -> a.getRls().equals(List.of(com.sena.goldenbooking.usuarios.model.Rol.ROL_ADMIN))));
+        verify(userRepo).save(org.mockito.ArgumentMatchers.argThat(Usuario::isVerificado));
+        verify(emailService, never()).enviarCorreoVerificacion(anyString(), anyString());
+    }
+
+    @Test
+    void elRegistroPublicoSiempreEsClienteSinVerificar() {
+        service.registrarUsuario(dto());
+        verify(authRepo).save(org.mockito.ArgumentMatchers.argThat(
+                a -> a.getRls().equals(List.of(com.sena.goldenbooking.usuarios.model.Rol.ROL_CLIENTE))));
+        verify(userRepo).save(org.mockito.ArgumentMatchers.argThat(u -> !u.isVerificado()));
     }
 }

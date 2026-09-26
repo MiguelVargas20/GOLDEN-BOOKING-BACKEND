@@ -67,7 +67,18 @@ public class UsuarioServiceImpl implements UsuarioService {
     @Override
     @Transactional
     public UsuarioRegistroDto registrarUsuario(UsuarioRegistroDto dto) {
-        log.info("Iniciando registro de usuario: {}", dto.getUsername());
+        // Registro público: SIEMPRE cliente y debe verificar su correo
+        return crearCuenta(dto, Rol.ROL_CLIENTE, false);
+    }
+
+    @Override
+    public UsuarioRegistroDto crearPorAdmin(UsuarioRegistroDto dto, Rol rol) {
+        // Creada por el ADMIN: con el rol que elija y ya verificada (sin correo de verificación)
+        return crearCuenta(dto, rol != null ? rol : Rol.ROL_CLIENTE, true);
+    }
+
+    private UsuarioRegistroDto crearCuenta(UsuarioRegistroDto dto, Rol rol, boolean verificada) {
+        log.info("Iniciando registro de usuario: {} (rol {}, creada por admin: {})", dto.getUsername(), rol, verificada);
 
         // Validaciones previas.
         //
@@ -112,6 +123,7 @@ public class UsuarioServiceImpl implements UsuarioService {
                 .fNac(dto.getFechaNacimiento())
                 .estado(EstadoUsuario.ACTIVO) // antes se tomaba del JSON que manda el cliente
                 .fReg(LocalDateTime.now())
+                .verificado(verificada)
                 .build();
 
         Usuario perfilGuardado = userRepo.save(perfil);
@@ -125,7 +137,7 @@ public class UsuarioServiceImpl implements UsuarioService {
         // Antes este valor se leía de dto.getRoles() (controlado por quien llama al
         // endpoint), lo que permitía que cualquiera se autoasignara ROL_ADMIN en el
         // body del registro. El DTO ya no tiene ese campo; esto es la segunda barrera.
-        auth.setRls(List.of(Rol.ROL_CLIENTE));
+        auth.setRls(List.of(rol));
 
         // @Transactional no tiene efecto aquí (no hay MongoTransactionManager y
         // Mongo sin replica set no admite transacciones), así que si falla el
@@ -138,6 +150,11 @@ public class UsuarioServiceImpl implements UsuarioService {
             log.error("Falló el guardado de credenciales de '{}'; se elimina el perfil creado.", dto.getUsername(), e);
             userRepo.deleteById(perfilGuardado.getId());
             throw e;
+        }
+
+        if (verificada) {
+            log.info("Usuario '{}' creado por un administrador con ID: {}", dto.getUsername(), perfilGuardado.getId());
+            return dto;
         }
 
         // 3. Correo de verificación AL FINAL, cuando el usuario ya existe completo.

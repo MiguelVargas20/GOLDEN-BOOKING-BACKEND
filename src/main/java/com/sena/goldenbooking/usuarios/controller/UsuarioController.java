@@ -13,6 +13,7 @@ import com.sena.goldenbooking.compartido.web.Paginacion;
 import com.sena.goldenbooking.security.AutenticacionUtils;
 import com.sena.goldenbooking.usuarios.dto.UsuarioDto;
 import com.sena.goldenbooking.usuarios.dto.UsuarioRegistroDto;
+import com.sena.goldenbooking.usuarios.model.Rol;
 import com.sena.goldenbooking.usuarios.service.UsuarioService;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
@@ -32,6 +33,13 @@ public class UsuarioController {
     @PostMapping("/registro")
     public ResponseEntity<UsuarioRegistroDto> registrar(@Valid @RequestBody UsuarioRegistroDto dto) {
         return ResponseEntity.status(HttpStatus.CREATED).body(usuarioService.registrarUsuario(dto));
+    }
+
+    // POST /api/usuarios?rol=ROL_ADMIN — el ADMIN crea una cuenta con el rol elegido, ya verificada
+    @PostMapping
+    public ResponseEntity<UsuarioRegistroDto> crearPorAdmin(@Valid @RequestBody UsuarioRegistroDto dto,
+                                                            @RequestParam(defaultValue = "ROL_CLIENTE") Rol rol) {
+        return ResponseEntity.status(HttpStatus.CREATED).body(usuarioService.crearPorAdmin(dto, rol));
     }
 
     // GET /api/usuarios

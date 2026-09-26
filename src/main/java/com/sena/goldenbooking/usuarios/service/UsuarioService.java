@@ -8,12 +8,16 @@ import org.springframework.data.domain.Pageable;
 
 import com.sena.goldenbooking.usuarios.dto.UsuarioDto;
 import com.sena.goldenbooking.usuarios.dto.UsuarioRegistroDto;
+import com.sena.goldenbooking.usuarios.model.Rol;
 
 public interface UsuarioService {
 
     /** * Operación Maestra: Registra en UsuarioPerfil y UsuarioAuth con el mismo ID.
      */
     UsuarioRegistroDto registrarUsuario(UsuarioRegistroDto registroDto);
+
+    /** Cuenta creada por el ADMIN: con el rol indicado y ya verificada. */
+    UsuarioRegistroDto crearPorAdmin(UsuarioRegistroDto registroDto, Rol rol);
 
     /** * Obtiene todos los usuarios del sistema.
      */
