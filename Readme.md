@@ -20,27 +20,28 @@ Para producción configura estas variables de entorno:
 ```
 
 ## Endpoints principales
-- `POST /auth/login` — Login
-- `POST /api/usuarios/registro` — Registro público
-- `GET /api/reservas` — Listar reservas (requiere JWT)
-- `POST /api/reservas/hotel` — Crear reserva hotel (requiere JWT)
-- `POST /api/reservas/deporte` — Crear reserva deporte (requiere JWT)
+La documentación completa (con ejemplos y "Probar") está en Swagger: `http://localhost:8080/swagger-ui.html`.
 
-## Usuario admin por defecto
-Crear manualmente vía POST /api/usuarios/registro:
-```json
-{
-  "nombre": "Admin",
-  "apellido": "Golden",
-  "documento": { "tipoD": "CC", "numeroD": "0000000001" },
-  "email": "admin@goldenbooking.com",
-  "username": "admin",
-  "password": "admin123",
-  "estado": "ACTIVO",
-  "roles": ["ROL_ADMIN"]
-}
+| Módulo | Endpoints |
+|---|---|
+| Autenticación | `POST /auth/login`, `POST /auth/refresh`, `POST /auth/logout`, `GET /auth/verificar-cuenta`, `POST /auth/solicitar-recuperacion`, `POST /auth/restablecer-password` |
+| Usuarios | `POST /api/usuarios/registro` (público, siempre cliente), `POST /api/usuarios?rol=` (admin), `GET/PUT/DELETE /api/usuarios/**` (admin), `GET/PATCH /api/usuarios/perfil/{id}` (perfil propio) |
+| Reservas deportivas | `/api/reservas/deporte` — crear, mis reservas, gestión del admin (aprobar / cancelar con motivo), resumen |
+| Reservas hoteleras | `/api/reservas/hotel` — crear, mis reservas, gestión del admin, fechas ocupadas por habitación |
+| Espacios deportivos | `/api/espacios-deportivos` — CRUD (admin), estado e imagen (GridFS) |
+| Habitaciones | `/api/habitaciones` y `/api/tipohabitaciones` — CRUD (admin), imagen (GridFS) |
+| Dashboard | `GET /api/dashboard?dias=14` (admin) |
+| Mensajes | `/api/contacto` — contacto, bandeja del admin, respuestas |
+| Tiempo real | WebSocket STOMP en `/ws` (`/topic/reservas-deporte` público, `/topic/admin/reservas` solo admin) |
 
-```
+## Primer usuario administrador
+El registro público **siempre** crea clientes (por seguridad no acepta roles). Para el primer admin:
+
+1. Regístrate normalmente desde el frontend.
+2. En MongoDB Compass, colección `UsuarioPerfil`: pon `verificado: true` (si no configuraste el correo).
+3. Colección `UsuarioAuth`: deja `rls: ["ROL_ADMIN"]` y vuelve a iniciar sesión.
+
+Desde ahí, los demás administradores se crean desde el panel (**Usuarios → Agregar usuario**), con el rol elegido y la cuenta ya verificada.
 
 ## Estructura del proyecto
 El código está organizado **por módulo** (igual que el frontend). Cada módulo
