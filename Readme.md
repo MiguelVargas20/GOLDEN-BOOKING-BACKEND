@@ -66,11 +66,13 @@ com.sena.goldenbooking
     └── web/              Paginación segura
 ```
 
-Las pruebas unitarias están en `src/test` con la misma estructura. Para correrlas
-sin necesitar MongoDB:
+Las pruebas unitarias están en `src/test` con la misma estructura y no necesitan
+MongoDB (usan Mockito):
 ```bash
-./mvnw test -Dtest='*Test,!GoldenbookingApplicationTests'
+./mvnw test
 ```
+La prueba de arranque completo (`GoldenbookingApplicationTests`) solo corre si hay
+un MongoDB disponible; si no, aparece como omitida (*skipped*) en vez de fallar.
 
 ## Respaldos de la base de datos
 
