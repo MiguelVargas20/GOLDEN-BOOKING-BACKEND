@@ -6,10 +6,13 @@ import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.EnumSet;
+import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Set;
+import java.util.function.Supplier;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
@@ -95,16 +98,16 @@ public class DashboardService {
         LocalDateTime inicioManana = inicioHoy.plusDays(1);
 
         // ── Datos de hoy ────────────────────────────────────────
-        List<ReservaDeporte> deporteHoy = reservaDeporteRepo
-                .findByFechaReservaGreaterThanEqualAndFechaReservaLessThanAndEstadoNot(inicioHoy, inicioManana, EstadoReserva.CANCELADA);
-        List<ReservaHotel> hotelHoy = reservaHotelRepo
-                .findByFechaCheckInLessThanAndFechaCheckOutGreaterThanEqualAndEstadoIn(inicioManana, inicioHoy, ACTIVAS);
+        List<ReservaDeporte> deporteHoy = seguro("reservas deportivas de hoy", List.of(), () -> reservaDeporteRepo
+                .findByFechaReservaGreaterThanEqualAndFechaReservaLessThanAndEstadoNot(inicioHoy, inicioManana, EstadoReserva.CANCELADA));
+        List<ReservaHotel> hotelHoy = seguro("estadías de hoy", List.of(), () -> reservaHotelRepo
+                .findByFechaCheckInLessThanAndFechaCheckOutGreaterThanEqualAndEstadoIn(inicioManana, inicioHoy, ACTIVAS));
 
         // ── Pendientes (las más próximas primero) ───────────────
-        List<ReservaDeporte> pendDeporte = reservaDeporteRepo
-                .findByEstadoOrderByFechaReservaAsc(EstadoReserva.PENDIENTE, PageRequest.of(0, MAX_PENDIENTES));
-        List<ReservaHotel> pendHotel = reservaHotelRepo
-                .findByEstadoOrderByFechaCheckInAsc(EstadoReserva.PENDIENTE, PageRequest.of(0, MAX_PENDIENTES));
+        List<ReservaDeporte> pendDeporte = seguro("pendientes deportivas", List.of(), () -> reservaDeporteRepo
+                .findByEstadoOrderByFechaReservaAsc(EstadoReserva.PENDIENTE, PageRequest.of(0, MAX_PENDIENTES)));
+        List<ReservaHotel> pendHotel = seguro("pendientes hoteleras", List.of(), () -> reservaHotelRepo
+                .findByEstadoOrderByFechaCheckInAsc(EstadoReserva.PENDIENTE, PageRequest.of(0, MAX_PENDIENTES)));
 
         // Nombres de clientes: una sola consulta para todo lo que se muestra
         List<String> documentos = Stream.of(
@@ -113,16 +116,20 @@ public class DashboardService {
                         pendDeporte.stream().map(ReservaDeporte::getDocUsuario),
                         pendHotel.stream().map(ReservaHotel::getDocUsuario))
                 .flatMap(s -> s)
+                .filter(Objects::nonNull)
                 .distinct()
                 .toList();
-        Map<String, UsuarioDto> clientes = usuarioService.obtenerMapaPorDocNums(documentos);
+        // Copia mutable: Map.of() lanza NullPointerException si se consulta con clave nula
+        Map<String, UsuarioDto> clientes = new HashMap<>(
+                seguro("nombres de clientes", Map.of(), () -> usuarioService.obtenerMapaPorDocNums(documentos)));
 
-        List<Habitacion> habitaciones = habitacionRepo.findAll();
-        List<HabitacionHoyDto> estadoHabitaciones = estadoHabitaciones(habitaciones, hotelHoy, hoy, clientes);
+        List<Habitacion> habitaciones = seguro("habitaciones", List.of(), habitacionRepo::findAll);
+        List<HabitacionHoyDto> estadoHabitaciones = seguro("estado de habitaciones", List.of(),
+                () -> estadoHabitaciones(habitaciones, hotelHoy, hoy, clientes));
 
         IndicadoresDto indicadores = new IndicadoresDto(
-                reservaDeporteRepo.countByEstado(EstadoReserva.PENDIENTE),
-                reservaHotelRepo.countByEstado(EstadoReserva.PENDIENTE),
+                seguro("total pendientes deportivas", 0L, () -> reservaDeporteRepo.countByEstado(EstadoReserva.PENDIENTE)),
+                seguro("total pendientes hoteleras", 0L, () -> reservaHotelRepo.countByEstado(EstadoReserva.PENDIENTE)),
                 deporteHoy.size(),
                 hotelHoy.stream().filter(r -> r.getFechaCheckIn().toLocalDate().equals(hoy)).count(),
                 hotelHoy.stream().filter(r -> r.getFechaCheckOut().toLocalDate().equals(hoy)).count(),
@@ -130,20 +137,20 @@ public class DashboardService {
                 contar(estadoHabitaciones, "OCUPADA"),
                 contar(estadoHabitaciones, "RESERVADA_PENDIENTE"),
                 contar(estadoHabitaciones, "MANTENIMIENTO"),
-                ingresos(hoy.withDayOfMonth(1)),
-                ingresos(hoy.withDayOfMonth(1).minusMonths(1)),
-                mensajeRepo.countByLeidoFalse());
+                seguro("ingresos del mes", 0.0, () -> ingresos(hoy.withDayOfMonth(1))),
+                seguro("ingresos del mes anterior", 0.0, () -> ingresos(hoy.withDayOfMonth(1).minusMonths(1))),
+                seguro("mensajes sin leer", 0L, mensajeRepo::countByLeidoFalse));
 
         return new DashboardDto(
                 hoy,
                 ahora,
                 periodo,
                 indicadores,
-                agenda(deporteHoy, hotelHoy, hoy, clientes),
-                pendientes(pendDeporte, pendHotel, clientes),
+                seguro("agenda de hoy", List.of(), () -> agenda(deporteHoy, hotelHoy, hoy, clientes)),
+                seguro("pendientes", List.of(), () -> pendientes(pendDeporte, pendHotel, clientes)),
                 estadoHabitaciones,
-                tendencia(hoy, periodo),
-                espaciosTop(inicioHoy.minusDays(periodo - 1L), inicioManana));
+                seguro("tendencia", List.of(), () -> tendencia(hoy, periodo)),
+                seguro("espacios más reservados", List.of(), () -> espaciosTop(inicioHoy.minusDays(periodo - 1L), inicioManana)));
     }
 
     // ── Agenda del día ─────────────────────────────────────────────────────
@@ -153,16 +160,16 @@ public class DashboardService {
         List<EventoAgendaDto> eventos = new ArrayList<>();
         deporteHoy.forEach(r -> eventos.add(new EventoAgendaDto("DEPORTE", r.getIdReservaDeporte(),
                 r.getFechaReserva(), r.getFechaFinReserva(), r.getTipoCancha(),
-                nombre(clientes, r.getDocUsuario()), r.getEstado().name())));
+                nombre(clientes, r.getDocUsuario()), estado(r.getEstado()))));
         hotelHoy.forEach(r -> {
             String lugar = "Habitación " + numeroHabitacion(r);
             if (r.getFechaCheckIn().toLocalDate().equals(hoy)) {
                 eventos.add(new EventoAgendaDto("CHECK_IN", r.getIdHotelReserva(), r.getFechaCheckIn(), null,
-                        lugar, nombre(clientes, r.getDocUsuario()), r.getEstado().name()));
+                        lugar, nombre(clientes, r.getDocUsuario()), estado(r.getEstado())));
             }
             if (r.getFechaCheckOut().toLocalDate().equals(hoy)) {
                 eventos.add(new EventoAgendaDto("CHECK_OUT", r.getIdHotelReserva(), r.getFechaCheckOut(), null,
-                        lugar, nombre(clientes, r.getDocUsuario()), r.getEstado().name()));
+                        lugar, nombre(clientes, r.getDocUsuario()), estado(r.getEstado())));
             }
         });
         eventos.sort(Comparator.comparing(EventoAgendaDto::hora, Comparator.nullsLast(Comparator.naturalOrder())));
@@ -281,8 +288,30 @@ public class DashboardService {
     }
 
     private static String nombre(Map<String, UsuarioDto> clientes, String documento) {
+        if (documento == null) return "Cliente sin documento";
         UsuarioDto c = clientes.get(documento);
-        return c != null ? (c.getNombre() + " " + c.getApellido()).trim() : "Doc. " + documento;
+        if (c == null) return "Doc. " + documento;
+        return ((c.getNombre() != null ? c.getNombre() : "") + " " + (c.getApellido() != null ? c.getApellido() : "")).trim();
+    }
+
+    /** Reservas antiguas pueden no tener estado guardado. */
+    private static String estado(EstadoReserva estado) {
+        return estado != null ? estado.name() : EstadoReserva.PENDIENTE.name();
+    }
+
+    /**
+     * Ejecuta una sección del dashboard; si falla (p. ej. un documento viejo
+     * con datos incompletos), la registra en el log con la causa y devuelve un
+     * valor vacío, así una sección rota no deja al admin sin todo el panel.
+     */
+    private static <T> T seguro(String seccion, T porDefecto, Supplier<T> calculo) {
+        try {
+            T valor = calculo.get();
+            return valor != null ? valor : porDefecto;
+        } catch (RuntimeException e) {
+            log.error("Dashboard: no se pudo calcular '{}'", seccion, e);
+            return porDefecto;
+        }
     }
 
     private static String numeroHabitacion(ReservaHotel r) {

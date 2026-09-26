@@ -134,4 +134,29 @@ class DashboardServiceTest {
         assertEquals("e2", d.espaciosTop().get(0).espacioId());
         assertEquals(1.0, d.espaciosTop().get(0).horas());
     }
+
+    @Test
+    void reservasAntiguasSinDocumentoNiEstadoNoRompenElPanel() {
+        LocalDateTime diez = hoy.atTime(10, 0);
+        when(reservaDeporteRepo.findByFechaReservaGreaterThanEqualAndFechaReservaLessThanAndEstadoNot(any(), any(), any()))
+                .thenReturn(List.of(ReservaDeporte.builder().tipoCancha("Cancha vieja")
+                        .fechaReserva(diez).fechaFinReserva(diez.plusHours(1)).build())); // sin docUsuario ni estado
+
+        DashboardDto d = service.generar(7);
+
+        assertEquals(1, d.agendaHoy().size());
+        assertEquals("Cliente sin documento", d.agendaHoy().get(0).cliente());
+        assertEquals("PENDIENTE", d.agendaHoy().get(0).estado());
+    }
+
+    @Test
+    void siUnaSeccionFallaElRestoDelPanelIgualCarga() {
+        when(habitacionRepo.findAll()).thenThrow(new RuntimeException("documento corrupto"));
+
+        DashboardDto d = service.generar(7);
+
+        assertEquals(List.of(), d.habitaciones());
+        assertEquals(7, d.tendencia().size());
+        assertEquals(3, d.indicadores().mensajesNoLeidos());
+    }
 }
