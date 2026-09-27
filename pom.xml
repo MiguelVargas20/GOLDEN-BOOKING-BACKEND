@@ -118,6 +118,32 @@
 			<artifactId>ical4j</artifactId>
 			<version>3.2.19</version>
 		</dependency>
+
+		<dependency>
+   			 <groupId>me.paulschwarz</groupId>
+    		<artifactId>spring-dotenv</artifactId>
+    		<version>4.0.0</version>
+		</dependency>
+
+		<!-- Pruebas de las consultas de los repositorios contra un MongoDB en memoria (sin instalar nada) -->
+		<dependency>
+			<groupId>de.bwaldvogel</groupId>
+			<artifactId>mongo-java-server-memory-backend</artifactId>
+			<version>1.47.0</version>
+			<scope>test</scope>
+		</dependency>
+
+		<!-- Reportes exportables: Excel (Apache POI) y PDF (OpenPDF) -->
+		<dependency>
+			<groupId>org.apache.poi</groupId>
+			<artifactId>poi-ooxml</artifactId>
+			<version>5.5.1</version>
+		</dependency>
+		<dependency>
+			<groupId>com.github.librepdf</groupId>
+			<artifactId>openpdf</artifactId>
+			<version>2.4.0</version>
+		</dependency>
 		
 		</dependencies>
 

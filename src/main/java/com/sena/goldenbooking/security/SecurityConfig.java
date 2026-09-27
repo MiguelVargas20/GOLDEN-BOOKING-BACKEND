@@ -6,6 +6,7 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.HttpMethod;
+import org.springframework.http.HttpStatus;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.config.annotation.authentication.configuration.AuthenticationConfiguration;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
@@ -14,6 +15,8 @@ import org.springframework.security.web.authentication.UsernamePasswordAuthentic
 import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
+
+import com.sena.goldenbooking.compartido.exception.RespuestaError;
 
 @Configuration
 public class SecurityConfig {
@@ -50,6 +53,10 @@ public class SecurityConfig {
                         // ── Públicas ─────────────────────────────────────────
                     .requestMatchers(
                         "/auth/login",
+                        // Público: debe poder cerrarse sesión aunque el access token
+                        // ya haya expirado (si no, el refresh token nunca se revocaba).
+                        // AuthController.logout valida el token por su cuenta.
+                        "/auth/logout",
                         "/auth/refresh",
                         "/auth/recuperar-password",
                         "/auth/verificar-cuenta",        // ← nuevo
@@ -59,6 +66,13 @@ public class SecurityConfig {
                         "/ws/**"
                         
                     ).permitAll()
+
+                    // ── Imagen de un espacio deportivo: pública porque el navegador
+                    //    la carga con <img src>, que no envía el token ────────
+                    .requestMatchers(HttpMethod.GET, "/api/espacios-deportivos/*/imagen").permitAll()
+                    .requestMatchers(HttpMethod.GET, "/api/habitaciones/*/imagen").permitAll()
+                    .requestMatchers(HttpMethod.GET, "/api/habitaciones/*/imagenes/*").permitAll()
+                    .requestMatchers(HttpMethod.GET, "/api/eventos/*/imagen").permitAll()
 
                     // ── Documentación Swagger / OpenAPI ───────────────────
                     .requestMatchers(
@@ -77,6 +91,9 @@ public class SecurityConfig {
                     .requestMatchers(HttpMethod.PATCH, "/api/usuarios/perfil/**").hasAnyAuthority("ROL_ADMIN", "ROL_CLIENTE")
 
                     // ── Solo ADMIN — Usuarios ─────────────────────────────
+                    // Crear cuentas desde el panel (el registro público es /api/usuarios/registro, arriba).
+                    // Antes POST /api/usuarios no tenía regla y caía en "cualquier autenticado".
+                    .requestMatchers(HttpMethod.POST,   "/api/usuarios", "/api/usuarios/").hasAuthority("ROL_ADMIN")
                     .requestMatchers(HttpMethod.GET,    "/api/usuarios/**").hasAuthority("ROL_ADMIN")
                     .requestMatchers(HttpMethod.PUT,    "/api/usuarios/**").hasAuthority("ROL_ADMIN")
                     .requestMatchers(HttpMethod.PATCH,  "/api/usuarios/**").hasAuthority("ROL_ADMIN")
@@ -97,6 +114,31 @@ public class SecurityConfig {
                     .requestMatchers(HttpMethod.POST,   "/api/tipohabitaciones/**").hasAuthority("ROL_ADMIN")
                     .requestMatchers(HttpMethod.PUT,    "/api/tipohabitaciones/**").hasAuthority("ROL_ADMIN")
                     .requestMatchers(HttpMethod.DELETE, "/api/tipohabitaciones/**").hasAuthority("ROL_ADMIN")
+
+                    // ── Dashboard del administrador ──────────────────────
+                    .requestMatchers("/api/dashboard/**").hasAuthority("ROL_ADMIN")
+                    // Calendario de ocupación y reportes: solo ADMIN
+                    .requestMatchers("/api/calendario/**", "/api/reportes/**").hasAuthority("ROL_ADMIN")
+                    // Eventos: los clientes ven los próximos; crear y editar solo ADMIN
+                    .requestMatchers(HttpMethod.GET, "/api/eventos/proximos").hasAnyAuthority("ROL_ADMIN", "ROL_CLIENTE")
+                    .requestMatchers("/api/eventos/**").hasAuthority("ROL_ADMIN")
+                    // Cargos: el cliente ve los suyos; registrar y cobrar solo ADMIN
+                    .requestMatchers(HttpMethod.GET, "/api/cargos/mios").hasAnyAuthority("ROL_ADMIN", "ROL_CLIENTE")
+                    .requestMatchers("/api/cargos/**").hasAuthority("ROL_ADMIN")
+                    // Membresías: cada usuario ve la suya; el panel de socios es solo ADMIN
+                    .requestMatchers(HttpMethod.GET, "/api/membresias/mia").hasAnyAuthority("ROL_ADMIN", "ROL_CLIENTE")
+                    .requestMatchers("/api/membresias/**").hasAuthority("ROL_ADMIN")
+                    // Notificaciones y calificaciones: cada usuario las suyas (el service usa su documento)
+                    .requestMatchers("/api/notificaciones/**").hasAnyAuthority("ROL_ADMIN", "ROL_CLIENTE")
+                    .requestMatchers(HttpMethod.GET,  "/api/calificaciones/**").hasAnyAuthority("ROL_ADMIN", "ROL_CLIENTE")
+                    .requestMatchers(HttpMethod.POST, "/api/calificaciones").hasAnyAuthority("ROL_ADMIN", "ROL_CLIENTE")
+
+                    // ── Espacios deportivos: lectura ADMIN o CLIENTE, escritura solo ADMIN ──
+                    .requestMatchers(HttpMethod.GET,    "/api/espacios-deportivos/**").hasAnyAuthority("ROL_ADMIN", "ROL_CLIENTE")
+                    .requestMatchers(HttpMethod.POST,   "/api/espacios-deportivos/**").hasAuthority("ROL_ADMIN")
+                    .requestMatchers(HttpMethod.PUT,    "/api/espacios-deportivos/**").hasAuthority("ROL_ADMIN")
+                    .requestMatchers(HttpMethod.PATCH,  "/api/espacios-deportivos/**").hasAuthority("ROL_ADMIN")
+                    .requestMatchers(HttpMethod.DELETE, "/api/espacios-deportivos/**").hasAuthority("ROL_ADMIN")
 
                     // ── Solo ADMIN — Eliminar reservas ────────────────────
                     .requestMatchers(HttpMethod.DELETE, "/api/reservas/**").hasAuthority("ROL_ADMIN")
@@ -136,6 +178,26 @@ public class SecurityConfig {
                     // ── Todo lo demás requiere JWT ────────────────────────
                     .anyRequest().authenticated()
                 )
+                // Respuestas JSON (mismo formato que GlobalExceptionHandler) cuando
+                // falla la autenticación o faltan permisos ANTES de llegar al
+                // controller. Antes: 403 sin cuerpo para peticiones sin sesión y
+                // 401 sin cuerpo desde el JwtFilter.
+                .exceptionHandling(ex -> ex
+                    .authenticationEntryPoint((request, response, authException) -> {
+                        Object motivo = request.getAttribute(JwtFilter.ATRIBUTO_MOTIVO);
+                        String codigo = motivo != null ? motivo.toString() : "NO_AUTENTICADO";
+                        String mensaje = switch (codigo) {
+                            case JwtFilter.MOTIVO_SESION_EXPIRADA -> "Tu sesión expiró. Inicia sesión de nuevo.";
+                            case JwtFilter.MOTIVO_CUENTA_INACTIVA -> "Tu cuenta está inactiva. Contacta al administrador.";
+                            case JwtFilter.MOTIVO_TOKEN_INVALIDO -> "Tu sesión no es válida. Inicia sesión de nuevo.";
+                            default -> "Debes iniciar sesión para continuar.";
+                        };
+                        RespuestaError.escribir(response, HttpStatus.UNAUTHORIZED, codigo, mensaje, request.getRequestURI());
+                    })
+                    .accessDeniedHandler((request, response, accessDeniedException) ->
+                        RespuestaError.escribir(response, HttpStatus.FORBIDDEN, "ACCESO_DENEGADO",
+                                "No tienes permiso para realizar esta acción.", request.getRequestURI()))
+                )
                 .addFilterBefore(jwtFilter, UsernamePasswordAuthenticationFilter.class);
 
             return http.build();
@@ -148,7 +210,8 @@ public class SecurityConfig {
     @Bean
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration config = new CorsConfiguration();
-        config.setAllowedOrigins(List.of("http://localhost:5173", "https://goldenbooking.vercel.app", "https://goldenbooking-frontend.vercel.app", "http://localhost"));
+        // Patrones: admite orígenes exactos y comodines (previews de Vercel)
+        config.setAllowedOriginPatterns(OrigenesPermitidos.parsear(allowedOrigins));
         config.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"));
         config.setAllowedHeaders(List.of("*"));
         config.setAllowCredentials(true);

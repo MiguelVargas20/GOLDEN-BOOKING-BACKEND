@@ -1,0 +1,76 @@
+package com.sena.goldenbooking.reservashoteleras.repository;
+
+import java.time.LocalDateTime;
+import java.util.Collection;
+import java.util.List;
+
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.mongodb.repository.MongoRepository;
+import org.springframework.data.mongodb.repository.Query;
+
+import com.sena.goldenbooking.reservas.model.EstadoReserva;
+import com.sena.goldenbooking.reservashoteleras.model.ReservaHotel;
+
+public interface ReservaHotelRepository extends MongoRepository<ReservaHotel, String> {
+
+    // Todas las reservas hotel ligadas a una Reserva padre
+    List<ReservaHotel> findByIdReserva(String idReserva);
+
+    // Reservas hotel por documento de usuario
+    List<ReservaHotel> findByDocUsuario(String docUsuario);
+
+    // Todas las reservas ACTIVAS (no canceladas) de una habitación puntual.
+    // Es la base para validar disponibilidad por rango de fechas: si una
+    // reserva nueva se solapa con alguna de estas, la habitación NO está
+    // libre para esas fechas (aunque sí lo esté para otras).
+    List<ReservaHotel> findByIdHabitacionAndEstadoNot(String idHabitacion, EstadoReserva estado);
+
+        // FIX hallazgo #12: antes eran findByEstadoNot...(CANCELADA, ...), es decir,
+        // "cualquier estado que no sea CANCELADA" — eso incluía PENDIENTE, así que una
+        // reserva que un admin nunca confirmó igual disparaba el correo "tu reserva es
+        // en 24 horas", lo cual confunde al cliente si al final no fue confirmada.
+        // Ahora se filtra explícitamente por CONFIRMADA.
+    List<ReservaHotel> findByEstadoAndRecordatorio24hEnviadoFalseAndFechaCheckInBetween(
+            EstadoReserva estado, LocalDateTime desde, LocalDateTime hasta);
+    List<ReservaHotel> findByEstadoAndRecordatorio2hEnviadoFalseAndFechaCheckInBetween(
+            EstadoReserva estado, LocalDateTime desde, LocalDateTime hasta);
+
+    // Reservas CONFIRMADAS cuyo check-out ya pasó — usadas por el job que las cierra como FINALIZADA
+    List<ReservaHotel> findByEstadoAndFechaCheckOutBefore(EstadoReserva estado, LocalDateTime fecha);
+
+    // PENDIENTES cuyo día de check-in ya pasó sin aprobación — el job las vence
+    List<ReservaHotel> findByEstadoAndFechaCheckInBefore(EstadoReserva estado, LocalDateTime fecha);
+
+    /** Listado del admin filtrado por estado. */
+    Page<ReservaHotel> findByEstado(EstadoReserva estado, Pageable pageable);
+
+    /** Para el resumen del panel (cuántas pendientes, confirmadas...). */
+    long countByEstado(EstadoReserva estado);
+
+    // ── Dashboard del administrador ──────────────────────────────────────
+
+    /** Reservas en alguno de los estados dados cuya estadía toca el rango [desde, hasta). */
+    List<ReservaHotel> findByFechaCheckInLessThanAndFechaCheckOutGreaterThanEqualAndEstadoIn(
+            LocalDateTime hasta, LocalDateTime desde, Collection<EstadoReserva> estados);
+
+    // Rango sobre un mismo campo: va con @Query porque Spring Data MongoDB no
+    // admite dos condiciones del mismo campo en un nombre de método derivado
+    // ("findByXGreaterThanEqualAndXLessThan" lanza InvalidMongoDbApiUsageException).
+    /** Todas las reservas (cualquier estado) con check-in en [desde, hasta): reportes. */
+    @Query("{ 'fechaCheckIn': { $gte: ?0, $lt: ?1 } }")
+    List<ReservaHotel> findByFechaCheckInGreaterThanEqualAndFechaCheckInLessThan(LocalDateTime desde, LocalDateTime hasta);
+
+    /** Pendientes de aprobación, la más próxima primero. */
+    List<ReservaHotel> findByEstadoOrderByFechaCheckInAsc(EstadoReserva estado, Pageable pageable);
+
+    // ── Socios y cargos ──────────────────────────────────────────────────
+
+    /** Reservas en alguno de los estados (conteo de reservas por cliente en el panel de socios). */
+    List<ReservaHotel> findByEstadoIn(Collection<EstadoReserva> estados);
+
+    long countByDocUsuarioAndEstadoIn(String docUsuario, Collection<EstadoReserva> estados);
+
+    /** Reservas del cliente en un estado (reservas activas a las que se cargan consumos). */
+    List<ReservaHotel> findByDocUsuarioAndEstado(String docUsuario, EstadoReserva estado);
+}

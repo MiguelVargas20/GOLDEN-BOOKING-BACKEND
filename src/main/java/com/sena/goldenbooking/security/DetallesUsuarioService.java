@@ -6,11 +6,11 @@ import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.stereotype.Service;
 
-import com.sena.goldenbooking.models.EstadoUsuario;
-import com.sena.goldenbooking.models.Usuario;
-import com.sena.goldenbooking.models.UsuarioAuth;
-import com.sena.goldenbooking.repositories.UsuarioAuthRepository;
-import com.sena.goldenbooking.repositories.UsuarioRepository;
+import com.sena.goldenbooking.usuarios.model.EstadoUsuario;
+import com.sena.goldenbooking.usuarios.model.Usuario;
+import com.sena.goldenbooking.usuarios.model.UsuarioAuth;
+import com.sena.goldenbooking.usuarios.repository.UsuarioAuthRepository;
+import com.sena.goldenbooking.usuarios.repository.UsuarioRepository;
 
 @Service
 public class DetallesUsuarioService implements UserDetailsService {
