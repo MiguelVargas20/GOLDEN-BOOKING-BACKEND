@@ -1,5 +1,10 @@
 # Respaldos de MongoDB
 
+Hay dos versiones del script, según el sistema del servidor:
+
+- **Windows (servidor actual en AWS):** `backup-mongo.ps1` → ver la sección [Windows](#windows).
+- **Linux:** `backup-mongo.sh` → secciones 1 a 4.
+
 El script `backup-mongo.sh` guarda **toda** la base `goldenbooking` (incluidas
 las imágenes de los espacios, que están en GridFS) en un solo archivo
 comprimido, y borra los respaldos de más de 14 días.
@@ -63,3 +68,27 @@ scp -i tu-llave.pem ubuntu@32.194.207.246:/var/backups/goldenbooking/goldenbooki
 ```
 
 o a un bucket de S3 con `aws s3 cp` (requiere configurar AWS CLI).
+
+## Windows
+
+`backup-mongo.ps1` hace lo mismo en PowerShell: toma `MONGODB_URI` del `.env` del
+backend (o usa `mongodb://localhost:27017/goldenbooking`), guarda el respaldo en
+`C:\respaldos\goldenbooking\goldenbooking_AAAA-MM-DD_HHMM.archive.gz` y borra los de
+más de 14 días.
+
+Requisito: **MongoDB Database Tools** (trae `mongodump` y `mongorestore`).
+
+```powershell
+# Respaldo manual
+powershell -ExecutionPolicy Bypass -File C:\apps\GOLDEN-BOOKING-BACKEND\scripts\backup-mongo.ps1
+
+# Programado: todos los días a las 2:30 a. m. (si el servidor estaba apagado,
+# corre apenas se prenda gracias a -StartWhenAvailable)
+$accion  = New-ScheduledTaskAction -Execute "powershell.exe" -Argument '-ExecutionPolicy Bypass -File "C:\apps\GOLDEN-BOOKING-BACKEND\scripts\backup-mongo.ps1"'
+$horario = New-ScheduledTaskTrigger -Daily -At 2:30am
+$ajustes = New-ScheduledTaskSettingsSet -StartWhenAvailable
+Register-ScheduledTask -TaskName "GoldenBooking Respaldo" -Action $accion -Trigger $horario -Settings $ajustes -User "SYSTEM" -RunLevel Highest
+
+# Restaurar (reemplaza las colecciones actuales por las del respaldo)
+mongorestore --uri="mongodb://localhost:27017" --gzip --archive="C:\respaldos\goldenbooking\ARCHIVO.archive.gz" --drop
+```
