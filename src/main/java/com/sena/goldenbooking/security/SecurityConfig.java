@@ -1,6 +1,5 @@
 package com.sena.goldenbooking.security;
 
-import java.util.Arrays;
 import java.util.List;
 
 import org.springframework.beans.factory.annotation.Value;
@@ -211,10 +210,8 @@ public class SecurityConfig {
     @Bean
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration config = new CorsConfiguration();
-        config.setAllowedOrigins(Arrays.stream(allowedOrigins.split(","))
-                .map(String::trim)
-                .filter(origen -> !origen.isEmpty())
-                .toList());
+        // Patrones: admite orígenes exactos y comodines (previews de Vercel)
+        config.setAllowedOriginPatterns(OrigenesPermitidos.parsear(allowedOrigins));
         config.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"));
         config.setAllowedHeaders(List.of("*"));
         config.setAllowCredentials(true);

@@ -8,6 +8,7 @@ import org.springframework.web.socket.config.annotation.EnableWebSocketMessageBr
 import org.springframework.web.socket.config.annotation.StompEndpointRegistry;
 import org.springframework.web.socket.config.annotation.WebSocketMessageBrokerConfigurer;
 
+import com.sena.goldenbooking.security.OrigenesPermitidos;
 import com.sena.goldenbooking.security.WebSocketAuthInterceptor;
 
 @Configuration
@@ -48,10 +49,7 @@ public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
         // Endpoint al que el front se conecta para iniciar WebSocket
         // SockJS es un fallback para navegadores que no soportan WebSocket nativo
         registry.addEndpoint("/ws")
-                .setAllowedOrigins(java.util.Arrays.stream(allowedOrigins.split(","))
-                        .map(String::trim)
-                        .filter(origen -> !origen.isEmpty())
-                        .toArray(String[]::new))
+                .setAllowedOriginPatterns(OrigenesPermitidos.parsear(allowedOrigins).toArray(String[]::new))
                 .withSockJS();
     }
 }

@@ -9,10 +9,22 @@
 El archivo `application.properties` ya tiene la configuración por defecto.
 Para producción configura estas variables de entorno:
 - `JWT_SECRET` — clave secreta para JWT (mínimo 32 caracteres)
-- `CORS_ALLOWED_ORIGINS` — orígenes del frontend separados por coma (ej: `https://goldenbooking.vercel.app`). Se usa para CORS y para el WebSocket.
+- `CORS_ALLOWED_ORIGINS` — orígenes del frontend separados por coma (ej: `https://goldenbooking.vercel.app`). Se usa para CORS y para el WebSocket. Admite comodines para los despliegues de vista previa de Vercel (ej: `https://goldenbooking-*.vercel.app`); la "/" final se ignora.
+- `APP_FRONTEND_URL` — URL del frontend, para los enlaces de los correos (verificar cuenta, restablecer contraseña).
 - `COOKIE_SAME_SITE` — SameSite de la cookie del refresh token (por defecto `None`, necesario con front y back en dominios distintos). **Requiere que el backend se sirva por HTTPS.**
 - `APP_ZONA_HORARIA` — zona horaria del negocio (por defecto `America/Bogota`). El servidor puede correr en UTC; esta zona se usa para las reglas de cancelación, recordatorios y el `.ics`.
 - `APP_RESERVAS_CIERRE_MS` — cada cuánto corre el cierre automático de reservas (por defecto `1800000` = 30 min): finaliza las confirmadas que ya terminaron y vence las pendientes que nadie aprobó a tiempo (el cliente recibe un correo).
+
+### Detrás de un proxy HTTPS
+En producción el backend queda en `localhost:8080` y un proxy (Caddy o Nginx) atiende el
+HTTPS del dominio y le reenvía las peticiones. `server.forward-headers-strategy=native`
+hace que el backend use la IP real del cliente y el esquema `https` que envía el proxy.
+Ejemplo de `Caddyfile` (Caddy obtiene y renueva solo el certificado de Let's Encrypt):
+```
+goldenbooking-api.duckdns.org {
+    reverse_proxy localhost:8080
+}
+```
 
 ## Correr el proyecto
 ```bash
