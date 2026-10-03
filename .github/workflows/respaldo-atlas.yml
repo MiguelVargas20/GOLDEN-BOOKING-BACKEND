@@ -1,0 +1,76 @@
+# ─────────────────────────────────────────────────────────────────────
+# Respaldo diario de MongoDB Atlas, sin servidor propio.
+#
+# Cada noche exporta toda la base (incluidas las imágenes de GridFS) con
+# mongodump, la cifra con 7-Zip (AES-256, nombres incluidos) y la guarda como
+# artefacto de esta ejecución durante 30 días.
+#
+# IMPORTANTE: el repositorio es público y cualquier usuario de GitHub puede
+# descargar los artefactos; por eso el archivo SIEMPRE va cifrado. Sin la
+# contraseña (secreto CLAVE_RESPALDO) no se puede abrir.
+#
+# Secretos (Settings → Secrets and variables → Actions):
+#   MONGODB_URI_RESPALDO  conexión de Atlas con un usuario de SOLO LECTURA
+#   CLAVE_RESPALDO        contraseña larga para cifrar el archivo (guárdala aparte)
+#
+# Restaurar: descargar el artefacto, abrir el .7z con la contraseña y usar
+# mongorestore (ver scripts/README-respaldos.md).
+# ─────────────────────────────────────────────────────────────────────
+name: Respaldo de MongoDB Atlas
+
+on:
+  schedule:
+    - cron: "30 7 * * *"   # 07:30 UTC = 2:30 a. m. en Colombia
+  workflow_dispatch:        # botón "Run workflow" para hacerlo a mano
+
+permissions:
+  contents: read
+
+jobs:
+  respaldo:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Revisar que los secretos existan
+        env:
+          URI: ${{ secrets.MONGODB_URI_RESPALDO }}
+          CLAVE: ${{ secrets.CLAVE_RESPALDO }}
+        run: |
+          if [ -z "$URI" ] || [ -z "$CLAVE" ]; then
+            echo "::error::Faltan los secretos MONGODB_URI_RESPALDO y/o CLAVE_RESPALDO."
+            exit 1
+          fi
+          if [ ${#CLAVE} -lt 12 ]; then
+            echo "::error::CLAVE_RESPALDO debe tener al menos 12 caracteres."
+            exit 1
+          fi
+
+      - name: Exportar la base con mongodump
+        env:
+          URI: ${{ secrets.MONGODB_URI_RESPALDO }}
+        run: |
+          mkdir -p salida
+          docker run --rm -e URI -v "$PWD/salida:/salida" mongo:8 \
+            sh -c 'mongodump --uri="$URI" --archive=/salida/goldenbooking.archive.gz --gzip'
+          test -s salida/goldenbooking.archive.gz
+          ls -lh salida
+
+      - name: Cifrar con 7-Zip (AES-256)
+        env:
+          CLAVE: ${{ secrets.CLAVE_RESPALDO }}
+        run: |
+          command -v 7z >/dev/null || (sudo apt-get update -qq && sudo apt-get install -y -qq p7zip-full)
+          FECHA=$(TZ=America/Bogota date +%Y-%m-%d_%H%M)
+          echo "NOMBRE=goldenbooking_${FECHA}" >> "$GITHUB_ENV"
+          7z a -t7z -mhe=on -p"$CLAVE" "goldenbooking_${FECHA}.7z" ./salida/goldenbooking.archive.gz > /dev/null
+          7z t -p"$CLAVE" "goldenbooking_${FECHA}.7z" > /dev/null
+          rm -rf salida
+          ls -lh *.7z
+
+      - name: Guardar el respaldo cifrado (30 días)
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ env.NOMBRE }}
+          path: ${{ env.NOMBRE }}.7z
+          retention-days: 30
+          if-no-files-found: error

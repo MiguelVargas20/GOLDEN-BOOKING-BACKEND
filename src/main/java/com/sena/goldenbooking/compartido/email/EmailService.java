@@ -3,6 +3,7 @@ package com.sena.goldenbooking.compartido.email;
 import java.io.ByteArrayOutputStream;
 import java.time.LocalDateTime;
 import java.util.Date;
+import java.util.Map;
 
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.mail.SimpleMailMessage;
@@ -25,14 +26,18 @@ import lombok.extern.slf4j.Slf4j;
 public class EmailService {
 
     private final JavaMailSender mailSender;
+    // Si BREVO_API_KEY está configurada, los correos salen por la API HTTP de
+    // Brevo (hostings que bloquean SMTP, como Render); si no, por SMTP.
+    private final BrevoClient brevo;
 
     // URL base del frontend — configurable vía app.frontend.url
     // (antes hardcodeada como "http://localhost:5173" en cada método)
     @Value("${app.frontend.url}")
     private String frontendUrl;
 
-    public EmailService(JavaMailSender mailSender) {
+    public EmailService(JavaMailSender mailSender, BrevoClient brevo) {
         this.mailSender = mailSender;
+        this.brevo = brevo;
     }
 
     // FIX hallazgo #10: @Async saca el envío del hilo de la petición HTTP. El
@@ -43,6 +48,11 @@ public class EmailService {
         // Al ser @Async, un error aquí ya no le llega a quien llamó: se
         // registra en el log para que no se pierda en silencio.
         try {
+            if (brevo.activo()) {
+                brevo.enviar(destinatario, asunto, cuerpo, false, Map.of());
+                log.info("Correo enviado a {} ({}) por Brevo", destinatario, asunto);
+                return;
+            }
             SimpleMailMessage mensaje = new SimpleMailMessage();
             mensaje.setTo(destinatario);
             mensaje.setSubject(asunto);
@@ -61,6 +71,10 @@ public class EmailService {
     @Async
     public void enviarCorreoHtml(String destinatario, String asunto, String html) {
         try {
+            if (brevo.activo()) {
+                brevo.enviar(destinatario, asunto, html, true, Map.of());
+                return;
+            }
             MimeMessage mensaje = mailSender.createMimeMessage();
             MimeMessageHelper helper = new MimeMessageHelper(mensaje, true, "UTF-8");
             helper.setTo(destinatario);
@@ -117,6 +131,12 @@ public class EmailService {
         try {
             // 1. Construir el .ics en memoria
             byte[] icsBytes = generarIcs(tituloEvento, inicio, fin);
+
+            if (brevo.activo()) {
+                brevo.enviar(destinatario, "Confirmación de tu reserva - " + tituloEvento,
+                        descripcionHtml, true, Map.of("reserva.ics", icsBytes));
+                return;
+            }
 
             // 2. Armar el correo con adjunto
             MimeMessage mensaje = mailSender.createMimeMessage();

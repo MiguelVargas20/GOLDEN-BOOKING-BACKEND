@@ -100,6 +100,35 @@ MongoDB (usan Mockito):
 La prueba de arranque completo (`GoldenbookingApplicationTests`) solo corre si hay
 un MongoDB disponible; si no, aparece como omitida (*skipped*) en vez de fallar.
 
+## Despliegue en Render (Docker) + MongoDB Atlas
+
+El repositorio trae un `Dockerfile` listo: Render lo detecta, compila el `.jar`
+con Java 25 y lo corre con memoria ajustada a 512 MB (plan gratis).
+
+1. Render → **New → Web Service** → conecta este repositorio, rama `main`.
+   Runtime: **Docker** (lo detecta solo). Plan: **Free**.
+2. **Health Check Path:** `/actuator/health`.
+3. **Environment** (variables):
+
+| Variable | Valor |
+| --- | --- |
+| `MONGODB_URI` | Conexión de MongoDB Atlas (`mongodb+srv://…/goldenbooking?retryWrites=true&w=majority`) |
+| `JWT_SECRET` | Clave larga (mínimo 32 caracteres) |
+| `CORS_ALLOWED_ORIGINS` | `https://golden-booking-frontend.vercel.app,https://golden-booking-frontend-*.vercel.app` |
+| `APP_FRONTEND_URL` | `https://golden-booking-frontend.vercel.app` |
+| `COOKIE_SAME_SITE` | `None` |
+| `MAIL_USERNAME` | Correo remitente (verificado en Brevo) |
+| `BREVO_API_KEY` | Clave de la API de Brevo: los correos salen por HTTPS aunque el hosting bloquee SMTP (Render lo bloquea en el plan gratis) |
+
+`PORT` lo pone Render solo (`server.port=${PORT:8080}`). Con `BREVO_API_KEY`
+vacía los correos salen por SMTP (Gmail) con `MAIL_APP_PASSWORD`, como en un servidor propio.
+
+En el plan gratis el servicio se duerme tras ~15 min sin visitas y tarda ~1 min
+en despertar; el frontend muestra el aviso "Despertando el servidor" mientras tanto.
+Un monitor gratuito (p. ej. UptimeRobot) que consulte `/actuator/health` cada
+10 minutos lo mantiene despierto.
+
 ## Respaldos de la base de datos
 
-Ver [`scripts/README-respaldos.md`](scripts/README-respaldos.md): script de respaldo diario (`scripts/backup-mongo.sh`), cómo programarlo con cron y cómo restaurar.
+- **MongoDB Atlas:** `.github/workflows/respaldo-atlas.yml` hace un respaldo cifrado cada noche con GitHub Actions (sin servidor propio). Ver [`scripts/README-respaldos.md`](scripts/README-respaldos.md#mongodb-atlas-github-actions).
+- **Servidor propio:** `scripts/backup-mongo.sh` (Linux) y `scripts/backup-mongo.ps1` (Windows), con cómo programarlos y cómo restaurar en el mismo archivo.
