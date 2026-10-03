@@ -63,7 +63,9 @@ public class SecurityConfig {
                         "/auth/solicitar-recuperacion",  // ← nuevo
                         "/auth/restablecer-password",    // ← nuevo
                         "/api/usuarios/registro",
-                        "/ws/**"
+                        "/ws/**",
+                        // Salud del servicio (Render y el monitor de disponibilidad)
+                        "/actuator/health"
                         
                     ).permitAll()
 

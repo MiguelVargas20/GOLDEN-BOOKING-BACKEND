@@ -1,5 +1,11 @@
 # Respaldos de MongoDB
 
+Según dónde esté la base:
+
+- **MongoDB Atlas (producción):** GitHub Actions → sección [MongoDB Atlas](#mongodb-atlas-github-actions).
+- **Servidor Windows propio:** `backup-mongo.ps1` → sección [Windows](#windows).
+- **Servidor Linux propio:** `backup-mongo.sh` → secciones 1 a 4.
+
 El script `backup-mongo.sh` guarda **toda** la base `goldenbooking` (incluidas
 las imágenes de los espacios, que están en GridFS) en un solo archivo
 comprimido, y borra los respaldos de más de 14 días.
@@ -63,3 +69,59 @@ scp -i tu-llave.pem ubuntu@32.194.207.246:/var/backups/goldenbooking/goldenbooki
 ```
 
 o a un bucket de S3 con `aws s3 cp` (requiere configurar AWS CLI).
+
+## Windows
+
+`backup-mongo.ps1` hace lo mismo en PowerShell: toma `MONGODB_URI` del `.env` del
+backend (o usa `mongodb://localhost:27017/goldenbooking`), guarda el respaldo en
+`C:\respaldos\goldenbooking\goldenbooking_AAAA-MM-DD_HHMM.archive.gz` y borra los de
+más de 14 días.
+
+Requisito: **MongoDB Database Tools** (trae `mongodump` y `mongorestore`).
+
+```powershell
+# Respaldo manual
+powershell -ExecutionPolicy Bypass -File C:\apps\GOLDEN-BOOKING-BACKEND\scripts\backup-mongo.ps1
+
+# Programado: todos los días a las 2:30 a. m. (si el servidor estaba apagado,
+# corre apenas se prenda gracias a -StartWhenAvailable)
+$accion  = New-ScheduledTaskAction -Execute "powershell.exe" -Argument '-ExecutionPolicy Bypass -File "C:\apps\GOLDEN-BOOKING-BACKEND\scripts\backup-mongo.ps1"'
+$horario = New-ScheduledTaskTrigger -Daily -At 2:30am
+$ajustes = New-ScheduledTaskSettingsSet -StartWhenAvailable
+Register-ScheduledTask -TaskName "GoldenBooking Respaldo" -Action $accion -Trigger $horario -Settings $ajustes -User "SYSTEM" -RunLevel Highest
+
+# Restaurar (reemplaza las colecciones actuales por las del respaldo)
+mongorestore --uri="mongodb://localhost:27017" --gzip --archive="C:\respaldos\goldenbooking\ARCHIVO.archive.gz" --drop
+```
+
+## MongoDB Atlas (GitHub Actions)
+
+`.github/workflows/respaldo-atlas.yml` corre todos los días a las 2:30 a. m. (hora
+de Colombia) y también a mano (pestaña **Actions → Respaldo de MongoDB Atlas →
+Run workflow**). Exporta toda la base con `mongodump`, la cifra con 7-Zip
+(AES-256, también los nombres de archivo) y la guarda como artefacto 30 días.
+
+> El repositorio es **público**: cualquier usuario de GitHub puede descargar los
+> artefactos. Por eso el archivo va siempre cifrado y la contraseña vive solo en
+> los secretos del repositorio y en tu gestor de contraseñas.
+
+**Configurar (una vez):** en GitHub → **Settings → Secrets and variables → Actions → New repository secret**:
+
+| Secreto | Valor |
+| --- | --- |
+| `MONGODB_URI_RESPALDO` | Conexión de Atlas con un usuario de **solo lectura** (rol *Only read any database*) |
+| `CLAVE_RESPALDO` | Contraseña larga para cifrar (mínimo 12 caracteres). Guárdala también fuera de GitHub: sin ella no se puede restaurar |
+
+**Restaurar:**
+
+1. Actions → la ejecución del día → sección **Artifacts** → descargar `goldenbooking_AAAA-MM-DD_HHMM` (llega como `.zip`).
+2. Descomprimir el `.zip` y abrir el `.7z` con 7-Zip usando `CLAVE_RESPALDO` → sale `goldenbooking.archive.gz`.
+3. Restaurar con las MongoDB Database Tools:
+
+```powershell
+# ⚠️ --drop reemplaza las colecciones actuales por las del respaldo
+mongorestore --uri="mongodb+srv://USUARIO_ESCRITURA:CLAVE@cluster0.xxxxx.mongodb.net" --gzip --archive=goldenbooking.archive.gz --drop
+```
+
+Para revisar el respaldo sin tocar la base real, restaura en otra base agregando
+`--nsFrom="goldenbooking.*" --nsTo="goldenbooking_prueba.*"` (sin `--drop`).
